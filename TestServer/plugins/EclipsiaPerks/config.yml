@@ -1,0 +1,13 @@
+# EclipsiaPerks Configuration
+
+# Настройки дерева перков
+settings:
+  # Очков перков за уровень
+  points-per-level: 1
+  # Начальный уровень для получения очков
+  start-level: 2
+  # Максимальное количество очков
+  max-points: 100
+
+# Отладка
+debug: false

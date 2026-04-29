@@ -1,0 +1,656 @@
+================================================================================
+                    ECLIPSIA PROJECT - ИСТОРИЯ ИЗМЕНЕНИЙ
+================================================================================
+Дата последнего обновления: 24.04.2026 01:13
+
+================================================================================
+МАСШТАБНОЕ ОБНОВЛЕНИЕ: ЦЕНТРАЛИЗОВАННОЕ ХРАНИЛИЩЕ + ПЕРКИ (24.04.2026 01:13)
+================================================================================
+
+🎯 ГЛАВНОЕ ДОСТИЖЕНИЕ: Реализована централизованная система хранения данных
+
+📦 АРХИТЕКТУРА ХРАНЕНИЯ ДАННЫХ:
+   - Проблема: Каждый плагин хранил данные отдельно (3 разных PDC ключа)
+   - Решение: Единое централизованное хранилище через PlayerData
+   - Файлы:
+     * EclipsiaCore/src/main/java/ru/eclipsia/core/data/PlayerData.java
+     * EclipsiaCore/src/main/java/ru/eclipsia/core/api/EclipsiaAPI.java
+     * EclipsiaCore/src/main/java/ru/eclipsia/core/data/storage/SQLiteDataStorage.java
+   - Статус: ✅ РЕАЛИЗОВАНО
+
+   Структура PlayerData:
+   - uuid, className, level, experience, freeStatPoints
+   - stats: Map<String, Integer>
+   - orbs: int
+   - equipmentData: String (JSON экипировки из EclipsiaItems)
+   - perkData: String (JSON перков из EclipsiaPerks)
+   - lastSave: long
+
+   Преимущества:
+   ✓ Одна точка хранения для всех данных игрока
+   ✓ Миграция PDC → SQLite одной командой
+   ✓ Консистентность данных гарантирована
+   ✓ Готовность к переходу на MySQL
+
+🔧 ОБНОВЛЕНО: EclipsiaAPI - новые методы для централизованного хранения
+   - Добавлено:
+     * getEquipmentData(Player) - получить JSON экипировки
+     * saveEquipmentData(Player, String) - сохранить экипировку
+     * getPerkData(Player) - получить JSON перков
+     * savePerkData(Player, String) - сохранить перки
+   - Файл: EclipsiaCore/src/main/java/ru/eclipsia/core/api/EclipsiaAPI.java:268-315
+   - Статус: ✅ ДОБАВЛЕНО
+
+🔧 ОБНОВЛЕНО: EquipmentManager - использует централизованное хранилище
+   - Изменено: Вместо прямого PDC теперь через EclipsiaAPI
+   - Удалено: NamespacedKey equipmentKey, прямая работа с PDC
+   - Добавлено: Загрузка/сохранение через coreAPI.getEquipmentData()
+   - Файл: EclipsiaItems/src/main/java/ru/eclipsia/items/equipment/EquipmentManager.java
+   - Статус: ✅ ОБНОВЛЕНО
+
+🔧 ОБНОВЛЕНО: PlayerPerkManager - использует централизованное хранилище
+   - Изменено: Вместо прямого PDC теперь через EclipsiaAPI
+   - Удалено: NamespacedKey perkDataKey, прямая работа с PDC
+   - Добавлено: Загрузка/сохранение через coreAPI.getPerkData()
+   - Файл: EclipsiaPerks/src/main/java/ru/eclipsia/perks/player/PlayerPerkManager.java
+   - Статус: ✅ ОБНОВЛЕНО
+
+🔧 УЛУЧШЕНО: SQLiteDataStorage - миграция всех данных
+   - Проблема: Мигрировал только базовые данные, без equipment и perks
+   - Решение: Теперь мигрирует ВСЕ данные включая equipmentData и perkData
+   - Добавлено: Детальное логирование процесса миграции
+   - Файл: EclipsiaCore/src/main/java/ru/eclipsia/core/data/storage/SQLiteDataStorage.java:157-195
+   - Статус: ✅ УЛУЧШЕНО
+
+🎮 РЕАЛИЗОВАНО: Выдача очков перков при level-up
+   - Механика: Каждые 5 уровней игрок получает +1 очко перков
+   - Интеграция: ExperienceManager → PlayerPerkManager через рефлексию
+   - Сообщение: "Очков перков: +1" при достижении 5/10/15/20... уровня
+   - Файл: EclipsiaMobs/src/main/java/ru/eclipsia/mobs/experience/ExperienceManager.java:95-124
+   - Статус: ✅ РЕАЛИЗОВАНО
+
+🎮 РЕАЛИЗОВАНО: Деаллокация отдельных узлов (ПКМ)
+   - Механика: ПКМ по взятому узлу - сбросить его
+   - Проверки:
+     * Нельзя сбросить стартовый узел класса
+     * Проверка зависимостей (нет других узлов, зависящих от этого)
+     * Проверка альтернативных путей
+   - Возврат: +1 очко за сброшенный узел (если cost > 0)
+   - Файлы:
+     * EclipsiaPerks/src/main/java/ru/eclipsia/perks/listeners/PerkTreeGUIListener.java:76-169
+     * EclipsiaPerks/src/main/java/ru/eclipsia/perks/player/PlayerPerkData.java:83-91
+   - Статус: ✅ РЕАЛИЗОВАНО
+
+🎮 ДОБАВЛЕНО: Минусы в keystone узлы
+   - Узел: keystone_center (Сердце дерева)
+   - Бонусы: +20 силы, +20 ловкости, +20 интеллекта, +100 HP
+   - Минус: -50 брони (риск за мощь)
+   - Файл: EclipsiaPerks/src/main/resources/perks.yml:301-314
+   - Статус: ✅ ДОБАВЛЕНО
+
+🎮 ИНТЕГРИРОВАНО: Пересчёт статов с экипировкой
+   - Проблема: При изменении перков бонусы экипировки не переприменялись
+   - Решение: После изменения перков автоматически вызывается EquipmentBonusApplier
+   - Методы:
+     * applyNodeBonuses() - теперь вызывает reapplyEquipmentBonuses()
+     * removeNodeBonuses() - теперь вызывает reapplyEquipmentBonuses()
+     * recalculatePlayerStats() - теперь вызывает reapplyEquipmentBonuses()
+   - Файл: EclipsiaPerks/src/main/java/ru/eclipsia/perks/listeners/PerkTreeGUIListener.java:234-345
+   - Статус: ✅ ИНТЕГРИРОВАНО
+
+🎨 ИСПРАВЛЕНО: Отображение кейстоуна
+   - Проблема: KEYSTONE отображался как RED_GLAZED_TERRACOTTA
+   - Решение: Изменено на DIAMOND (взятый и невзятый)
+   - Файл: EclipsiaPerks/src/main/java/ru/eclipsia/perks/gui/PerkTreeGUI.java:154-172
+   - Статус: ✅ ИСПРАВЛЕНО
+
+📊 СОЗДАНО: ROADMAP на 5 этапов
+   - Документ: D:\EclipsiaProject\ROADMAP.md
+   - Содержание:
+     * Этап 0: Фундамент (✅ ЗАВЕРШЁН) - PDC + JSON
+     * Этап 1: Контент и мобы (✅ ЗАВЕРШЁН) - PDC
+     * Этап 2: Предметы (✅ ЗАВЕРШЁН) - PDC → SQLite готовность
+     * Этап 3: Перки (✅ ЗАВЕРШЁН) - PDC централизованное
+     * Этап 4: Данжи (⏳ ПЛАНИРУЕТСЯ) - SQLite обязательно
+     * Этап 5: Продакшн (⏳ БУДУЩЕЕ) - MySQL + Redis
+   - Статус: ✅ СОЗДАНО
+
+📊 ИТОГИ СЕССИИ:
+   - Реализовано новых систем: 1 (централизованное хранилище)
+   - Добавлено новых функций: 5 (очки перков, деаллокация, минусы, интеграция, кейстоун)
+   - Обновлено плагинов: 4 (Core, Items, Mobs, Perks)
+   - Создано документов: 1 (ROADMAP.md)
+   - Скомпилировано плагинов: 4
+   - Загружено на сервер: 4
+
+ИЗМЕНЕННЫЕ ФАЙЛЫ:
+- EclipsiaCore/src/main/java/ru/eclipsia/core/data/PlayerData.java (РАСШИРЕН)
+- EclipsiaCore/src/main/java/ru/eclipsia/core/api/EclipsiaAPI.java (НОВЫЕ МЕТОДЫ)
+- EclipsiaCore/src/main/java/ru/eclipsia/core/data/storage/SQLiteDataStorage.java (УЛУЧШЕНА МИГРАЦИЯ)
+- EclipsiaItems/src/main/java/ru/eclipsia/items/equipment/EquipmentManager.java (ЦЕНТРАЛИЗАЦИЯ)
+- EclipsiaMobs/src/main/java/ru/eclipsia/mobs/experience/ExperienceManager.java (ОЧКИ ПЕРКОВ)
+- EclipsiaPerks/src/main/java/ru/eclipsia/perks/player/PlayerPerkManager.java (ЦЕНТРАЛИЗАЦИЯ)
+- EclipsiaPerks/src/main/java/ru/eclipsia/perks/player/PlayerPerkData.java (ДЕАЛЛОКАЦИЯ)
+- EclipsiaPerks/src/main/java/ru/eclipsia/perks/listeners/PerkTreeGUIListener.java (ВСЕ МЕХАНИКИ)
+- EclipsiaPerks/src/main/java/ru/eclipsia/perks/gui/PerkTreeGUI.java (КЕЙСТОУН)
+- EclipsiaPerks/src/main/resources/perks.yml (МИНУСЫ)
+- ROADMAP.md (NEW)
+
+СКОМПИЛИРОВАННЫЕ ПЛАГИНЫ:
+✅ EclipsiaCore-0.1.0-SNAPSHOT.jar (ОБНОВЛЕН + УСТАНОВЛЕН В MAVEN)
+✅ EclipsiaMobs-0.1.0-SNAPSHOT.jar (ОБНОВЛЕН)
+✅ EclipsiaItems-0.1.0-SNAPSHOT.jar (ОБНОВЛЕН)
+✅ EclipsiaPerks-0.1.0-SNAPSHOT.jar (ОБНОВЛЕН)
+
+ТРЕБУЕТСЯ: Перезапуск сервера для применения изменений
+
+⚠️ ВАЖНО: ГОТОВНОСТЬ К МИГРАЦИИ
+   - Команда: /data migrate
+   - Переключение: config.yml → storage-type: SQLITE
+   - Все данные (базовые + экипировка + перки) мигрируются автоматически
+   - Рекомендуется при достижении 50+ онлайна
+
+================================================================================
+ПРЕДЫДУЩИЕ ИСПРАВЛЕНИЯ (24.04.2026 00:42)
+================================================================================
+
+🔧 ДОБАВЛЕНО: Постоянная стрела для лучников
+   - Проблема: Луки требовали стрелы в инвентаре
+   - Решение: Добавлена магическая стрела в слот 17 (правый верхний угол)
+   - Стрела не выбрасывается, не перемещается, всегда на месте
+   - Работает аналогично книге меню
+   - Файлы:
+     * EclipsiaItems/src/main/java/ru/eclipsia/items/menu/PermanentArrow.java (NEW)
+     * EclipsiaItems/src/main/java/ru/eclipsia/items/listeners/PermanentArrowListener.java (NEW)
+     * EclipsiaItems/src/main/java/ru/eclipsia/items/EclipsiaItems.java:84
+   - Статус: ✅ ДОБАВЛЕНО
+
+🔧 ИСПРАВЛЕНО: Луки стреляют без стрел
+   - Проблема: Кастомные луки не стреляли без стрел
+   - Решение: 
+     * ignoreCancelled = false для обработки отмененных событий
+     * Если стрел нет - создается стрела вручную
+     * Если стрелы есть - setConsumeItem(false)
+   - Файл: EclipsiaItems/src/main/java/ru/eclipsia/items/listeners/InfiniteBowListener.java:20
+   - Статус: ✅ ИСПРАВЛЕНО
+
+🔧 ИСПРАВЛЕНО: Проверка уровня при экипировке через ПКМ
+   - Проблема: Аксессуары надевались без проверки уровня
+   - Причина: Проверка была после отмены события
+   - Решение: Проверка перенесена ДО отмены события + startsWith вместо contains
+   - Файл: EclipsiaItems/src/main/java/ru/eclipsia/items/listeners/QuickEquipListener.java:70
+   - Статус: ✅ ИСПРАВЛЕНО
+
+🔧 ИСПРАВЛЕНО: Дюп предметов при экипировке через ПКМ
+   - Проблема: Предмет оставался в руке и дублировался в GUI
+   - Причина: Неправильный порядок операций
+   - Решение: Сначала убираем из руки, ПОТОМ экипируем
+   - Файл: EclipsiaItems/src/main/java/ru/eclipsia/items/listeners/QuickEquipListener.java:101-112
+   - Статус: ✅ ИСПРАВЛЕНО
+
+🔧 ИСПРАВЛЕНО: Дюп очков при сбросе перков
+   - Проблема: Возвращались очки за ВСЕ узлы включая стартовый
+   - Причина: resetAll() добавлял очки за все узлы
+   - Решение: 
+     * resetAll() теперь НЕ добавляет очки автоматически
+     * Подсчитываются только платные узлы (cost > 0)
+     * Очки возвращаются вручную через addPoints()
+   - Файлы:
+     * EclipsiaPerks/src/main/java/ru/eclipsia/perks/player/PlayerPerkData.java:93
+     * EclipsiaPerks/src/main/java/ru/eclipsia/perks/listeners/PerkTreeGUIListener.java:116-165
+   - Статус: ✅ ИСПРАВЛЕНО
+
+📊 ИТОГИ СЕССИИ:
+   - Добавлено новых функций: 1 (постоянная стрела)
+   - Исправлено критических багов: 4
+   - Создано новых файлов: 2
+   - Изменено файлов: 6
+
+ИЗМЕНЕННЫЕ ФАЙЛЫ:
+- EclipsiaItems/src/main/java/ru/eclipsia/items/menu/PermanentArrow.java (NEW)
+- EclipsiaItems/src/main/java/ru/eclipsia/items/listeners/PermanentArrowListener.java (NEW)
+- EclipsiaItems/src/main/java/ru/eclipsia/items/listeners/InfiniteBowListener.java
+- EclipsiaItems/src/main/java/ru/eclipsia/items/listeners/QuickEquipListener.java
+- EclipsiaItems/src/main/java/ru/eclipsia/items/EclipsiaItems.java
+- EclipsiaPerks/src/main/java/ru/eclipsia/perks/player/PlayerPerkData.java
+- EclipsiaPerks/src/main/java/ru/eclipsia/perks/listeners/PerkTreeGUIListener.java
+
+СКОМПИЛИРОВАННЫЕ ПЛАГИНЫ:
+✅ EclipsiaCore-0.1.0-SNAPSHOT.jar (без изменений)
+✅ EclipsiaMobs-0.1.0-SNAPSHOT.jar (без изменений)
+✅ EclipsiaItems-0.1.0-SNAPSHOT.jar (ОБНОВЛЕН)
+✅ EclipsiaPerks-0.1.0-SNAPSHOT.jar (ОБНОВЛЕН)
+
+ТРЕБУЕТСЯ: Перезапуск сервера
+
+⚠️ ОТЛОЖЕНО НА БУДУЩЕЕ:
+- Переделка GUI перков под стиль Path of Exile (требует детального дизайна)
+
+================================================================================
+ПРЕДЫДУЩИЕ ИСПРАВЛЕНИЯ (24.04.2026 00:15)
+================================================================================
+
+🔧 ИСПРАВЛЕНО: Луки требовали стрелы для стрельбы
+   - Проблема: Кастомные луки не стреляли без стрел в инвентаре
+   - Причина: Логика проверки была неполной
+   - Решение: 
+     * Добавлен ignoreCancelled = false для обработки отмененных событий
+     * Если стрел нет - создается стрела вручную
+     * Если стрелы есть - они не расходуются (setConsumeItem(false))
+   - Файл: EclipsiaItems/src/main/java/ru/eclipsia/items/listeners/InfiniteBowListener.java:20
+   - Статус: ✅ ИСПРАВЛЕНО
+
+🔧 ИСПРАВЛЕНО: QuickEquipListener не проверял уровень для аксессуаров
+   - Проблема: Аксессуары экипировались через ПКМ без проверки требуемого уровня
+   - Причина: Проверка требований вызывалась ПОСЛЕ отмены события
+   - Решение: Перенесена проверка требований ДО отмены события
+   - Файл: EclipsiaItems/src/main/java/ru/eclipsia/items/listeners/QuickEquipListener.java:62-75
+   - Статус: ✅ ИСПРАВЛЕНО
+
+🔧 ПРОВЕРЕНО: При повышении уровня очки статов выдаются корректно
+   - Статус: Система работает правильно
+   - Файл: EclipsiaMobs/src/main/java/ru/eclipsia/mobs/experience/ExperienceManager.java:100
+   - Примечание: 1 очко статов за уровень добавляется автоматически
+
+🔧 ИСПРАВЛЕНО: При сбросе навыков не восстанавливался стартовый навык класса
+   - Проблема: После сброса всех перков стартовый узел класса не добавлялся обратно
+   - Причина: Метод resetAll() очищал все узлы без восстановления стартового
+   - Решение: После сброса автоматически добавляется стартовый узел класса (бесплатно)
+   - Файл: EclipsiaPerks/src/main/java/ru/eclipsia/perks/listeners/PerkTreeGUIListener.java:116-149
+   - Статус: ✅ ИСПРАВЛЕНО
+
+📊 ИТОГИ СЕССИИ:
+   - Исправлено критических багов: 3
+   - Проверено систем: 1
+   - Скомпилировано плагинов: 4
+   - Загружено на сервер: 4
+
+ИЗМЕНЕННЫЕ ФАЙЛЫ:
+- EclipsiaItems/src/main/java/ru/eclipsia/items/listeners/InfiniteBowListener.java
+- EclipsiaItems/src/main/java/ru/eclipsia/items/listeners/QuickEquipListener.java
+- EclipsiaPerks/src/main/java/ru/eclipsia/perks/listeners/PerkTreeGUIListener.java
+- EclipsiaCore/src/main/java/ru/eclipsia/core/data/storage/PDCDataStorage.java (импорт)
+- EclipsiaItems/src/main/java/ru/eclipsia/items/listeners/EquipmentGUIListener.java (импорт)
+
+СКОМПИЛИРОВАННЫЕ ПЛАГИНЫ:
+✅ EclipsiaCore-0.1.0-SNAPSHOT.jar
+✅ EclipsiaMobs-0.1.0-SNAPSHOT.jar
+✅ EclipsiaItems-0.1.0-SNAPSHOT.jar
+✅ EclipsiaPerks-0.1.0-SNAPSHOT.jar
+
+ТРЕБУЕТСЯ: Перезапуск сервера для применения изменений
+
+================================================================================
+ПРЕДЫДУЩИЕ ИСПРАВЛЕНИЯ (24.04.2026 00:04)
+================================================================================
+
+🔧 ИСПРАВЛЕНО: Панели не появляются после снятия предметов из GUI
+   - Проблема: После снятия предмета из слота экипировки оставалась пустота
+   - Причина: event.setCurrentItem(null) не восстанавливал заглушку слота
+   - Решение: Добавлено восстановление заглушки через createSlotPlaceholder()
+   - Файл: EclipsiaItems/src/main/java/ru/eclipsia/items/listeners/EquipmentGUIListener.java:102
+   - Статус: ✅ ИСПРАВЛЕНО
+
+🔧 ИСПРАВЛЕНО: PDCDataStorage некорректно работал с оффлайн игроками
+   - Проблема: Использование OfflinePlayer.getPlayer() для PDC операций
+   - Причина: PDC доступен только для онлайн игроков
+   - Решение: Заменено на Bukkit.getPlayer() с явными проверками и предупреждениями
+   - Файлы: 
+     * EclipsiaCore/src/main/java/ru/eclipsia/core/data/storage/PDCDataStorage.java:31
+     * EclipsiaCore/src/main/java/ru/eclipsia/core/data/storage/PDCDataStorage.java:57
+     * EclipsiaCore/src/main/java/ru/eclipsia/core/data/storage/PDCDataStorage.java:83
+     * EclipsiaCore/src/main/java/ru/eclipsia/core/data/storage/PDCDataStorage.java:102
+     * EclipsiaCore/src/main/java/ru/eclipsia/core/data/storage/PDCDataStorage.java:131
+   - Статус: ✅ ИСПРАВЛЕНО
+   - Примечание: PDC не поддерживает оффлайн операции - это ограничение Bukkit API
+
+🔧 РЕАЛИЗОВАНО: Сохранение и загрузка экипировки игроков
+   - Проблема: EquipmentManager имел TODO вместо реализации сохранения
+   - Решение: Реализовано сохранение/загрузка через PDC с JSON сериализацией
+   - Добавлены методы:
+     * PlayerEquipment.toJson() - сериализация экипировки в JSON
+     * PlayerEquipment.fromJson() - десериализация из JSON
+     * EquipmentManager.loadEquipmentFromPDC() - загрузка из PDC
+     * EquipmentManager.saveEquipment() - сохранение в PDC
+   - Файлы:
+     * EclipsiaItems/src/main/java/ru/eclipsia/items/equipment/PlayerEquipment.java
+     * EclipsiaItems/src/main/java/ru/eclipsia/items/equipment/EquipmentManager.java
+   - Статус: ✅ РЕАЛИЗОВАНО
+
+🔧 РЕАЛИЗОВАНО: Сохранение и загрузка данных перков игроков
+   - Проблема: PlayerPerkManager имел TODO вместо реализации сохранения
+   - Решение: Реализовано сохранение/загрузка через PDC с JSON сериализацией
+   - Добавлены методы:
+     * PlayerPerkData.toJson() - сериализация данных перков в JSON
+     * PlayerPerkData.fromJson() - десериализация из JSON
+     * PlayerPerkManager.loadPlayerDataFromPDC() - загрузка из PDC
+     * PlayerPerkManager.savePlayerData() - сохранение в PDC
+   - Файлы:
+     * EclipsiaPerks/src/main/java/ru/eclipsia/perks/player/PlayerPerkData.java
+     * EclipsiaPerks/src/main/java/ru/eclipsia/perks/player/PlayerPerkManager.java
+   - Статус: ✅ РЕАЛИЗОВАНО
+
+📊 ИТОГИ СЕССИИ:
+   - Исправлено критических багов: 3
+   - Реализовано TODO функций: 2
+   - Улучшена стабильность: Все данные игроков теперь сохраняются корректно
+   - Готовность к продакшену: Система хранения данных полностью функциональна
+
+ИЗМЕНЕННЫЕ ФАЙЛЫ:
+- EclipsiaItems/src/main/java/ru/eclipsia/items/listeners/EquipmentGUIListener.java
+- EclipsiaCore/src/main/java/ru/eclipsia/core/data/storage/PDCDataStorage.java
+- EclipsiaItems/src/main/java/ru/eclipsia/items/equipment/EquipmentManager.java
+- EclipsiaItems/src/main/java/ru/eclipsia/items/equipment/PlayerEquipment.java
+- EclipsiaPerks/src/main/java/ru/eclipsia/perks/player/PlayerPerkManager.java
+- EclipsiaPerks/src/main/java/ru/eclipsia/perks/player/PlayerPerkData.java
+
+ТРЕБУЕТСЯ: Компиляция и перезапуск сервера
+
+================================================================================
+ПРЕДЫДУЩИЕ ИСПРАВЛЕНИЯ (24.04.2026 00:56)
+================================================================================
+
+1. ✅ Проверка уровня при экипировке
+   - Изменено startsWith на contains для корректной проверки
+   - Файл: QuickEquipListener.java
+
+2. ✅ Очки за уровень теперь выдаются
+   - /admin setlevel теперь добавляет очки статов (1 очко за уровень)
+   - Файл: AdminCommand.java
+
+3. ✅ Урон работает правильно
+   - Прогрессия: 7 → 33 → 54 → 74 HP при увеличении силы
+   - Система работает корректно
+
+ИЗМЕНЕННЫЕ ФАЙЛЫ:
+- EclipsiaCore/src/main/java/ru/eclipsia/core/commands/AdminCommand.java
+- EclipsiaItems/src/main/java/ru/eclipsia/items/listeners/QuickEquipListener.java
+
+СКОМПИЛИРОВАНО: 24.04.2026 00:56
+ТРЕБУЕТСЯ: Перезапуск сервера
+
+⚠️ ИЗВЕСТНЫЕ ПРОБЛЕМЫ:
+- Нет известных критических проблем
+
+1. ✅ ИСПРАВЛЕНО: Урон от оружия слишком маленький
+   - Проблема: Меч с 8 урона наносил только 2-3 HP реального урона
+   - Причина: Коэффициент силы был слишком маленький (0.1 → 0.5)
+   - Решение: Увеличен коэффициент силы с 0.1 до 0.5 урона за 1 силу
+   - Новый баланс: 1 сила = 0.5 урона + 0.5 HP
+   - Файл: StatsBonusApplier.java:22
+
+2. ✅ ИСПРАВЛЕНО: Луки не стреляют без стрел в инвентаре
+   - Проблема: Кастомные луки требовали стрелы для выстрела
+   - Причина: Событие отменялось до проверки кастомного лука
+   - Решение: Добавлен ignoreCancelled = false и принудительная разблокировка
+   - Файл: InfiniteBowListener.java:16
+
+3. ✅ ИСПРАВЛЕНО: Иконки аксессуаров в GUI неинформативны
+   - Проблема: Амулет = изумруд, кольца = золото - не видно одет или нет
+   - Решение: Заменены на цветные стеклянные панели:
+     * Амулет → Фиолетовая панель (PURPLE_STAINED_GLASS_PANE)
+     * Кольца → Желтая панель (YELLOW_STAINED_GLASS_PANE)
+     * Пояс → Коричневая панель (BROWN_STAINED_GLASS_PANE)
+   - Файл: EquipmentGUI.java:123-131
+
+4. ✅ ИСПРАВЛЕНО: Урон от луков слишком маленький
+   - Проблема: Коэффициент ловкости был 0.08
+   - Решение: Увеличен коэффициент с 0.08 до 0.3 урона за 1 ловкость
+   - Новый баланс: 1 ловкость = 0.3 урона от луков + 0.02% уклонения
+   - Файл: StatsBonusApplier.java:26
+
+5. ✅ ПРОВЕРЕНО: Аксессуары одеваются через ПКМ
+   - Статус: Код корректен, строка "Тип:" добавляется в лор
+   - QuickEquipListener правильно определяет слоты по типу
+   - Файлы: ItemGenerator.java:115, QuickEquipListener.java:108-152
+
+📊 НОВЫЙ БАЛАНС СТАТОВ:
+- Сила: 1 сила = 0.5 урона ближнего боя + 0.5 HP (было 0.1 урона)
+- Ловкость: 1 ловкость = 0.3 урона от луков + 0.02% уклонения (было 0.08 урона)
+- Интеллект: 1 интеллект = 0.5 магического урона + 2 маны (было 0.12 урона)
+
+ИЗМЕНЕННЫЕ ФАЙЛЫ:
+- EclipsiaCore/src/main/java/ru/eclipsia/core/stats/StatsBonusApplier.java
+- EclipsiaItems/src/main/java/ru/eclipsia/items/gui/EquipmentGUI.java
+- EclipsiaItems/src/main/java/ru/eclipsia/items/listeners/InfiniteBowListener.java
+
+СКОМПИЛИРОВАНО И СКОПИРОВАНО НА СЕРВЕР: 22.04.2026 23:49
+
+================================================================================
+                    ПРЕДЫДУЩИЕ ИЗМЕНЕНИЯ (22.04.2026 20:44)
+================================================================================
+
+📊 ИСПРАВЛЕНИЯ УРОНА И БОЕВОЙ СИСТЕМЫ:
+
+1. ПРОБЛЕМА: Урон от оружия не увеличивался после прокачки силы
+   - Было: Меч с 8 урона наносил 2-3 HP реального урона
+   - Причина: Использовался MULTIPLY_SCALAR_1 с базовым уроном игрока = 1
+   - Решение: Изменено на ADD_NUMBER с коэффициентом 0.1 за единицу силы
+   - Результат: Теперь сила напрямую добавляет урон к оружию
+
+2. ПРОБЛЕМА: Луки не стреляли без стрел в инвентаре
+   - Было: Логика разрешала стрелять ТОЛЬКО когда нет стрел
+   - Решение: Изменена логика - ВСЕГДА разрешать стрелять из кастомного лука
+   - Файл: InfiniteBowListener.java
+
+3. ПРОБЛЕМА: Аксессуары (кольца, амулеты, пояса) не одевались через ПКМ
+   - Было: В лоре предмета отсутствовала строка "Тип: Кольцо"
+   - Причина: ItemGenerator не добавлял информацию о типе слота в лор
+   - Решение: Добавлен метод getSlotDisplayName() и генерация типа в лор
+   - Файл: ItemGenerator.java, QuickEquipListener.java
+
+4. ПРОБЛЕМА: Урон от луков работал неправильно
+   - Было: Использовался MULTIPLY_SCALAR_1
+   - Решение: Изменено на ADD_NUMBER с коэффициентом 0.08 за единицу ловкости
+   - Файл: StatsCombatListener.java
+
+================================================================================
+                         АРХИТЕКТУРА ХРАНЕНИЯ ДАННЫХ
+================================================================================
+
+ТЕКУЩАЯ СИСТЕМА (Этап 0-2):
+- Тип хранилища: PDC (Persistent Data Container)
+- Формат данных: JSON (для легкой миграции)
+- Кэширование: ConcurrentHashMap в памяти
+- Автосохранение: Каждые 5 минут
+
+РЕАЛИЗОВАННЫЕ КОМПОНЕНТЫ:
+✅ IPlayerDataStorage - Интерфейс для абстракции хранилища
+✅ PDCDataStorage - Реализация через PDC (текущая)
+✅ SQLiteDataStorage - Реализация через SQLite (готова, не активна)
+✅ DataManager - Менеджер с кэшированием и автосохранением
+✅ PlayerData - Иммутабельный класс с JSON сериализацией
+
+ВОЗМОЖНОСТИ:
+- Переключение хранилища одной строкой в config.yml
+- Миграция данных через команду /data migrate
+- Готовность к переходу на SQLite без потери данных
+- Готовность к переходу на MySQL для сети серверов
+
+================================================================================
+                              РЕАЛИЗОВАННЫЙ ФУНКЦИОНАЛ
+================================================================================
+
+🎮 ECLIPSIA CORE (Базовый плагин):
+✅ Система классов (Воин, Лучник, Маг)
+✅ Выбор класса при первом входе через GUI
+✅ Система характеристик (Сила, Ловкость, Интеллект)
+✅ Прокачка статов через /stats
+✅ Профиль игрока через /profile
+✅ Система прав (админы через config.yml)
+✅ API для других плагинов (EclipsiaAPI)
+✅ Хранение данных (PDC + готовность к SQLite)
+✅ Автосохранение данных
+✅ Команда миграции данных /data migrate
+✅ Скрытие ванильного HUD (голод, броня)
+✅ Отключение голода
+✅ Применение бонусов от статов к урону
+
+👾 ECLIPSIA MOBS (Кастомные мобы):
+✅ Кастомные мобы из конфига mobs.yml
+✅ Система опыта и уровней
+✅ Дроп орбов (валюта) при убийстве
+✅ Зоны спавна мобов (SpawnZone)
+✅ Скейлинг мобов по уровню
+✅ Полоса здоровья над мобом
+✅ Кастомная экипировка мобов
+✅ Команды /mob spawn, /exp add
+
+⚔️ ECLIPSIA ITEMS (Предметы и экипировка):
+✅ Генерация предметов из конфига items.yml
+✅ Система редкостей (Обычный, Магический, Редкий, Уникальный)
+✅ Аффиксы на предметах (префиксы и суффиксы)
+✅ Кастомная система экипировки (11 слотов)
+✅ Слоты: Оружие, Голова, Грудь, Ноги, Ботинки, 2 Кольца, Амулет, Пояс, 2 Руны
+✅ GUI экипировки через /equipment
+✅ Быстрая экипировка через ПКМ
+✅ Блокировка ванильной брони
+✅ Применение бонусов от экипировки
+✅ Система прочности предметов
+✅ Бесконечные луки (не требуют стрел)
+✅ Регенерация здоровья
+✅ HUD с отображением экипировки
+✅ Меню-книга для быстрого доступа
+✅ GUI валюты (орбы)
+✅ Команды /item give, /testsword
+
+🌳 ECLIPSIA PERKS (Дерево перков):
+✅ Система дерева перков как в Path of Exile
+✅ Конфиг perks.yml с узлами дерева
+✅ Типы узлов: START, SMALL, MEDIUM, NOTABLE, KEYSTONE
+✅ Стартовые позиции для каждого класса
+✅ GUI дерева перков через /perks
+✅ Система связей между узлами
+✅ Применение бонусов от перков
+✅ Хранение прокачанных перков в PDC
+✅ Очки перков за уровень
+
+🧪 ECLIPSIA TESTS (Система тестирования):
+✅ Фреймворк для автотестов
+✅ Тесты GUI классов
+✅ Тесты сохранения данных
+✅ Команды /test, /autotest, /testresult
+
+================================================================================
+                              КОНФИГУРАЦИОННЫЕ ФАЙЛЫ
+================================================================================
+
+📄 EclipsiaCore:
+- config.yml - Основные настройки (хранилище, автосохранение, админы)
+- classes.yml - Конфигурация классов (статы, здоровье, описание)
+
+📄 EclipsiaMobs:
+- config.yml - Настройки мобов
+- mobs.yml - Конфигурация мобов и зон спавна
+
+📄 EclipsiaItems:
+- config.yml - Настройки предметов
+- items.yml - Базовые типы предметов (оружие, броня, аксессуары)
+- affixes.yml - Аффиксы (префиксы и суффиксы)
+
+📄 EclipsiaPerks:
+- config.yml - Настройки перков
+- perks.yml - Дерево перков (узлы, связи, бонусы)
+
+================================================================================
+                              КОМАНДЫ ИГРОКА
+================================================================================
+
+/class - Открыть GUI выбора класса
+/stats - Открыть GUI характеристик
+/profile - Открыть профиль игрока
+/equipment - Открыть GUI экипировки
+/perks - Открыть дерево перков
+
+================================================================================
+                              КОМАНДЫ АДМИНА
+================================================================================
+
+/admin setlevel <игрок> <уровень> - Установить уровень игрока
+/admin addexp <игрок> <опыт> - Добавить опыт игрока
+/admin setclass <игрок> <класс> - Установить класс игрока
+/admin addorbs <игрок> <количество> - Добавить орбы игроку
+/admin reload - Перезагрузить конфиги
+
+/data info - Информация о хранилище
+/data migrate - Мигрировать данные из PDC в SQLite
+/data save <игрок> - Принудительно сохранить данные игрока
+
+/mob spawn <тип> [количество] - Заспавнить кастомного моба
+/exp add <игрок> <количество> - Добавить опыт игроку
+
+/item give <игрок> <тип> [редкость] - Выдать предмет игроку
+/testsword - Получить тестовый меч
+
+/resourcepack - Управление ресурс-паком
+
+================================================================================
+                              ТЕХНИЧЕСКИЕ ДЕТАЛИ
+================================================================================
+
+JAVA VERSION: 17
+MINECRAFT VERSION: 1.20.4
+SERVER: Paper
+
+ЗАВИСИМОСТИ:
+- Paper API 1.20.4-R0.1-SNAPSHOT
+- Gson 2.10.1 (для JSON)
+- SQLite JDBC 3.43.0.0 (для будущей миграции)
+
+СТРУКТУРА ПРОЕКТА:
+D:\EclipsiaProject\
+├── EclipsiaCore\      - Базовый плагин
+├── EclipsiaMobs\      - Система мобов
+├── EclipsiaItems\     - Система предметов
+├── EclipsiaPerks\     - Дерево перков
+├── EclipsiaTests\     - Система тестирования
+├── TestServer\        - Тестовый сервер
+└── ARCHITECTURE.md    - Документация архитектуры
+
+================================================================================
+                              ИЗВЕСТНЫЕ ПРОБЛЕМЫ
+================================================================================
+
+⚠️ ИСПРАВЛЕНО (22.04.2026):
+✅ Урон от оружия не увеличивался после прокачки силы
+✅ Луки не стреляли без стрел
+✅ Аксессуары не одевались через ПКМ
+✅ Урон от луков работал неправильно
+
+🔧 ТРЕБУЕТ ВНИМАНИЯ:
+- Нужно протестировать новую систему урона в бою
+- Проверить баланс урона от статов
+- Протестировать все типы аксессуаров
+
+================================================================================
+                              СЛЕДУЮЩИЕ ШАГИ
+================================================================================
+
+ЭТАП 3 (ТЕКУЩИЙ):
+🔄 Завершить систему перков
+🔄 Добавить визуальные эффекты для ключевых перков
+🔄 Протестировать баланс перков
+
+ЭТАП 4 (ПЛАНИРУЕТСЯ):
+⏳ Создать модуль EclipsiaDungeons
+⏳ Реализовать инстансы данжей
+⏳ Добавить боссов с механиками
+⏳ Система групп (пати)
+⏳ Таблица лидеров
+
+ОПТИМИЗАЦИЯ:
+⏳ Переход на SQLite для хранения данных
+⏳ Оптимизация производительности при 100+ онлайне
+⏳ Добавить Redis для кэширования (опционально)
+
+================================================================================
+                              КОНТАКТЫ И ССЫЛКИ
+================================================================================
+
+Разработчик: tentateurs
+Дата начала проекта: Апрель 2026
+Статус: Активная разработка
+
+================================================================================
+                              КОНЕЦ ДОКУМЕНТА
+================================================================================

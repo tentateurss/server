@@ -1,0 +1,87 @@
+# EclipsiaMobs Configuration
+
+# Настройки опыта
+experience:
+  # Опыт за уровень (формула: base * level)
+  exp-per-level-base: 100
+  # Множитель опыта за уровень
+  exp-multiplier: 1.5
+  # Максимальный уровень
+  max-level: 100
+  # Очки статов за уровень
+  stat-points-per-level: 1
+  # Показывать сообщения о получении опыта
+  show-exp-messages: true
+  # Показывать action bar с прогрессом
+  show-exp-actionbar: true
+
+# Настройки дропа орбов
+orbs:
+  # Базовый шанс дропа орбов (%)
+  drop-chance: 100
+  # Минимальное количество орбов
+  min-amount: 1
+  # Максимальное количество орбов
+  max-amount: 5
+  # Бонус орбов за уровень моба (%)
+  level-bonus: 10
+
+# Настройки спавна мобов
+spawn:
+  # Включить кастомный спавн
+  enabled: true
+  # Радиус спавна от игрока
+  spawn-radius: 90
+  # Максимальное количество мобов в зоне (глобальный дефолт;
+  # per-zone override задаётся в mobs.yml полем max-mobs).
+  max-mobs-per-zone: 80
+  # Интервал спавна (в тиках, 20 тиков = 1 секунда)
+  # v11: 20 тиков (1 сек) — чаще подкидываем мобов, иначе зоны пустуют.
+  spawn-interval: 20
+  # Safe-зоны: мобы НЕ спавнятся внутри этих цилиндров (y игнорируется).
+  # Координаты синхронизированы с EclipsiaBuilder/config.yml (type: CAMP + HUB).
+  exclusion-zones:
+    starter_camp:
+      world: world
+      x: 200
+      z: 0
+      radius: 35
+    forest_camp:
+      world: world
+      x: 400
+      z: 200
+      radius: 35
+    dark_forest_camp:
+      world: world
+      x: -200
+      z: -200
+      radius: 35
+    elite_camp:
+      world: world
+      x: 500
+      z: 500
+      radius: 35
+    elikium_city:
+      world: world
+      x: 0
+      z: 0
+      radius: 40
+    # Стартовый лагерь на Берегу: реальный центр (0, -60), радиус ~20.
+    # Даём запас r=28, чтобы мобы не подходили к палатке и алтарю.
+    beach_camp:
+      world: beach
+      x: 0
+      z: -60
+      radius: 28
+    # Арена босса (0, 80) — защищаем радиусом 18, чтобы WITHER_SKELETON
+    # и другие обычные мобы не мешали поединку. Хранитель Врат теперь
+    # спавнится отдельно через GatekeeperArena listener (авто-триггер при
+    # подходе игрока).
+    beach_arena:
+      world: beach
+      x: 0
+      z: 80
+      radius: 18
+
+# Отладка
+debug: false

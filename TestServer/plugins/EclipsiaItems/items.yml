@@ -1,0 +1,157 @@
+# Конфигурация базовых типов предметов
+
+# Оружие
+weapons:
+  # Мечи (для Воина)
+  iron_sword:
+    material: IRON_SWORD
+    name: "Железный меч"
+    slot: HAND
+    base-damage: 5
+    required-class: warrior
+    min-level: 1
+  
+  diamond_sword:
+    material: DIAMOND_SWORD
+    name: "Алмазный меч"
+    slot: HAND
+    base-damage: 8
+    required-class: warrior
+    min-level: 10
+  
+  netherite_sword:
+    material: NETHERITE_SWORD
+    name: "Незеритовый меч"
+    slot: HAND
+    base-damage: 10
+    required-class: warrior
+    min-level: 20
+  
+  # Луки (для Лучника)
+  bow:
+    material: BOW
+    name: "Лук"
+    slot: HAND
+    base-damage: 6
+    required-class: archer
+    min-level: 1
+  
+  # Посохи (для Мага)
+  wooden_staff:
+    material: STICK
+    name: "Деревянный посох"
+    slot: HAND
+    base-damage: 4
+    required-class: mage
+    min-level: 1
+  
+  blaze_staff:
+    material: BLAZE_ROD
+    name: "Огненный посох"
+    slot: HAND
+    base-damage: 7
+    required-class: mage
+    min-level: 10
+
+# Броня
+armor:
+  # Шлемы
+  iron_helmet:
+    material: IRON_HELMET
+    name: "Железный шлем"
+    slot: HEAD
+    base-armor: 3
+    min-level: 1
+  
+  diamond_helmet:
+    material: DIAMOND_HELMET
+    name: "Алмазный шлем"
+    slot: HEAD
+    base-armor: 5
+    min-level: 10
+  
+  # Нагрудники
+  iron_chestplate:
+    material: IRON_CHESTPLATE
+    name: "Железный нагрудник"
+    slot: CHEST
+    base-armor: 6
+    min-level: 1
+  
+  diamond_chestplate:
+    material: DIAMOND_CHESTPLATE
+    name: "Алмазный нагрудник"
+    slot: CHEST
+    base-armor: 8
+    min-level: 10
+  
+  # Штаны
+  iron_leggings:
+    material: IRON_LEGGINGS
+    name: "Железные штаны"
+    slot: LEGS
+    base-armor: 5
+    min-level: 1
+  
+  diamond_leggings:
+    material: DIAMOND_LEGGINGS
+    name: "Алмазные штаны"
+    slot: LEGS
+    base-armor: 7
+    min-level: 10
+  
+  # Ботинки
+  iron_boots:
+    material: IRON_BOOTS
+    name: "Железные ботинки"
+    slot: FEET
+    base-armor: 3
+    min-level: 1
+  
+  diamond_boots:
+    material: DIAMOND_BOOTS
+    name: "Алмазные ботинки"
+    slot: FEET
+    base-armor: 5
+    min-level: 10
+
+# Аксессуары
+accessories:
+  # Кольца
+  iron_ring:
+    material: GOLD_NUGGET
+    name: "Железное кольцо"
+    slot: RING_1
+    min-level: 5
+  
+  gold_ring:
+    material: GOLD_INGOT
+    name: "Золотое кольцо"
+    slot: RING_1
+    min-level: 15
+  
+  # Амулеты
+  simple_amulet:
+    material: EMERALD
+    name: "Простой амулет"
+    slot: AMULET
+    min-level: 5
+  
+  mystic_amulet:
+    material: DIAMOND
+    name: "Мистический амулет"
+    slot: AMULET
+    min-level: 15
+  
+  # Пояса
+  leather_belt:
+    material: LEATHER
+    name: "Кожаный пояс"
+    slot: BELT
+    min-level: 5
+  
+  reinforced_belt:
+    material: RABBIT_HIDE
+    name: "Укрепленный пояс"
+    slot: BELT
+    min-level: 15

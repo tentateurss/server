@@ -1,0 +1,49 @@
+# Конфигурация EclipsiaItems
+
+# Настройки генерации предметов
+generation:
+  # Шанс выпадения по редкости (в процентах)
+  rarity-chances:
+    normal: 50
+    magic: 30
+    rare: 18
+    unique: 2
+  
+  # Количество аффиксов по редкости
+  affixes:
+    magic:
+      min: 1
+      max: 2
+    rare:
+      min: 3
+      max: 6
+  
+  # Диапазон уровня предмета относительно уровня моба
+  item-level-range:
+    min-offset: -2
+    max-offset: 2
+
+# Настройки дропа
+drop:
+  enabled: true
+  # Шанс дропа предмета с моба (в процентах)
+  drop-chance: 30
+  # Бонус шанса за уровень моба (в процентах)
+  level-bonus: 2
+  # Максимальное количество предметов с одного моба
+  max-items-per-mob: 2
+
+# Хранение данных
+storage:
+  type: SQLITE  # PDC или SQLITE
+  sqlite:
+    database-file: eclipsia_items.db
+    connection-pool-size: 10
+  
+  # Автосохранение инвентаря
+  auto-save:
+    enabled: true
+    interval-minutes: 5
+
+# Отладка
+debug: false

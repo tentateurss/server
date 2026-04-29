@@ -1,0 +1,27 @@
+name: EclipsiaTests
+version: '${project.version}'
+main: ru.eclipsia.tests.EclipsiaTests
+api-version: '1.20'
+author: EclipsiaTeam
+description: Плагин для автоматизированного тестирования систем Eclipsia
+depend: [EclipsiaCore]
+softdepend: [EclipsiaItems, EclipsiaMobs, EclipsiaPerks]
+
+commands:
+  test:
+    description: Запустить тесты
+    usage: /test [all|gui|stats|equipment|perks|mobs]
+    permission: eclipsia.admin
+  testresult:
+    description: Показать результаты последних тестов
+    usage: /testresult
+    permission: eclipsia.admin
+  autotest:
+    description: Включить/выключить автоматическое тестирование
+    usage: /autotest [on|off]
+    permission: eclipsia.admin
+
+permissions:
+  eclipsia.admin:
+    description: Доступ к командам тестирования
+    default: op

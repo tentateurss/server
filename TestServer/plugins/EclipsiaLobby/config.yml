@@ -1,0 +1,29 @@
+# Конфигурация EclipsiaLobby
+
+# Настройки мира лобби
+lobby:
+  world: lobby
+  spawn:
+    x: 0.5
+    y: 5
+    z: 0.5
+  max-profiles: 3
+
+# Настройки мира Берег (начальная локация)
+beach:
+  world: beach
+  spawn:
+    # Центр процедурного лагеря BeachGenerator: (campX=0, campZ=-60).
+    # Спавним игрока чуть южнее костра, лицом на юг (на тропу к арене).
+    # Y=5 — feet level, поверхность земли в FLAT-мире на y=4.
+    x: 0.5
+    y: 5
+    z: -55.5
+
+# Настройки RPG мира
+rpg:
+  world: world
+  hub-spawn:
+    x: 0
+    y: 70
+    z: 0

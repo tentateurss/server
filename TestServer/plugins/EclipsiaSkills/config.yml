@@ -1,0 +1,21 @@
+# Конфигурация EclipsiaSkills
+
+# Настройки навыков
+skills:
+  # Максимальное количество активных навыков
+  max-active-skills: 5
+  
+  # Максимальное количество поддержек на один навык
+  max-supports-per-skill: 2
+  
+  # Глобальный множитель урона
+  damage-multiplier: 1.0
+  
+  # Глобальный множитель кулдауна
+  cooldown-multiplier: 1.0
+
+# Стартовые навыки для классов
+starter-skills:
+  warrior: melee_strike_1
+  archer: arrow_shot_1
+  mage: fireball_1

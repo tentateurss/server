@@ -1,0 +1,146 @@
+package ru.eclipsia.perks.tree;
+
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.plugin.Plugin;
+import ru.eclipsia.perks.node.NodeType;
+import ru.eclipsia.perks.node.PerkNode;
+
+import java.io.File;
+import java.util.*;
+import java.util.logging.Level;
+
+/**
+ * Менеджер дерева перков
+ */
+public class PerkTreeManager {
+    
+    private final Plugin plugin;
+    private final Map<String, PerkNode> nodes;
+    private final Map<String, String> classStartNodes;
+    
+    public PerkTreeManager(Plugin plugin) {
+        this.plugin = plugin;
+        this.nodes = new HashMap<>();
+        this.classStartNodes = new HashMap<>();
+    }
+    
+    /**
+     * Загрузить дерево перков из конфига
+     */
+    public void loadPerkTree() {
+        nodes.clear();
+        classStartNodes.clear();
+        
+        File perksFile = new File(plugin.getDataFolder(), "perks.yml");
+        if (!perksFile.exists()) {
+            plugin.getLogger().severe("Файл perks.yml не найден!");
+            return;
+        }
+        
+        FileConfiguration config = YamlConfiguration.loadConfiguration(perksFile);
+        
+        // Загружаем стартовые позиции классов
+        ConfigurationSection startingPositions = config.getConfigurationSection("starting-positions");
+        if (startingPositions != null) {
+            for (String className : startingPositions.getKeys(false)) {
+                String nodeId = startingPositions.getString(className + ".node");
+                classStartNodes.put(className, nodeId);
+            }
+        }
+        
+        // Загружаем узлы
+        ConfigurationSection nodesSection = config.getConfigurationSection("nodes");
+        if (nodesSection == null) {
+            plugin.getLogger().severe("Секция 'nodes' не найдена в perks.yml!");
+            return;
+        }
+        
+        for (String nodeId : nodesSection.getKeys(false)) {
+            try {
+                ConfigurationSection nodeSection = nodesSection.getConfigurationSection(nodeId);
+                PerkNode node = loadNode(nodeId, nodeSection);
+                nodes.put(nodeId, node);
+            } catch (Exception e) {
+                plugin.getLogger().log(Level.SEVERE, "Ошибка загрузки узла: " + nodeId, e);
+            }
+        }
+        
+        plugin.getLogger().info("Загружено узлов перков: " + nodes.size());
+    }
+    
+    /**
+     * Загрузить узел из конфига
+     */
+    private PerkNode loadNode(String id, ConfigurationSection section) {
+        NodeType type = NodeType.valueOf(section.getString("type", "SMALL"));
+        String name = section.getString("name", id);
+        int x = section.getInt("x", 0);
+        int y = section.getInt("y", 0);
+        List<String> connections = section.getStringList("connections");
+        
+        // Загружаем статы
+        Map<String, Integer> stats = new HashMap<>();
+        ConfigurationSection statsSection = section.getConfigurationSection("stats");
+        if (statsSection != null) {
+            for (String stat : statsSection.getKeys(false)) {
+                stats.put(stat, statsSection.getInt(stat));
+            }
+        }
+        
+        return new PerkNode(id, type, name, x, y, connections, stats);
+    }
+    
+    /**
+     * Получить узел по ID
+     */
+    public PerkNode getNode(String id) {
+        return nodes.get(id);
+    }
+    
+    /**
+     * Получить все узлы
+     */
+    public Collection<PerkNode> getAllNodes() {
+        return nodes.values();
+    }
+    
+    /**
+     * Получить стартовый узел для класса
+     */
+    public String getStartNodeForClass(String className) {
+        return classStartNodes.get(className.toLowerCase());
+    }
+    
+    /**
+     * Проверить можно ли взять узел
+     */
+    public boolean canAllocateNode(String nodeId, Set<String> allocatedNodes) {
+        PerkNode node = getNode(nodeId);
+        if (node == null) {
+            return false;
+        }
+        
+        // Если узел уже взят
+        if (allocatedNodes.contains(nodeId)) {
+            return false;
+        }
+        
+        // Проверяем есть ли хотя бы одна связь с уже взятым узлом
+        for (String connection : node.getConnections()) {
+            if (allocatedNodes.contains(connection)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Получить количество узлов
+     */
+    public int getNodeCount() {
+        return nodes.size();
+    }
+}

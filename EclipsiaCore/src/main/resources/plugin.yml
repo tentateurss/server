@@ -1,0 +1,34 @@
+name: EclipsiaCore
+version: '${project.version}'
+main: ru.eclipsia.core.EclipsiaCore
+api-version: '1.20'
+author: EclipsiaTeam
+description: RPG Core Plugin for Eclipsia Server
+
+commands:
+  class:
+    description: Выбор и управление классом персонажа
+    usage: /class
+  stats:
+    description: Просмотр и распределение характеристик
+    usage: /stats [add <сила|ловкость|интеллект>]
+  profile:
+    description: Просмотр профиля персонажа
+    usage: /profile
+  resourcepack:
+    description: Управление ресурс-паком
+    usage: /resourcepack [reload|status|info|send <игрок>]
+    aliases: [rp, resourcepacks]
+  data:
+    description: Управление данными (только для администраторов)
+    usage: /data <migrate>
+    permission: eclipsia.admin
+  admin:
+    description: Административные команды
+    usage: /admin <reload|info|setlevel|addstats>
+    permission: eclipsia.admin
+
+permissions:
+  eclipsia.admin:
+    description: Доступ к административным командам
+    default: op

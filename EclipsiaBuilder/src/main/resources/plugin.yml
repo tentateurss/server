@@ -1,0 +1,11 @@
+name: EclipsiaBuilder
+version: 1.0.0
+main: ru.eclipsia.builder.EclipsiaBuilder
+api-version: 1.20
+author: EclipsiaTeam
+
+commands:
+  build:
+    description: Управление генерацией структур
+    usage: /build [all|list|reload|<structure_id>]
+    permission: eclipsia.admin

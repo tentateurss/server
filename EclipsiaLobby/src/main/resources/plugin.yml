@@ -1,0 +1,13 @@
+name: EclipsiaLobby
+version: 1.0.0
+main: ru.eclipsia.lobby.EclipsiaLobby
+api-version: 1.20
+depend: [EclipsiaCore]
+softdepend: [EclipsiaSkills]
+author: EclipsiaTeam
+
+commands:
+  character:
+    description: Управление персонажами
+    usage: /character [create|delete|select] [параметры]
+    aliases: [char, персонаж]

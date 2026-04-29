@@ -1,0 +1,26 @@
+# Конфигурация EclipsiaLobby
+
+# Настройки мира лобби
+lobby:
+  world: lobby
+  spawn:
+    x: 0
+    y: 70
+    z: 0
+  max-profiles: 3
+
+# Настройки мира Берег (начальная локация)
+beach:
+  world: beach
+  spawn:
+    x: 0
+    y: 70
+    z: 0
+
+# Настройки RPG мира
+rpg:
+  world: world
+  hub-spawn:
+    x: 0
+    y: 70
+    z: 0

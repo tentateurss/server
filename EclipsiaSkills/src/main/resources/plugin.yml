@@ -1,0 +1,15 @@
+name: EclipsiaSkills
+version: 1.0.0
+main: ru.eclipsia.skills.EclipsiaSkills
+api-version: 1.20
+depend: [EclipsiaCore, EclipsiaItems]
+author: EclipsiaTeam
+
+commands:
+  skills:
+    description: Открыть меню навыков
+    usage: /skills
+  giveskill:
+    description: Выдать навык игроку (только для админов)
+    usage: /giveskill <игрок> <тип>
+    permission: eclipsia.admin

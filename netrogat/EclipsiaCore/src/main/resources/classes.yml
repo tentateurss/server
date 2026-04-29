@@ -1,0 +1,58 @@
+# Конфигурация классов персонажей
+classes:
+  warrior:
+    display-name: "§c§lВоин"
+    description:
+      - "§7Мастер ближнего боя"
+      - "§7Высокая выживаемость"
+      - "§7Бонус к силе и здоровью"
+    icon: IRON_SWORD
+    base-stats:
+      strength: 15
+      dexterity: 8
+      intelligence: 5
+    stat-per-level:
+      strength: 3
+      dexterity: 1
+      intelligence: 1
+    starting-health: 30.0
+    health-per-level: 2.0
+    
+  archer:
+    display-name: "§a§lЛучник"
+    description:
+      - "§7Мастер дальнего боя"
+      - "§7Высокая скорость атаки"
+      - "§7Бонус к ловкости и крит. урону"
+    icon: BOW
+    base-stats:
+      strength: 8
+      dexterity: 15
+      intelligence: 5
+    stat-per-level:
+      strength: 1
+      dexterity: 3
+      intelligence: 1
+    starting-health: 24.0
+    health-per-level: 1.5
+    
+  mage:
+    display-name: "§9§lМаг"
+    description:
+      - "§7Мастер магии"
+      - "§7Высокий урон заклинаниями"
+      - "§7Бонус к интеллекту и мане"
+    icon: BLAZE_ROD
+    base-stats:
+      strength: 5
+      dexterity: 8
+      intelligence: 15
+    stat-per-level:
+      strength: 1
+      dexterity: 1
+      intelligence: 3
+    starting-health: 20.0
+    health-per-level: 1.0
+
+# Стоимость переобучения характеристик
+respec-cost: 1000

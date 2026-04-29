@@ -1,0 +1,201 @@
+# Конфигурация аффиксов для предметов
+
+# Префиксы (основные характеристики)
+prefixes:
+  # Урон
+  damage_minor:
+    name: "Острый"
+    tier: 1
+    min-value: 1
+    max-value: 3
+    item-types: [SWORD, AXE]
+    min-item-level: 1
+  
+  damage_moderate:
+    name: "Смертоносный"
+    tier: 2
+    min-value: 4
+    max-value: 7
+    item-types: [SWORD, AXE]
+    min-item-level: 10
+  
+  damage_major:
+    name: "Разрушительный"
+    tier: 3
+    min-value: 8
+    max-value: 12
+    item-types: [SWORD, AXE]
+    min-item-level: 20
+  
+  # Здоровье
+  health_minor:
+    name: "Здоровый"
+    tier: 1
+    min-value: 5
+    max-value: 10
+    item-types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+    min-item-level: 1
+  
+  health_moderate:
+    name: "Живучий"
+    tier: 2
+    min-value: 11
+    max-value: 20
+    item-types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+    min-item-level: 10
+  
+  health_major:
+    name: "Титанический"
+    tier: 3
+    min-value: 21
+    max-value: 35
+    item-types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+    min-item-level: 20
+  
+  # Броня
+  armor_minor:
+    name: "Укрепленный"
+    tier: 1
+    min-value: 2
+    max-value: 5
+    item-types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+    min-item-level: 1
+  
+  armor_moderate:
+    name: "Бронированный"
+    tier: 2
+    min-value: 6
+    max-value: 10
+    item-types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+    min-item-level: 10
+  
+  armor_major:
+    name: "Неуязвимый"
+    tier: 3
+    min-value: 11
+    max-value: 18
+    item-types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+    min-item-level: 20
+
+# Суффиксы (дополнительные бонусы)
+suffixes:
+  # Критический урон
+  crit_minor:
+    name: "Точности"
+    tier: 1
+    min-value: 5
+    max-value: 10
+    item-types: [SWORD, AXE, BOW]
+    min-item-level: 5
+  
+  crit_moderate:
+    name: "Меткости"
+    tier: 2
+    min-value: 11
+    max-value: 20
+    item-types: [SWORD, AXE, BOW]
+    min-item-level: 15
+  
+  # Скорость атаки
+  speed_minor:
+    name: "Быстроты"
+    tier: 1
+    min-value: 5
+    max-value: 10
+    item-types: [SWORD, AXE, BOW]
+    min-item-level: 5
+  
+  speed_moderate:
+    name: "Стремительности"
+    tier: 2
+    min-value: 11
+    max-value: 20
+    item-types: [SWORD, AXE, BOW]
+    min-item-level: 15
+  
+  # Сопротивление урону
+  resistance_minor:
+    name: "Защиты"
+    tier: 1
+    min-value: 3
+    max-value: 6
+    item-types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+    min-item-level: 5
+  
+  resistance_moderate:
+    name: "Стойкости"
+    tier: 2
+    min-value: 7
+    max-value: 12
+    item-types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+    min-item-level: 15
+  
+  # Регенерация здоровья
+  regen_minor:
+    name: "Восстановления"
+    tier: 1
+    min-value: 1
+    max-value: 2
+    item-types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS, RING, AMULET]
+    min-item-level: 10
+  
+  regen_moderate:
+    name: "Возрождения"
+    tier: 2
+    min-value: 3
+    max-value: 5
+    item-types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS, RING, AMULET]
+    min-item-level: 20
+
+# Уникальные предметы (фиксированные аффиксы)
+uniques:
+  warriors_blade:
+    name: "Клинок Воина"
+    base-type: DIAMOND_SWORD
+    item-level: 15
+    required-class: warrior
+    required-level: 15
+    lore:
+      - "§7Легендарный меч древних воинов"
+      - "§7Дарует силу своему владельцу"
+    affixes:
+      - type: damage_major
+        value: 15
+      - type: health_moderate
+        value: 25
+      - type: crit_moderate
+        value: 20
+  
+  arcane_staff:
+    name: "Посох Тайн"
+    base-type: STICK
+    item-level: 15
+    required-class: mage
+    required-level: 15
+    lore:
+      - "§7Древний посох магов"
+      - "§7Усиливает магические способности"
+    affixes:
+      - type: damage_major
+        value: 12
+      - type: health_minor
+        value: 15
+      - type: speed_moderate
+        value: 25
+  
+  hunters_bow:
+    name: "Лук Охотника"
+    base-type: BOW
+    item-level: 15
+    required-class: archer
+    required-level: 15
+    lore:
+      - "§7Лук легендарного охотника"
+      - "§7Никогда не промахивается"
+    affixes:
+      - type: damage_major
+        value: 14
+      - type: crit_moderate
+        value: 30
+      - type: speed_minor
+        value: 15

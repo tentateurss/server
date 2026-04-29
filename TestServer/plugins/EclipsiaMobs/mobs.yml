@@ -1,0 +1,228 @@
+# Конфигурация кастомных мобов
+
+mobs:
+  # Зомби-воин (начальная зона)
+  zombie_warrior:
+    display-name: "§cЗомби-воин"
+    entity-type: ZOMBIE
+    level: 5
+    health: 100
+    damage: 15
+    armor: 5
+    experience: 50
+    equipment:
+      helmet: IRON_HELMET
+      chestplate: IRON_CHESTPLATE
+      leggings: IRON_LEGGINGS
+      boots: IRON_BOOTS
+      mainhand: IRON_SWORD
+    drops:
+      orbs:
+        min: 5
+        max: 15
+        chance: 100
+    spawn-zones:
+      - starter_zone
+      - forest_zone
+      - beach_forest_west
+      - beach_forest_center
+      - beach_forest_east
+      - beach_mountain_center
+      - beach_coast_south
+    
+  # Скелет-лучник
+  skeleton_archer:
+    display-name: "§aСкелет-лучник"
+    entity-type: SKELETON
+    level: 7
+    health: 80
+    damage: 20
+    armor: 3
+    experience: 60
+    equipment:
+      helmet: LEATHER_HELMET
+      chestplate: LEATHER_CHESTPLATE
+      mainhand: BOW
+    drops:
+      orbs:
+        min: 7
+        max: 20
+        chance: 100
+    spawn-zones:
+      - forest_zone
+      - mountain_zone
+      - beach_forest_center
+      - beach_forest_east
+      - beach_mountain_west
+      - beach_mountain_east
+      - beach_mountain_center
+    
+  # Зомби-маг
+  zombie_mage:
+    display-name: "§9Зомби-маг"
+    entity-type: ZOMBIE
+    level: 10
+    health: 120
+    damage: 25
+    armor: 2
+    experience: 80
+    equipment:
+      helmet: GOLDEN_HELMET
+      chestplate: GOLDEN_CHESTPLATE
+      mainhand: BLAZE_ROD
+    drops:
+      orbs:
+        min: 10
+        max: 30
+        chance: 100
+    spawn-zones:
+      - dark_forest
+      - ruins_zone
+    
+  # Крипер-взрывник (элитный)
+  elite_creeper:
+    display-name: "§6§lЭлитный взрывник"
+    entity-type: CREEPER
+    level: 15
+    health: 200
+    damage: 40
+    armor: 10
+    experience: 150
+    drops:
+      orbs:
+        min: 20
+        max: 50
+        chance: 100
+    spawn-zones:
+      - elite_zone
+      - boss_area
+
+# Зоны спавна мобов
+spawn-zones:
+  starter_zone:
+    world: world
+    center:
+      x: 0
+      y: 70
+      z: 0
+    radius: 100
+    min-level: 1
+    max-level: 5
+    mobs:
+      - zombie_warrior
+    spawn-rate: 5
+    
+  forest_zone:
+    world: world
+    center:
+      x: 200
+      y: 70
+      z: 200
+    radius: 150
+    min-level: 5
+    max-level: 10
+    mobs:
+      - zombie_warrior
+      - skeleton_archer
+    spawn-rate: 7
+    
+  dark_forest:
+    world: world
+    center:
+      x: -200
+      y: 70
+      z: -200
+    radius: 120
+    min-level: 8
+    max-level: 15
+    mobs:
+      - zombie_mage
+      - skeleton_archer
+    spawn-rate: 10
+    
+  elite_zone:
+    world: world
+    center:
+      x: 500
+      y: 70
+      z: 500
+    radius: 80
+    min-level: 12
+    max-level: 20
+    mobs:
+      - elite_creeper
+      - zombie_mage
+    spawn-rate: 3
+
+  # v8: Лес на Берегу — ОЧЕНЬ много мобов. Несколько зон с пересечением.
+  beach_forest_west:
+    world: beach
+    center: {x: -50, y: 12, z: 20}
+    radius: 70
+    min-level: 1
+    max-level: 4
+    mobs: [zombie_warrior]
+    spawn-rate: 40
+    max-mobs: 120
+
+  beach_forest_center:
+    world: beach
+    center: {x: 0, y: 12, z: 30}
+    radius: 80
+    min-level: 1
+    max-level: 5
+    mobs: [zombie_warrior, skeleton_archer]
+    spawn-rate: 45
+    max-mobs: 150
+
+  beach_forest_east:
+    world: beach
+    center: {x: 50, y: 12, z: 20}
+    radius: 70
+    min-level: 1
+    max-level: 4
+    mobs: [zombie_warrior, skeleton_archer]
+    spawn-rate: 40
+    max-mobs: 120
+
+  # v8: Горный пояс — лучники, плотно.
+  beach_mountain_west:
+    world: beach
+    center: {x: -60, y: 18, z: 140}
+    radius: 60
+    min-level: 3
+    max-level: 6
+    mobs: [skeleton_archer]
+    spawn-rate: 35
+    max-mobs: 80
+
+  beach_mountain_east:
+    world: beach
+    center: {x: 60, y: 18, z: 140}
+    radius: 60
+    min-level: 3
+    max-level: 6
+    mobs: [skeleton_archer]
+    spawn-rate: 35
+    max-mobs: 80
+
+  beach_mountain_center:
+    world: beach
+    center: {x: 0, y: 18, z: 150}
+    radius: 70
+    min-level: 4
+    max-level: 7
+    mobs: [skeleton_archer, zombie_warrior]
+    spawn-rate: 40
+    max-mobs: 120
+
+  # Окраины пляжа — у воды
+  beach_coast_south:
+    world: beach
+    center: {x: 0, y: 8, z: -90}
+    radius: 90
+    min-level: 1
+    max-level: 3
+    mobs: [zombie_warrior]
+    spawn-rate: 30
+    max-mobs: 80

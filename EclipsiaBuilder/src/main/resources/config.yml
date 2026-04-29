@@ -1,0 +1,279 @@
+# Конфигурация EclipsiaBuilder
+
+# Структуры для генерации
+structures:
+  # ========== БЕРЕГ (Начальная зона) ==========
+  
+  # Берег - начальная локация
+  beach_spawn:
+    world: beach
+    type: SPAWN
+    x: 0
+    y: 64
+    z: 0
+    description: "Стартовая точка на Берегу"
+    features:
+      - type: CAMPFIRE
+        x: 0
+        y: 65
+        z: 0
+      - type: TRAINING_DUMMY
+        x: -3
+        y: 65
+        z: -3
+      - type: TRAINING_DUMMY
+        x: 3
+        y: 65
+        z: -3
+      - type: PALM_TREE
+        x: -7
+        y: 65
+        z: -7
+      - type: PALM_TREE
+        x: 7
+        y: 65
+        z: 7
+      - type: WORLDGUARD_BORDER
+        region_name: "beach_border"
+        x_min: -50
+        z_min: -50
+        x_max: 100
+        z_max: 100
+        message: "§cВы не можете покинуть Берег. Убейте Хранителя Врат."
+  
+  # Арена Хранителя Врат
+  gatekeeper_arena:
+    world: beach
+    type: BOSS_ARENA
+    x: 55
+    y: 64
+    z: 55
+    description: "Арена первого босса"
+    features:
+      - type: BOSS_SPAWN
+        boss_type: GATEKEEPER
+        x: 55
+        y: 65
+        z: 55
+      - type: ALTAR
+        x: 55
+        y: 65
+        z: 55
+      - type: PILLAR
+        x: 48
+        y: 65
+        z: 48
+      - type: PILLAR
+        x: 62
+        y: 65
+        z: 48
+      - type: PILLAR
+        x: 48
+        y: 65
+        z: 62
+      - type: PILLAR
+        x: 62
+        y: 65
+        z: 62
+  
+  # ========== ОСНОВНОЙ МИР ==========
+  
+  # Город Эликиум - главный хаб
+  elikium_city:
+    world: world
+    type: HUB
+    x: 0
+    y: 70
+    z: 0
+    description: "Главный город-хаб"
+    features:
+      - type: FOUNTAIN
+        x: 0
+        y: 71
+        z: 0
+      - type: NPC_SPAWN
+        npc_type: MERCHANT
+        x: -5
+        y: 71
+        z: 0
+      - type: NPC_SPAWN
+        npc_type: BLACKSMITH
+        x: 5
+        y: 71
+        z: 0
+      - type: NPC_SPAWN
+        npc_type: QUEST_GIVER
+        x: 0
+        y: 71
+        z: -5
+      - type: LAMP
+        x: -10
+        y: 71
+        z: -10
+      - type: LAMP
+        x: 10
+        y: 71
+        z: -10
+      - type: LAMP
+        x: -10
+        y: 71
+        z: 10
+      - type: LAMP
+        x: 10
+        y: 71
+        z: 10
+  
+  # ========== ЛАГЕРЯ ==========
+  
+  # Лагерь в начальной зоне (уровень 1-5)
+  starter_camp:
+    world: world
+    type: CAMP
+    x: 200
+    y: 70
+    z: 0
+    description: "Лагерь для новичков"
+    level_range: "1-5"
+    features:
+      - type: CAMPFIRE
+        x: 200
+        y: 71
+        z: 0
+      - type: TENT
+        x: 198
+        y: 71
+        z: -2
+      - type: CHEST
+        x: 202
+        y: 71
+        z: 0
+      - type: MOB_SPAWN_ZONE
+        mob_types: [ZOMBIE, SKELETON]
+        radius: 30
+        level: 3
+  
+  # Лагерь в лесной зоне (уровень 5-10)
+  forest_camp:
+    world: world
+    type: CAMP
+    x: 400
+    y: 70
+    z: 200
+    description: "Лагерь в лесу"
+    level_range: "5-10"
+    features:
+      - type: CAMPFIRE
+        x: 400
+        y: 71
+        z: 200
+      - type: TENT
+        x: 398
+        y: 71
+        z: 198
+      - type: CHEST
+        x: 402
+        y: 71
+        z: 200
+      - type: MOB_SPAWN_ZONE
+        mob_types: [SPIDER, CREEPER]
+        radius: 40
+        level: 7
+  
+  # Лагерь в темном лесу (уровень 10-15)
+  dark_forest_camp:
+    world: world
+    type: CAMP
+    x: -200
+    y: 70
+    z: -200
+    description: "Лагерь в темном лесу"
+    level_range: "10-15"
+    features:
+      - type: CAMPFIRE
+        x: -200
+        y: 71
+        z: -200
+      - type: TENT
+        x: -202
+        y: 71
+        z: -202
+      - type: CHEST
+        x: -198
+        y: 71
+        z: -200
+      - type: MOB_SPAWN_ZONE
+        mob_types: [WITCH, ENDERMAN]
+        radius: 50
+        level: 12
+  
+  # Лагерь в элитной зоне (уровень 15-20)
+  elite_camp:
+    world: world
+    type: CAMP
+    x: 500
+    y: 70
+    z: 500
+    description: "Лагерь для опытных игроков"
+    level_range: "15-20"
+    features:
+      - type: CAMPFIRE
+        x: 500
+        y: 71
+        z: 500
+      - type: TENT
+        x: 498
+        y: 71
+        z: 498
+      - type: CHEST
+        x: 502
+        y: 71
+        z: 500
+      - type: MOB_SPAWN_ZONE
+        mob_types: [BLAZE, WITHER_SKELETON]
+        radius: 60
+        level: 17
+  
+  # ========== ДОПОЛНИТЕЛЬНЫЕ СТРУКТУРЫ ==========
+  
+  # Руины древнего храма
+  ancient_ruins:
+    world: world
+    type: DUNGEON
+    x: -300
+    y: 70
+    z: 300
+    description: "Руины древнего храма"
+    level_range: "12-18"
+    features:
+      - type: BOSS_SPAWN
+        boss_type: ANCIENT_GUARDIAN
+        x: -300
+        y: 71
+        z: 300
+      - type: TREASURE_CHEST
+        x: -300
+        y: 71
+        z: 305
+      - type: MOB_SPAWN_ZONE
+        mob_types: [ZOMBIE, SKELETON, SPIDER]
+        radius: 25
+        level: 15
+  
+  # Портал в подземелье
+  dungeon_portal:
+    world: world
+    type: PORTAL
+    x: 100
+    y: 70
+    z: -100
+    description: "Портал в подземелье"
+    features:
+      - type: PORTAL_FRAME
+        x: 100
+        y: 71
+        z: -100
+      - type: SIGN
+        text: "§5Подземелье"
+        x: 100
+        y: 72
+        z: -101

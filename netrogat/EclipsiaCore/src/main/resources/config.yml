@@ -1,0 +1,37 @@
+# Eclipsia Core Configuration
+# Тип хранилища: PDC или SQLITE
+storage-type: PDC
+
+# Настройки SQLite (используется при storage-type: SQLITE)
+sqlite:
+  database-file: eclipsia.db
+  connection-pool-size: 10
+
+# Настройки автосохранения
+auto-save:
+  enabled: true
+  interval-minutes: 5
+
+# Администраторы сервера (полный доступ ко всем командам)
+admins:
+  - tentateurs
+  # Добавьте других админов здесь:
+  # - admin2
+  # - admin3
+
+# Настройки ресурс-пака
+resource-pack:
+  enabled: true
+  # URL ресурс-пака (замените на свой)
+  url: "https://example.com/eclipsia-resourcepack.zip"
+  # SHA-1 хеш ресурс-пака (для проверки целостности, опционально)
+  sha1: ""
+  # Сообщение при предложении установки
+  prompt-message: "§6Для полного игрового опыта рекомендуется установить ресурс-пак!"
+  # Принудительная установка (true - игрок не сможет зайти без ресурс-пака)
+  required: false
+  # Проверять при каждом входе
+  check-on-join: true
+
+# Отладка
+debug: false

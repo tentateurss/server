@@ -1,0 +1,39 @@
+name: EclipsiaItems
+version: '${project.version}'
+main: ru.eclipsia.items.EclipsiaItems
+api-version: '1.20'
+depend: [EclipsiaCore]
+softdepend: [EclipsiaMobs]
+author: Eclipsia Team
+description: Система предметов с аффиксами и редкостью
+
+commands:
+  item:
+    description: Управление предметами
+    usage: /item <generate|give|info>
+    permission: eclipsia.admin
+  itemadmin:
+    description: Админские команды для предметов
+    usage: /itemadmin <reload|debug>
+    permission: eclipsia.admin
+  equipment:
+    description: Открыть экипировку
+    usage: /equipment
+    aliases: [eq, equip]
+    permission: eclipsia.items.use
+  fixmenu:
+    description: Исправить книгу меню
+    usage: /fixmenu
+    permission: eclipsia.items.use
+  testsword:
+    description: Получить тестовый меч для админов
+    usage: /testsword
+    permission: eclipsia.admin
+
+permissions:
+  eclipsia.admin:
+    description: Доступ к админским командам
+    default: op
+  eclipsia.items.use:
+    description: Использование предметов
+    default: true
