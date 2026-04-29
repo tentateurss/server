@@ -1,49 +1,119 @@
 package ru.eclipsia.core.listeners;
 
 import org.bukkit.entity.Arrow;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import ru.eclipsia.core.api.EclipsiaAPI;
+import ru.eclipsia.core.combat.DamageCalculator;
+import ru.eclipsia.core.combat.DamageDisplay;
+import ru.eclipsia.core.combat.DamageType;
+import ru.eclipsia.core.data.PlayerProfile;
 import ru.eclipsia.core.stats.StatsBonusApplier;
 
-import java.util.Random;
-
 /**
- * Слушатель для применения бонусов от статов в бою
+ * Боевой слушатель: применяет защиты игрока (уклонение, блок, Эгида,
+ * броня, резисты) при получении урона и показывает всплывающие цифры
+ * урона над целью.
+ *
+ * <p>Урон навыков (мили/стрелы/фаербол) обрабатывается отдельным
+ * пайплайном в EclipsiaSkills (см. {@code SkillListener}); DamageDisplay
+ * по мобам — там же. Здесь — урон, который ПОЛУЧАЕТ игрок, и обычная
+ * физическая атака от лука (вне навыка-эклипса).
  */
 public class StatsCombatListener implements Listener {
-    
-    private static final Random RANDOM = new Random();
-    
+
     @EventHandler(priority = EventPriority.HIGH)
     public void onEntityDamage(EntityDamageByEntityEvent event) {
-        // Обработка уклонения (защитник)
+        // ===== ИГРОК — ЦЕЛЬ =====
         if (event.getEntity() instanceof Player defender) {
-            double evasionChance = StatsBonusApplier.getEvasionChance(defender);
-            
-            if (evasionChance > 0 && RANDOM.nextDouble() < evasionChance) {
-                event.setCancelled(true);
-                defender.sendMessage("§a⚡ Уклонение!");
+            DamageCalculator.markDamaged(defender.getUniqueId());
+            applyDefences(event, defender);
+            // Показываем итоговый урон, который реально дойдёт до HP игрока.
+            // Делается после applyDefences (он мог сменить event.getDamage()).
+            if (!event.isCancelled() && event.getDamage() > 0) {
+                DamageDisplay.show(defender, event.getDamage(), DamageType.PHYSICAL);
+            }
+            return;
+        }
+
+        // ===== ИГРОК — АТАКУЮЩИЙ (обычная физическая атака, не эклипс-навык) =====
+        Player attacker = null;
+        if (event.getDamager() instanceof Player p) {
+            attacker = p;
+        } else if (event.getDamager() instanceof Arrow arrow) {
+            // Эклипс-стрелы помечены метаданными; их урон считает SkillListener,
+            // и он сам вызывает DamageDisplay. Здесь обрабатываем только
+            // ванильные/неэклипс-стрелы и бонус ловкости.
+            if (arrow.hasMetadata("eclipse_shooter")) {
                 return;
             }
-        }
-        
-        // Обработка урона от луков (атакующий)
-        if (event.getDamager() instanceof Arrow arrow) {
-            if (arrow.getShooter() instanceof Player attacker) {
-                double bowDamageBonus = StatsBonusApplier.getBowDamageBonus(attacker);
-                
+            if (arrow.getShooter() instanceof Player shooter) {
+                attacker = shooter;
+                double bowDamageBonus = StatsBonusApplier.getBowDamageBonus(shooter);
                 if (bowDamageBonus > 0) {
-                    double originalDamage = event.getDamage();
-                    double newDamage = originalDamage + bowDamageBonus; // Прямое добавление урона
-                    event.setDamage(newDamage);
+                    event.setDamage(event.getDamage() + bowDamageBonus);
                 }
             }
         }
-        
-        // Урон ближнего боя уже применяется через Attribute.GENERIC_ATTACK_DAMAGE
-        // Магический урон будет применяться когда добавим магию
+
+        // Крит-бросок и DamageDisplay по мобу для обычных атак.
+        if (attacker != null && event.getEntity() instanceof LivingEntity victim
+                && !(victim instanceof Player)) {
+            PlayerProfile prof = EclipsiaAPI.getInstance().getActiveProfile(attacker);
+            double mult = DamageCalculator.rollCrit(prof);
+            if (mult > 1.0) {
+                event.setDamage(event.getDamage() * mult);
+                DamageDisplay.show(victim, event.getDamage(), DamageType.CRIT);
+            } else {
+                DamageDisplay.show(victim, event.getDamage(), DamageType.PHYSICAL);
+            }
+        }
+    }
+
+    /** Применить уклонение/блок/Эгиду к {@code event.damage}. */
+    private void applyDefences(EntityDamageByEntityEvent event, Player defender) {
+        EclipsiaAPI api = EclipsiaAPI.getInstance();
+        if (api == null) return;
+        PlayerProfile profile = api.getActiveProfile(defender);
+        if (profile == null) return;
+
+        // Прокси-формула: уровень атакующего ≈ его HP / 2 (грубо). Для игроков
+        // и боссов с метаданными можно докрутить позже.
+        int attackerLevel = 1;
+        if (event.getDamager() instanceof LivingEntity le) {
+            attackerLevel = (int) Math.max(1, le.getMaxHealth() / 2.0);
+        }
+
+        DamageType type = DamageType.PHYSICAL; // по умолчанию; стихии — это эклипс-навыки.
+        DamageCalculator.Result res = DamageCalculator.calculateForPlayer(
+                profile, event.getDamage(), type, attackerLevel);
+
+        if (res.dodged) {
+            event.setCancelled(true);
+            defender.sendMessage("§a⚡ Уклонение!");
+            return;
+        }
+        if (res.blocked) {
+            defender.sendMessage("§b\uD83D\uDEE1 Блок!");
+        }
+
+        // Обновляем Эгиду в профиле, если она съела часть урона.
+        if (res.aegisChanged()) {
+            PlayerProfile updated = profile.toBuilder()
+                    .aegis(res.aegisAfter)
+                    .build();
+            api.updateProfile(defender, updated);
+        }
+
+        event.setDamage(res.finalDamage);
+        if (res.finalDamage <= 0) {
+            // Эгида полностью съела урон — событие отменяем, чтобы игрок
+            // не получил никаких эффектов knockback'а от голого нуля.
+            event.setCancelled(true);
+        }
     }
 }

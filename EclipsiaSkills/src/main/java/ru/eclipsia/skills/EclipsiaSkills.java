@@ -6,8 +6,8 @@ import ru.eclipsia.core.api.EclipsiaAPI;
 import ru.eclipsia.skills.command.SkillsCommand;
 import ru.eclipsia.skills.manager.SkillManager;
 import ru.eclipsia.skills.listener.SkillListener;
-import ru.eclipsia.skills.listener.ManaRegenerationListener;
-import ru.eclipsia.skills.listener.ManaBarListener;
+import ru.eclipsia.skills.listener.CustomRegenerationListener;
+import ru.eclipsia.skills.listener.HUDActionBarListener;
 import ru.eclipsia.skills.listener.EclipseBookListener;
 
 /**
@@ -19,7 +19,8 @@ public class EclipsiaSkills extends JavaPlugin {
     private static EclipsiaSkills instance;
     private EclipsiaAPI api;
     private SkillManager skillManager;
-    private ManaBarListener manaBarListener;
+    private CustomRegenerationListener regenListener;
+    private HUDActionBarListener hudListener;
     
     @Override
     public void onEnable() {
@@ -53,10 +54,17 @@ public class EclipsiaSkills extends JavaPlugin {
         
         // Регистрируем слушатели
         Bukkit.getPluginManager().registerEvents(new SkillListener(this), this);
-        Bukkit.getPluginManager().registerEvents(new ManaRegenerationListener(this), this);
-        
-        manaBarListener = new ManaBarListener(this);
-        Bukkit.getPluginManager().registerEvents(manaBarListener, this);
+
+        // Кастомная регенерация (HP/мана/Эгида общим тиком — заменяет
+        // отдельный ManaRegenerationListener).
+        regenListener = new CustomRegenerationListener(this);
+        Bukkit.getPluginManager().registerEvents(regenListener, this);
+        regenListener.start();
+
+        // Единый ActionBar с HP/Эгидой/маной/статами — заменяет BossBar маны.
+        hudListener = new HUDActionBarListener(this);
+        Bukkit.getPluginManager().registerEvents(hudListener, this);
+        hudListener.start();
 
         // Эклипс-книги (выбор стартового навыка / поддержки после босса).
         Bukkit.getPluginManager().registerEvents(new EclipseBookListener(this), this);
@@ -66,9 +74,8 @@ public class EclipsiaSkills extends JavaPlugin {
     
     @Override
     public void onDisable() {
-        if (manaBarListener != null) {
-            manaBarListener.shutdown();
-        }
+        if (regenListener != null) regenListener.stop();
+        if (hudListener != null) hudListener.stop();
         getLogger().info("EclipsiaSkills выключен");
     }
     
