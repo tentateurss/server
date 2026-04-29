@@ -95,17 +95,25 @@ public class SkillListener implements Listener {
         
         // Рассчитываем урон (с учётом бонусов с экипировки)
         double damage = calculateDamage(skill, profile, player);
-        
-        // Выполняем навык
-        executeSkill(player, skill, activeSkill.getSupports(), damage);
-        
-        // Расходуем ману
+
+        // ВАЖНО: списываем ману ДО executeSkill. Иначе мили-навык
+        // мгновенно убивает моба → MobDeathListener.addExperience пишет
+        // в кэш PlayerData новое значение experience, а наш блок «расходуем
+        // ману» ниже берёт устаревший снапшот profile (exp=0) и через
+        // updateProfile -> savePlayer затирает только что начисленный XP
+        // (race кеша). У ARROW_SHOT/FIREBALL такого не было, потому что
+        // моб умирал на ProjectileHitEvent в следующих тиках, после save
+        // маны. Сейчас сохраняем ману до выполнения навыка — кэш будет
+        // перезаписан addExperience уже поверх свежей маны.
         PlayerProfile updatedProfile = profile.toBuilder()
                 .currentMana(profile.getCurrentMana() - manaCost)
                 .build();
-        
+
         plugin.getAPI().updateProfile(player, updatedProfile);
-        
+
+        // Выполняем навык (может породить EntityDeathEvent → addExperience)
+        executeSkill(player, skill, activeSkill.getSupports(), damage);
+
         // Устанавливаем кулдаун
         setCooldown(player, hotbarSlot);
     }
@@ -243,7 +251,12 @@ public class SkillListener implements Listener {
     private void shootArrow(Player player, double angleOffset, double damage,
                             String supportCsv, List<EclipseItem> supports) {
         Arrow arrow = player.launchProjectile(Arrow.class);
-        arrow.setDamage(damage);
+        // Ванильный урон стрелы = setDamage * velocity (≈ ×3 при стандартной
+        // скорости launchProjectile) + рандом-крит. Из-за этого стрелы
+        // эклипса били ~×3 от реального baseDamage * statMultiplier — лук
+        // выглядел сильно мощнее меча/фаербола. Обнуляем ванильный урон
+        // и применяем точный damage сами в handleArrowHit.
+        arrow.setDamage(0);
         arrow.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
         arrow.setCritical(true);
 
@@ -282,27 +295,45 @@ public class SkillListener implements Listener {
         String supportCsv = csvSupports(supports);
 
         if (multiShot) {
-            shootFireball(player, 0, damage, supportCsv, supports);
-            shootFireball(player, 12, damage, supportCsv, supports);
-            shootFireball(player, -12, damage, supportCsv, supports);
+            // Веер 3 фаерболов. Угол ±20° + поперечное смещение 1.5 блока,
+            // чтобы хитбоксы (1×1) не пересекались сразу при спавне и не
+            // ловили друг друга в полёте — иначе они мгновенно подрывали
+            // друг друга и из веера оставался один шар.
+            shootFireball(player, 0, 0, damage, supportCsv, supports);
+            shootFireball(player, 20, 1.5, damage, supportCsv, supports);
+            shootFireball(player, -20, -1.5, damage, supportCsv, supports);
         } else {
-            shootFireball(player, 0, damage, supportCsv, supports);
+            shootFireball(player, 0, 0, damage, supportCsv, supports);
         }
 
         player.sendMessage("§aОгненный шар! Урон: §c" + String.format("%.1f", damage));
     }
 
-    private void shootFireball(Player player, double angleOffset, double damage,
-                               String supportCsv, List<EclipseItem> supports) {
-        // Считаем направление с учётом отклонения по горизонтали.
-        Vector dir = player.getLocation().getDirection();
-        if (angleOffset != 0) dir = dir.clone().rotateAroundY(Math.toRadians(angleOffset));
+    /**
+     * Спавн одного фаербола с заданным горизонтальным углом и боковым
+     * (перпендикулярным взгляду) смещением.
+     *
+     * @param angleOffset   горизонтальное отклонение направления полёта (градусы)
+     * @param lateralOffset смещение точки спавна вбок относительно forward
+     *                      (положительное — вправо, в блоках)
+     */
+    private void shootFireball(Player player, double angleOffset, double lateralOffset,
+                               double damage, String supportCsv, List<EclipseItem> supports) {
+        Vector forward = player.getLocation().getDirection().clone().normalize();
+        Vector dir = forward.clone();
+        if (angleOffset != 0) dir = dir.rotateAroundY(Math.toRadians(angleOffset));
         Vector dirNorm = dir.clone().normalize();
 
-        // Спавним фаербол ВПЕРЕДИ игрока со смещением 2 блока, чтобы веер
-        // multi-shot'а не оказался внутри игрока (там 3 шара взрывались сразу
-        // друг о друга и об броню игрока).
+        // База: 2 блока перед глазами игрока в направлении ПОЛЁТА фаербола.
         Location spawn = player.getEyeLocation().add(dirNorm.clone().multiply(2.0));
+
+        // Дополнительное боковое смещение перпендикулярно forward — чтобы
+        // 3 шара стартовали в 1.5 блока друг от друга (хитбокс 1×1).
+        if (lateralOffset != 0) {
+            Vector perp = new Vector(-forward.getZ(), 0, forward.getX()).normalize();
+            spawn.add(perp.multiply(lateralOffset));
+        }
+
         LargeFireball fireball = player.getWorld().spawn(spawn, LargeFireball.class);
         fireball.setShooter(player);
         fireball.setDirection(dirNorm);
@@ -354,19 +385,29 @@ public class SkillListener implements Listener {
         }
         Player shooter = plugin.getServer().getPlayer(shooterId);
 
-        // Eclipse_killer на прямой жертве — для credit XP.
+        double damage = arrow.hasMetadata("eclipse_damage")
+                ? arrow.getMetadata("eclipse_damage").get(0).asDouble() : 5.0;
+
+        // Прямое попадание: применяем УРОН САМИ через damage(double, Player),
+        // т.к. ванильный setDamage обнулён (см. shootArrow). Так лук бьёт
+        // ровно baseDamage * statMultiplier — без скрытого ×velocity-крита.
         if (event.getHitEntity() instanceof LivingEntity directHit
                 && !(directHit instanceof Player)) {
             directHit.setMetadata("eclipse_killer",
                     new org.bukkit.metadata.FixedMetadataValue(plugin, shooterId.toString()));
+            directHit.setMetadata("eclipse_last_damager",
+                    new org.bukkit.metadata.FixedMetadataValue(plugin, shooterId.toString()));
+            if (shooter != null) {
+                directHit.damage(damage, shooter);
+            } else {
+                directHit.damage(damage);
+            }
         }
 
         java.util.Set<EclipseItem.SupportClass> supports = readSupports(arrow);
         if (supports.isEmpty() || shooter == null) return;
 
         Location loc = arrow.getLocation();
-        double damage = arrow.hasMetadata("eclipse_damage")
-                ? arrow.getMetadata("eclipse_damage").get(0).asDouble() : 5.0;
 
         // EXPLOSION — визуальный взрыв + урон по 4-блочной сфере.
         if (supports.contains(EclipseItem.SupportClass.EXPLOSION)) {
@@ -397,6 +438,25 @@ public class SkillListener implements Listener {
                 fireball.getMetadata("eclipse_shooter").get(0).asString());
         Player shooter = plugin.getServer().getPlayer(shooterId);
         if (shooter == null) return;
+
+        // Если фаербол врезался в свой же эклипс-фаербол того же игрока
+        // (multi-shot веер) — тихо удаляем оба, без взрыва. Иначе три шара
+        // в один тик выпиливают друг друга и из веера остаётся пустота.
+        if (event.getHitEntity() instanceof LargeFireball other
+                && other != fireball
+                && other.hasMetadata("eclipse_shooter")) {
+            try {
+                UUID otherShooter = UUID.fromString(
+                        other.getMetadata("eclipse_shooter").get(0).asString());
+                if (otherShooter.equals(shooterId)) {
+                    fireball.remove();
+                    other.remove();
+                    return;
+                }
+            } catch (IllegalArgumentException ignored) {
+                // metadata повреждена — обычная обработка ниже.
+            }
+        }
 
         Location loc = fireball.getLocation();
         java.util.Set<EclipseItem.SupportClass> supports = readSupports(fireball);
