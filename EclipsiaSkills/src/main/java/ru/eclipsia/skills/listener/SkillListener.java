@@ -295,13 +295,14 @@ public class SkillListener implements Listener {
         String supportCsv = csvSupports(supports);
 
         if (multiShot) {
-            // Веер 3 фаерболов. Угол ±20° + поперечное смещение 1.5 блока,
-            // чтобы хитбоксы (1×1) не пересекались сразу при спавне и не
-            // ловили друг друга в полёте — иначе они мгновенно подрывали
-            // друг друга и из веера оставался один шар.
+            // Веер 3 фаерболов. Угол ±25° + поперечное смещение 2.0 блока,
+            // чтобы хитбоксы (1×1) не пересекались. Плюс в handleFireballHit
+            // фаерболы одного игрока ИГНОРИРУЮТ друг друга (cancel event,
+            // не удаляются, не взрываются) — пролетают сквозь и взрываются
+            // только на мобах/блоках.
             shootFireball(player, 0, 0, damage, supportCsv, supports);
-            shootFireball(player, 20, 1.5, damage, supportCsv, supports);
-            shootFireball(player, -20, -1.5, damage, supportCsv, supports);
+            shootFireball(player, 25, 2.0, damage, supportCsv, supports);
+            shootFireball(player, -25, -2.0, damage, supportCsv, supports);
         } else {
             shootFireball(player, 0, 0, damage, supportCsv, supports);
         }
@@ -440,8 +441,11 @@ public class SkillListener implements Listener {
         if (shooter == null) return;
 
         // Если фаербол врезался в свой же эклипс-фаербол того же игрока
-        // (multi-shot веер) — тихо удаляем оба, без взрыва. Иначе три шара
-        // в один тик выпиливают друг друга и из веера остаётся пустота.
+        // (multi-shot веер) — ПОЛНОСТЬЮ ИГНОРИРУЕМ столкновение: cancel
+        // event, оба шара продолжают лететь как ни в чём не бывало.
+        // Так multi-shot гарантированно даёт 3 попадания, а не 1 (который
+        // первым во что-то врезался) или 0 (если они выпилили друг друга
+        // на спавне). На мобов и блоки реакция остаётся нормальная.
         if (event.getHitEntity() instanceof LargeFireball other
                 && other != fireball
                 && other.hasMetadata("eclipse_shooter")) {
@@ -449,8 +453,7 @@ public class SkillListener implements Listener {
                 UUID otherShooter = UUID.fromString(
                         other.getMetadata("eclipse_shooter").get(0).asString());
                 if (otherShooter.equals(shooterId)) {
-                    fireball.remove();
-                    other.remove();
+                    event.setCancelled(true);
                     return;
                 }
             } catch (IllegalArgumentException ignored) {

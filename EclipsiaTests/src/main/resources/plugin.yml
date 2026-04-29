@@ -5,7 +5,7 @@ api-version: '1.20'
 author: EclipsiaTeam
 description: Плагин для автоматизированного тестирования систем Eclipsia
 depend: [EclipsiaCore]
-softdepend: [EclipsiaItems, EclipsiaMobs, EclipsiaPerks]
+softdepend: [EclipsiaItems, EclipsiaMobs, EclipsiaPerks, EclipsiaSkills]
 
 commands:
   test:
@@ -19,6 +19,14 @@ commands:
   autotest:
     description: Включить/выключить автоматическое тестирование
     usage: /autotest [on|off]
+    permission: eclipsia.admin
+  testperks:
+    description: Выдать перки для тестов
+    usage: /testperks <all|points <n>|reset>
+    permission: eclipsia.admin
+  testgems:
+    description: Выдать skill/support gems для тестов
+    usage: /testgems <all|skills|supports|<id>>
     permission: eclipsia.admin
 
 permissions:

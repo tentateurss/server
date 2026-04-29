@@ -4,6 +4,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 import ru.eclipsia.tests.commands.TestCommand;
 import ru.eclipsia.tests.commands.TestResultCommand;
 import ru.eclipsia.tests.commands.AutoTestCommand;
+import ru.eclipsia.tests.commands.TestGemsCommand;
+import ru.eclipsia.tests.commands.TestPerksCommand;
 import ru.eclipsia.tests.manager.TestManager;
 
 /**
@@ -65,6 +67,28 @@ public class EclipsiaTests extends JavaPlugin {
         if (autoTestCmd != null) {
             autoTestCmd.setExecutor(new AutoTestCommand(testManager));
             getLogger().info("✓ Команда /autotest зарегистрирована");
+        }
+
+        var testPerksCmd = getCommand("testperks");
+        if (testPerksCmd != null) {
+            // Soft-dep: если EclipsiaPerks не загружен — команду не регистрируем,
+            // чтобы не свалить onEnable NoClassDefFoundError'ом.
+            if (getServer().getPluginManager().getPlugin("EclipsiaPerks") != null) {
+                testPerksCmd.setExecutor(new TestPerksCommand());
+                getLogger().info("✓ Команда /testperks зарегистрирована");
+            } else {
+                getLogger().warning("EclipsiaPerks не загружен — /testperks недоступна");
+            }
+        }
+
+        var testGemsCmd = getCommand("testgems");
+        if (testGemsCmd != null) {
+            if (getServer().getPluginManager().getPlugin("EclipsiaSkills") != null) {
+                testGemsCmd.setExecutor(new TestGemsCommand());
+                getLogger().info("✓ Команда /testgems зарегистрирована");
+            } else {
+                getLogger().warning("EclipsiaSkills не загружен — /testgems недоступна");
+            }
         }
     }
     
