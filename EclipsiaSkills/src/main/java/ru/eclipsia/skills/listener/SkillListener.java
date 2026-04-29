@@ -14,6 +14,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 import ru.eclipsia.core.data.PlayerProfile;
@@ -156,11 +157,13 @@ public class SkillListener implements Listener {
 
         if (hasMulti) {
             // MULTI_SHOT в мили — повторный удар через 4 тика, эмулирует комбо.
+            final double finalRadius = radius;
+            final double finalDamage = damage;
             org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 if (!player.isOnline()) return;
                 Location follow = player.getEyeLocation()
-                        .add(player.getEyeLocation().getDirection().normalize().multiply(radius));
-                meleeStrikeAt(player, follow, radius, damage * 0.7);
+                        .add(player.getEyeLocation().getDirection().normalize().multiply(finalRadius));
+                meleeStrikeAt(player, follow, finalRadius, finalDamage * 0.7);
             }, 4L);
         }
 
@@ -195,11 +198,18 @@ public class SkillListener implements Listener {
     }
 
     /**
-     * Проставить eclipse_killer на жертве (для MobDeathListener → выдача XP).
+     * Проставить eclipse_killer + eclipse_last_damager на жертве, чтобы
+     * MobDeathListener гарантированно выдал XP. Дублируем оба ключа: на
+     * мили-удары (без проджектайла) Bukkit не всегда успевает обновить
+     * {@code getKiller()} к моменту EntityDeathEvent — особенно если урон
+     * пошёл через {@link LivingEntity#damage(double, org.bukkit.entity.Entity)}
+     * и в финальном тике игрок уже не считается активным damager-ом.
      */
     private void markKiller(LivingEntity victim, Player killer) {
-        victim.setMetadata("eclipse_killer",
-                new org.bukkit.metadata.FixedMetadataValue(plugin, killer.getUniqueId().toString()));
+        org.bukkit.metadata.FixedMetadataValue value =
+                new org.bukkit.metadata.FixedMetadataValue(plugin, killer.getUniqueId().toString());
+        victim.setMetadata("eclipse_killer", value);
+        victim.setMetadata("eclipse_last_damager", value);
     }
 
     /**
@@ -284,10 +294,19 @@ public class SkillListener implements Listener {
 
     private void shootFireball(Player player, double angleOffset, double damage,
                                String supportCsv, List<EclipseItem> supports) {
-        LargeFireball fireball = player.launchProjectile(LargeFireball.class);
+        // Считаем направление с учётом отклонения по горизонтали.
         Vector dir = player.getLocation().getDirection();
         if (angleOffset != 0) dir = dir.clone().rotateAroundY(Math.toRadians(angleOffset));
-        fireball.setVelocity(dir.multiply(1.5));
+        Vector dirNorm = dir.clone().normalize();
+
+        // Спавним фаербол ВПЕРЕДИ игрока со смещением 2 блока, чтобы веер
+        // multi-shot'а не оказался внутри игрока (там 3 шара взрывались сразу
+        // друг о друга и об броню игрока).
+        Location spawn = player.getEyeLocation().add(dirNorm.clone().multiply(2.0));
+        LargeFireball fireball = player.getWorld().spawn(spawn, LargeFireball.class);
+        fireball.setShooter(player);
+        fireball.setDirection(dirNorm);
+        fireball.setVelocity(dirNorm.clone().multiply(1.5));
         fireball.setYield(0); // Не ломаем блоки — урон считаем сами в onProjectileHit.
 
         fireball.setMetadata("eclipse_damage",
@@ -577,20 +596,34 @@ public class SkillListener implements Listener {
     public void onInventoryDrag(org.bukkit.event.inventory.InventoryDragEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
-        // Любая drag-операция по слоту навыка или с навыком на курсоре — отмена.
+        // Любая drag-операция с иконкой навыка на курсоре — отмена.
         if (isSkillIcon(event.getOldCursor())) {
             event.setCancelled(true);
             return;
         }
+
+        String title = event.getView().getTitle();
+        int topSize = event.getView().getTopInventory().getSize();
+
+        // В GUI §6Навыки drag-распределение в верхний инвентарь — мультислот;
+        // мы не поддерживаем такую вставку (только клик), поэтому отменяем.
+        // Drag целиком по нижнему инвентарю не трогаем — игрок может
+        // свободно перекладывать гемы у себя в инвентаре.
+        if ("§6Навыки".equals(title)) {
+            for (int rawSlot : event.getRawSlots()) {
+                if (rawSlot < topSize) {
+                    event.setCancelled(true);
+                    return;
+                }
+            }
+        }
+
         SkillManager.PlayerSkills skills = plugin.getSkillManager().getPlayerSkills(player);
         if (skills == null) return;
-        int topSize = event.getView().getTopInventory().getSize();
         for (int rawSlot : event.getRawSlots()) {
             int invSlot = rawSlot - topSize;
             if (invSlot < 0) continue;
-            // Слоты 0-8 в player inv — это hotbar: slot 36..44 в rawSlot.
-            // Mapping: rawSlot = topSize + hotbarSlot(27..35) vs main(0..26).
-            // Hotbar имеет rawSlot = topSize + 27 + n, но safe check через mapping.
+            // Хотбар имеет rawSlot = topSize + 27 + n.
             int hotbarSlot = rawSlot - (topSize + 27);
             if (hotbarSlot >= 0 && hotbarSlot <= 8 && skills.hotbarMapping.containsKey(hotbarSlot)) {
                 event.setCancelled(true);
@@ -760,33 +793,68 @@ public class SkillListener implements Listener {
      * — иначе Bukkit может частично применить операцию (особенно с stacks).
      */
     private void handleSkillsGuiClick(InventoryClickEvent event, Player player) {
-        event.setCancelled(true);
-
         SkillManager mgr = plugin.getSkillManager();
+        SkillManager.PlayerSkills skills = mgr.getPlayerSkills(player);
         int rawSlot = event.getRawSlot();
         Inventory top = event.getView().getTopInventory();
         boolean isTop = event.getClickedInventory() != null
                 && event.getClickedInventory().equals(top);
 
-        // Shift-click по гему в нижнем инвентаре — авто-экип.
-        if (!isTop && event.isShiftClick()) {
-            ItemStack current = event.getCurrentItem();
-            EclipseItem gem = EclipseItem.fromItemStack(current);
-            if (gem == null) return;
-            // Тот же сценарий, что ПКМ по гему: ищем место и вставляем.
-            // Для этого временно снимем 1 шт. с слота инвентаря.
-            if (current.getAmount() <= 1) {
-                event.setCurrentItem(null);
-            } else {
-                current.setAmount(current.getAmount() - 1);
-            }
-            handleGemRightClickFromGui(player, gem);
-            // Перерисовываем GUI чтобы показать изменения.
-            reopenSkillsGui(player);
+        // Никогда не позволяем тащить иконку навыка через GUI — её нельзя
+        // даже временно держать на курсоре, иначе игрок может задублировать
+        // навык, кинув курсор в инвентарь.
+        if (isSkillIcon(event.getCursor()) || isSkillIcon(event.getCurrentItem())) {
+            event.setCancelled(true);
+            return;
+        }
+        if (event.getClick() == org.bukkit.event.inventory.ClickType.NUMBER_KEY
+                && event.getHotbarButton() >= 0
+                && skills != null
+                && skills.hotbarMapping.containsKey(event.getHotbarButton())) {
+            event.setCancelled(true);
             return;
         }
 
-        if (!isTop) return;
+        if (!isTop) {
+            // Клик по нижнему (своему) инвентарю.
+            // Запрещаем трогать слоты хотбара, в которых лежит иконка навыка.
+            if (skills != null
+                    && event.getClickedInventory() != null
+                    && event.getClickedInventory().getType()
+                            == org.bukkit.event.inventory.InventoryType.PLAYER
+                    && skills.hotbarMapping.containsKey(event.getSlot())) {
+                event.setCancelled(true);
+                return;
+            }
+
+            // Shift-click по гему — авто-экип в первый подходящий слот GUI.
+            if (event.isShiftClick()) {
+                ItemStack current = event.getCurrentItem();
+                EclipseItem gem = EclipseItem.fromItemStack(current);
+                if (gem != null) {
+                    event.setCancelled(true);
+                    if (current.getAmount() <= 1) {
+                        event.setCurrentItem(null);
+                    } else {
+                        current.setAmount(current.getAmount() - 1);
+                    }
+                    handleGemRightClickFromGui(player, gem);
+                    reopenSkillsGui(player);
+                    return;
+                }
+                // Не-гем: запрещаем shift-перенос в верхний инвентарь
+                // (Bukkit бы попытался положить предмет в наши слоты GUI).
+                event.setCancelled(true);
+                return;
+            }
+            // Обычный клик по своему инвентарю — Bukkit обрабатывает сам:
+            // игрок может свободно поднять/положить гем, чтобы потом
+            // вручную перетащить его в слот GUI левым кликом.
+            return;
+        }
+
+        // Клик по верхнему инвентарю (GUI) — всегда вручную.
+        event.setCancelled(true);
 
         ItemStack cursor = event.getCursor();
         ItemStack current = event.getCurrentItem();
@@ -987,8 +1055,7 @@ public class SkillListener implements Listener {
             if (!(e instanceof LivingEntity living)) continue;
             if (e.equals(shooter)) continue;
             if (e instanceof Player) continue;
-            living.setMetadata("eclipse_killer",
-                    new org.bukkit.metadata.FixedMetadataValue(plugin, shooter.getUniqueId().toString()));
+            markKiller(living, shooter);
             living.damage(damage, shooter);
         }
     }

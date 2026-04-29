@@ -23,7 +23,7 @@ public class ArmorSyncListener implements Listener {
         this.equipmentManager = equipmentManager;
     }
     
-    @EventHandler(priority = EventPriority.MONITOR)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
         ItemStack item = event.getItem();
@@ -32,8 +32,13 @@ public class ArmorSyncListener implements Listener {
         if (item != null && isCustomItem(item)) {
             ItemSlot slot = determineAccessorySlot(item);
             if (slot != null) {
-                // Это аксессуар - экипируем сразу
+                // Это аксессуар - экипируем сразу.
+                // ВАЖНО: проверяем требования (уровень) ДО экипировки —
+                // иначе амулет 5lvl можно надеть на 1lvl персонажа.
                 event.setCancelled(true);
+                if (!checkLevelRequirement(player, item)) {
+                    return;
+                }
                 equipAccessory(player, item, slot);
                 return;
             }
@@ -44,7 +49,49 @@ public class ArmorSyncListener implements Listener {
             syncArmorToCustomEquipment(player);
         }, 2L);
     }
-    
+
+    /**
+     * Проверить требование по уровню из лора предмета.
+     *
+     * <p>Возвращает {@code true}, если требование отсутствует или соблюдено.
+     * Если уровень недостаточен — возвращает {@code false} и пишет игроку
+     * сообщение об отказе. Совпадает по поведению с
+     * {@code QuickEquipListener#checkRequirements}, чтобы все пути экипировки
+     * (ПКМ-кастомный аксессуар, RMB-quick-equip, GUI) имели одинаковую
+     * проверку.
+     */
+    private boolean checkLevelRequirement(Player player, ItemStack item) {
+        if (!item.hasItemMeta() || !item.getItemMeta().hasLore()) {
+            return true;
+        }
+        ru.eclipsia.core.api.EclipsiaAPI api = ru.eclipsia.core.api.EclipsiaAPI.getInstance();
+        if (api == null) {
+            // Без API уровень неизвестен — пропускаем без проверки,
+            // чтобы не заблокировать одевание целиком.
+            return true;
+        }
+        int playerLevel = api.getPlayerLevel(player);
+        for (String line : item.getItemMeta().getLore()) {
+            String cleaned = line.replaceAll("§.", "").trim();
+            if (cleaned.startsWith("Требуется уровень:")
+                    || cleaned.startsWith("Required level:")) {
+                try {
+                    String levelStr = cleaned.substring(cleaned.indexOf(":") + 1).trim();
+                    int requiredLevel = Integer.parseInt(levelStr);
+                    if (playerLevel < requiredLevel) {
+                        player.sendMessage("§cНедостаточный уровень!");
+                        player.sendMessage("§7Требуется: §e" + requiredLevel
+                                + " §7| Ваш: §e" + playerLevel);
+                        return false;
+                    }
+                } catch (NumberFormatException ignored) {
+                    // Не парсится — игнорируем, считаем требование отсутствующим.
+                }
+            }
+        }
+        return true;
+    }
+
     /**
      * Экипировать аксессуар
      */
@@ -133,45 +180,65 @@ public class ArmorSyncListener implements Listener {
         // Проверяем шлем
         ItemStack helmet = player.getInventory().getHelmet();
         if (helmet != null && isCustomItem(helmet)) {
-            player.getInventory().setHelmet(null);
-            ItemStack old = equipment.equip(ItemSlot.HEAD, helmet);
-            if (old != null) {
-                player.getInventory().addItem(old);
+            if (!checkLevelRequirement(player, helmet)) {
+                player.getInventory().setHelmet(null);
+                player.getInventory().addItem(helmet);
+            } else {
+                player.getInventory().setHelmet(null);
+                ItemStack old = equipment.equip(ItemSlot.HEAD, helmet);
+                if (old != null) {
+                    player.getInventory().addItem(old);
+                }
+                synced = true;
             }
-            synced = true;
         }
         
         // Проверяем нагрудник
         ItemStack chestplate = player.getInventory().getChestplate();
         if (chestplate != null && isCustomItem(chestplate)) {
-            player.getInventory().setChestplate(null);
-            ItemStack old = equipment.equip(ItemSlot.CHEST, chestplate);
-            if (old != null) {
-                player.getInventory().addItem(old);
+            if (!checkLevelRequirement(player, chestplate)) {
+                player.getInventory().setChestplate(null);
+                player.getInventory().addItem(chestplate);
+            } else {
+                player.getInventory().setChestplate(null);
+                ItemStack old = equipment.equip(ItemSlot.CHEST, chestplate);
+                if (old != null) {
+                    player.getInventory().addItem(old);
+                }
+                synced = true;
             }
-            synced = true;
         }
         
         // Проверяем штаны
         ItemStack leggings = player.getInventory().getLeggings();
         if (leggings != null && isCustomItem(leggings)) {
-            player.getInventory().setLeggings(null);
-            ItemStack old = equipment.equip(ItemSlot.LEGS, leggings);
-            if (old != null) {
-                player.getInventory().addItem(old);
+            if (!checkLevelRequirement(player, leggings)) {
+                player.getInventory().setLeggings(null);
+                player.getInventory().addItem(leggings);
+            } else {
+                player.getInventory().setLeggings(null);
+                ItemStack old = equipment.equip(ItemSlot.LEGS, leggings);
+                if (old != null) {
+                    player.getInventory().addItem(old);
+                }
+                synced = true;
             }
-            synced = true;
         }
         
         // Проверяем ботинки
         ItemStack boots = player.getInventory().getBoots();
         if (boots != null && isCustomItem(boots)) {
-            player.getInventory().setBoots(null);
-            ItemStack old = equipment.equip(ItemSlot.FEET, boots);
-            if (old != null) {
-                player.getInventory().addItem(old);
+            if (!checkLevelRequirement(player, boots)) {
+                player.getInventory().setBoots(null);
+                player.getInventory().addItem(boots);
+            } else {
+                player.getInventory().setBoots(null);
+                ItemStack old = equipment.equip(ItemSlot.FEET, boots);
+                if (old != null) {
+                    player.getInventory().addItem(old);
+                }
+                synced = true;
             }
-            synced = true;
         }
         
         if (synced) {

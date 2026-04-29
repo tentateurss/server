@@ -16,11 +16,22 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Если игрок входит в воду на пляжном мире — отправить ему сообщение
- * «Здесь слишком опасно...» и телепортировать обратно к берегу.
+ * Если игрок входит в ОКЕАН вокруг острова на пляжном мире — отправить ему
+ * сообщение «Здесь слишком опасно...» и телепортировать обратно к берегу.
  *
- * <p>Простая логика: смотрим ноги игрока и блок ниже. Если хоть один —
- * вода, телепортируем на ближайшую сушу (по направлению к лагерю).
+ * <p>Логика:
+ * <ol>
+ *   <li>Игрок должен быть в воде (ноги или икры).</li>
+ *   <li>Под игроком должна быть «глубокая» вода — минимум
+ *       {@link #OCEAN_MIN_DEPTH} блоков воды подряд вниз. Иначе это просто
+ *       лужа / водопад / декоративный пруд на острове, и телепорт не
+ *       должен срабатывать.</li>
+ * </ol>
+ *
+ * <p>Дно океана у генератора — около {@code y=-21}, поверхность — {@code y=5},
+ * то есть в океане ≥ 25 блоков воды. Лужи и водопады на островах обычно ≤ 2
+ * блоков, так что порог в {@value #OCEAN_MIN_DEPTH} даёт надёжный
+ * безопасный отступ.
  *
  * <p>Чтобы не спамить сообщениями каждый тик, держим cooldown 3с.
  */
@@ -29,6 +40,13 @@ public final class WaterGuardListener implements Listener {
     private static final String BEACH_WORLD = "beach";
     private static final long MESSAGE_COOLDOWN_MS = 3000L;
     private static final int SAFE_Y = 6; // выше уровня воды (5)
+
+    /**
+     * Минимальная высота столба воды под игроком, при которой считаем
+     * это «океаном». Лужа (1-2 блока) и водопад (тонкая струя, под ней
+     * камень / трава) ниже порога — не триггерят телепорт.
+     */
+    private static final int OCEAN_MIN_DEPTH = 4;
 
     private final JavaPlugin plugin;
     private final Map<UUID, Long> lastWarn = new HashMap<>();
@@ -51,7 +69,10 @@ public final class WaterGuardListener implements Listener {
         Block legs = world.getBlockAt(to.getBlockX(), to.getBlockY() + 1, to.getBlockZ());
         if (!isWaterLike(feet) && !isWaterLike(legs)) return;
 
-        // Игрок в воде. Возвращаем на берег.
+        // Игрок в воде. Проверяем — это океан, или просто лужа/водопад
+        // на острове? Лужи/водопады не должны телепортить.
+        if (!isOceanWater(world, to)) return;
+
         Location safe = findSafeLocation(world, to);
         player.teleport(safe);
         long now = System.currentTimeMillis();
@@ -63,6 +84,30 @@ public final class WaterGuardListener implements Listener {
                     + "Здесь ещё слишком опасно... " + ChatColor.GRAY
                     + "море таит в себе древние ужасы. Возвращайтесь к берегу.");
         }
+    }
+
+    /**
+     * Считаем воду «океаном», если под игроком есть подряд хотя бы
+     * {@link #OCEAN_MIN_DEPTH} блоков воды. Лужи в 1–2 блока и струи
+     * водопадов с островов так не триггерятся.
+     */
+    private boolean isOceanWater(World world, Location at) {
+        int x = at.getBlockX();
+        int z = at.getBlockZ();
+        // Берём максимум из двух стартовых Y (ноги / икры) — лужа в 1 блок
+        // на игроке выше, чем поверхность ландшафта, не должна проходить.
+        int startY = at.getBlockY();
+        int depth = 0;
+        for (int y = startY; y > world.getMinHeight(); y--) {
+            Block b = world.getBlockAt(x, y, z);
+            if (isWaterLike(b)) {
+                depth++;
+                if (depth >= OCEAN_MIN_DEPTH) return true;
+            } else {
+                return false;
+            }
+        }
+        return false;
     }
 
     private static boolean isWaterLike(Block b) {
