@@ -304,7 +304,7 @@ const COLORS = {
   NOTABLE:   { fill: '#ffc870', stroke: '#e89c2e', glow: '#e89c2eaa' },
   KEYSTONE:  { fill: '#ff8080', stroke: '#d23c3c', glow: '#d23c3cbb' },
 };
-const SIZES = { START: 22, SMALL: 11, MEDIUM: 16, NOTABLE: 22, KEYSTONE: 28 };
+const SIZES = { START: 26, SMALL: 11, MEDIUM: 17, NOTABLE: 24, KEYSTONE: 32 };
 
 // Stat → human-readable Russian label
 const STAT_LABELS = {
@@ -444,19 +444,51 @@ function resize() {
   draw();
 }
 
+// Глобальный таймер для пульсаций / медленного дрейфа фона.
+let _pulse = 0;
+function tick() { _pulse += 0.04; draw(); requestAnimationFrame(tick); }
+
 function draw() {
-  ctx.fillStyle = 'rgba(8,6,16,0)'; // transparent so background gradient shows
   ctx.clearRect(0, 0, cv.width, cv.height);
   if (!tree) return;
+
+  // ===== АТМОСФЕРНЫЙ ФОН =====
+  // Большой радиальный градиент в центр + дрейфующие "облака" тумана.
+  const W = cv.width / (window.devicePixelRatio || 1);
+  const H = cv.height / (window.devicePixelRatio || 1);
+  const bgGrad = ctx.createRadialGradient(W * 0.5, H * 0.5, 50, W * 0.5, H * 0.5, Math.max(W, H));
+  bgGrad.addColorStop(0,   '#1c1638');
+  bgGrad.addColorStop(0.5, '#0c0a1c');
+  bgGrad.addColorStop(1,   '#03030a');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Лёгкие "звёзды" + дрейфующий туман — рисуем редко (5 звёзд + 3 пятна).
+  for (let i = 0; i < 5; i++) {
+    const sx = (W * (0.1 + 0.18 * i) + Math.sin(_pulse * 0.3 + i) * 25) % W;
+    const sy = (H * 0.15 + (i * 47) % H + Math.cos(_pulse * 0.2 + i) * 30) % H;
+    ctx.fillStyle = 'rgba(245, 217, 124, 0.35)';
+    ctx.beginPath(); ctx.arc(sx, sy, 1.4, 0, Math.PI * 2); ctx.fill();
+  }
+  for (let i = 0; i < 3; i++) {
+    const cx = W * (0.2 + 0.3 * i) + Math.sin(_pulse * 0.15 + i) * 60;
+    const cy = H * (0.4 + 0.2 * i) + Math.cos(_pulse * 0.1 + i) * 40;
+    const fog = ctx.createRadialGradient(cx, cy, 30, cx, cy, 200);
+    fog.addColorStop(0, 'rgba(80, 50, 130, 0.10)');
+    fog.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = fog;
+    ctx.fillRect(cx - 200, cy - 200, 400, 400);
+  }
+
   ctx.save();
   ctx.translate(ox, oy);
   ctx.scale(scale, scale);
 
-  // ===== zone tints =====
-  drawZone(50,  300, 550,  900, '#d23c3c11');   // warrior — red
-  drawZone(1050,300, 1550, 900, '#3ad26122');   // archer — green
-  drawZone(550, 0,   1100, 500, '#3a7ad222');   // mage — blue
-  drawZone(500, 500, 1100, 900, '#c8a84e11');   // centre — gold
+  // ===== zone tints — мягкие радиальные аро́ры классов =====
+  drawZoneRadial( 300, 600, 280, '#d23c3c22');  // warrior — red
+  drawZoneRadial(1300, 600, 280, '#3ad26124');  // archer — green
+  drawZoneRadial( 800, 250, 280, '#3a7ad222');  // mage — blue
+  drawZoneRadial( 800, 700, 200, '#c8a84e1a');  // centre — gold
 
   // ===== edges =====
   ctx.lineCap = 'round';
@@ -466,73 +498,24 @@ function draw() {
     if (!a || !b) continue;
     const both = allocated.has(a.id) && allocated.has(b.id);
     const reachable = allocated.has(a.id) || allocated.has(b.id);
-    ctx.lineWidth = both ? 5 : (reachable ? 3 : 2);
-    ctx.strokeStyle = both ? '#f5d97c' : (reachable ? '#c8a84e88' : '#3a3a4a');
     if (both) {
-      ctx.shadowColor = '#f5d97caa';
-      ctx.shadowBlur = 12;
+      // Двойная линия: внешний широкий золотой свет + узкий ярко-золотой шов.
+      ctx.shadowColor = '#f5d97c'; ctx.shadowBlur = 18;
+      ctx.lineWidth = 7; ctx.strokeStyle = 'rgba(245,217,124,0.30)';
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.lineWidth = 2.5; ctx.strokeStyle = '#f5d97c';
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    } else {
+      ctx.lineWidth = reachable ? 2 : 1.5;
+      ctx.strokeStyle = reachable ? '#c8a84e66' : '#2a283c';
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
     }
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.stroke();
-    ctx.shadowBlur = 0;
   }
 
   // ===== nodes =====
   for (const n of tree.nodes) {
-    const c = COLORS[n.type] || COLORS.SMALL;
-    const r = (SIZES[n.type] || 12);
-    const isAlloc = allocated.has(n.id);
-    const isHover = hover && hover.id === n.id;
-    const isSel   = selected && selected.id === n.id;
-    const isHl    = highlight && (n.name || '').toLowerCase().includes(highlight);
-
-    // glow
-    if (isAlloc || isHover || isSel || isHl) {
-      ctx.shadowColor = c.glow;
-      ctx.shadowBlur = isAlloc ? 24 : 14;
-    }
-
-    // outer ring (for hover/selected/search highlight)
-    if (isSel) {
-      ctx.beginPath();
-      ctx.arc(n.x, n.y, r + 6, 0, Math.PI*2);
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = '#fff';
-      ctx.stroke();
-    } else if (isHl) {
-      ctx.beginPath();
-      ctx.arc(n.x, n.y, r + 4, 0, Math.PI*2);
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = '#f5d97c';
-      ctx.stroke();
-    }
-
-    // base disc
-    ctx.beginPath();
-    ctx.arc(n.x, n.y, r, 0, Math.PI*2);
-    if (isAlloc) {
-      const grad = ctx.createRadialGradient(n.x - r/3, n.y - r/3, r/4, n.x, n.y, r);
-      grad.addColorStop(0, '#fff');
-      grad.addColorStop(1, c.fill);
-      ctx.fillStyle = grad;
-    } else {
-      ctx.fillStyle = '#181426';
-    }
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = isAlloc ? '#fff' : c.stroke;
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    // inner sigil for keystones / notables
-    if ((n.type === 'KEYSTONE' || n.type === 'NOTABLE' || n.type === 'START') && tree) {
-      ctx.beginPath();
-      ctx.arc(n.x, n.y, r * 0.42, 0, Math.PI*2);
-      ctx.fillStyle = isAlloc ? c.stroke : '#2a223a';
-      ctx.fill();
-    }
+    drawNode(n);
   }
 
   ctx.restore();
@@ -560,6 +543,179 @@ function draw() {
 function drawZone(x1, y1, x2, y2, color) {
   ctx.fillStyle = color;
   ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+}
+
+function drawZoneRadial(cx, cy, r, color) {
+  const g = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r);
+  g.addColorStop(0, color);
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+}
+
+/* Полигон с центром (cx, cy), N вершинами, радиусом r и углом старта. */
+function polyPath(cx, cy, sides, r, startAngle) {
+  ctx.beginPath();
+  for (let i = 0; i < sides; i++) {
+    const a = startAngle + i * (Math.PI * 2 / sides);
+    const x = cx + Math.cos(a) * r;
+    const y = cy + Math.sin(a) * r;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
+
+/* Звезда: 2*spikes вершин, чередующиеся inner/outer радиусы. */
+function starPath(cx, cy, spikes, outer, inner, startAngle) {
+  ctx.beginPath();
+  for (let i = 0; i < spikes * 2; i++) {
+    const a = startAngle + i * (Math.PI / spikes);
+    const r = (i % 2 === 0) ? outer : inner;
+    const x = cx + Math.cos(a) * r;
+    const y = cy + Math.sin(a) * r;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
+
+/*
+ * Узел "по-PoEшному": тип определяет геометрию.
+ * - SMALL    — 6-угольник (hex)
+ * - MEDIUM   — 8-угольник, чуть крупнее
+ * - NOTABLE  — обрамлённый 6-угольник + внутренний ромб
+ * - KEYSTONE — 8-лучевая звезда + внешнее кольцо
+ * - START    — ярко-золотой круг с лучами и пульсацией
+ * Аллокированный узел получает многослойное свечение и градиент-наполнение.
+ */
+function drawNode(n) {
+  const c = COLORS[n.type] || COLORS.SMALL;
+  const r = (SIZES[n.type] || 12);
+  const isAlloc = allocated.has(n.id);
+  const isHover = hover && hover.id === n.id;
+  const isSel   = selected && selected.id === n.id;
+  const isHl    = highlight && (n.name || '').toLowerCase().includes(highlight);
+
+  // Внешнее свечение для всех "интересных" состояний.
+  if (isAlloc || isHover || isSel || isHl || n.type === 'KEYSTONE' || n.type === 'START') {
+    ctx.shadowColor = c.glow;
+    ctx.shadowBlur = isAlloc ? 26 : (n.type === 'KEYSTONE' || n.type === 'START' ? 18 : 12);
+  }
+
+  // ---- START — большой золотой круг с расходящимися лучами и пульсом ----
+  if (n.type === 'START') {
+    const pulse = 1.0 + 0.06 * Math.sin(_pulse * 1.3);
+    // Внешние лучи — 8 штук
+    ctx.save();
+    ctx.translate(n.x, n.y);
+    for (let i = 0; i < 8; i++) {
+      ctx.rotate(Math.PI / 4);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, -r * 1.6 * pulse);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = isAlloc ? 'rgba(245,217,124,0.7)' : 'rgba(245,217,124,0.35)';
+      ctx.stroke();
+    }
+    ctx.restore();
+    const g = ctx.createRadialGradient(n.x - r/3, n.y - r/3, r/4, n.x, n.y, r);
+    g.addColorStop(0, '#fffbe0');
+    g.addColorStop(1, c.fill);
+    ctx.beginPath(); ctx.arc(n.x, n.y, r * pulse, 0, Math.PI*2);
+    ctx.fillStyle = g; ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = '#f5d97c'; ctx.stroke();
+    ctx.shadowBlur = 0;
+    return;
+  }
+
+  // ---- KEYSTONE — звезда + кольцо ----
+  if (n.type === 'KEYSTONE') {
+    // внешнее кольцо
+    ctx.beginPath(); ctx.arc(n.x, n.y, r + 4, 0, Math.PI*2);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = isAlloc ? c.stroke : '#3a3a4a';
+    ctx.stroke();
+    // звезда
+    starPath(n.x, n.y, 8, r, r * 0.45, _pulse * 0.05);
+    if (isAlloc) {
+      const g = ctx.createRadialGradient(n.x, n.y, 2, n.x, n.y, r);
+      g.addColorStop(0, '#fff8d6'); g.addColorStop(1, c.fill);
+      ctx.fillStyle = g;
+    } else {
+      ctx.fillStyle = '#181426';
+    }
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = isAlloc ? '#fff' : c.stroke;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    drawSelectionRing(n, r + 8, isSel, isHl);
+    return;
+  }
+
+  // ---- NOTABLE — крупный 6-угольник + внутренний ромб ----
+  if (n.type === 'NOTABLE') {
+    polyPath(n.x, n.y, 6, r, Math.PI / 6);
+    if (isAlloc) {
+      const g = ctx.createRadialGradient(n.x - r/3, n.y - r/3, r/4, n.x, n.y, r);
+      g.addColorStop(0, '#fffaea'); g.addColorStop(1, c.fill);
+      ctx.fillStyle = g;
+    } else {
+      ctx.fillStyle = '#181426';
+    }
+    ctx.fill();
+    ctx.lineWidth = 2.5; ctx.strokeStyle = isAlloc ? '#fff' : c.stroke;
+    ctx.stroke();
+    // Ромб внутри
+    polyPath(n.x, n.y, 4, r * 0.42, Math.PI / 4);
+    ctx.fillStyle = isAlloc ? c.stroke : '#2a223a';
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    drawSelectionRing(n, r + 6, isSel, isHl);
+    return;
+  }
+
+  // ---- MEDIUM — 8-угольник ----
+  if (n.type === 'MEDIUM') {
+    polyPath(n.x, n.y, 8, r, Math.PI / 8);
+    if (isAlloc) {
+      const g = ctx.createRadialGradient(n.x - r/3, n.y - r/3, r/4, n.x, n.y, r);
+      g.addColorStop(0, '#fff'); g.addColorStop(1, c.fill);
+      ctx.fillStyle = g;
+    } else {
+      ctx.fillStyle = '#181426';
+    }
+    ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = isAlloc ? '#fff' : c.stroke;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    drawSelectionRing(n, r + 5, isSel, isHl);
+    return;
+  }
+
+  // ---- SMALL — 6-угольник ----
+  polyPath(n.x, n.y, 6, r, Math.PI / 6);
+  if (isAlloc) {
+    const g = ctx.createRadialGradient(n.x - r/3, n.y - r/3, r/4, n.x, n.y, r);
+    g.addColorStop(0, '#fff'); g.addColorStop(1, c.fill);
+    ctx.fillStyle = g;
+  } else {
+    ctx.fillStyle = '#181426';
+  }
+  ctx.fill();
+  ctx.lineWidth = 1.5; ctx.strokeStyle = isAlloc ? '#fff' : c.stroke;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  drawSelectionRing(n, r + 4, isSel, isHl);
+}
+
+function drawSelectionRing(n, radius, isSel, isHl) {
+  if (isSel) {
+    ctx.beginPath(); ctx.arc(n.x, n.y, radius, 0, Math.PI*2);
+    ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
+  } else if (isHl) {
+    ctx.beginPath(); ctx.arc(n.x, n.y, radius - 2, 0, Math.PI*2);
+    ctx.lineWidth = 2; ctx.strokeStyle = '#f5d97c'; ctx.stroke();
+  }
 }
 
 function roundRect(ctx, x, y, w, h, r) {
@@ -749,6 +905,12 @@ async function enterTree() {
   await loadTree();
   updateHud();
   resize();
+  // Анимационный цикл — нужен для пульсации start-узла, дрейфа
+  // тумана и звёзд. Запускаем один раз.
+  if (!window._tickStarted) {
+    window._tickStarted = true;
+    requestAnimationFrame(tick);
+  }
 }
 
 async function bootstrap() {

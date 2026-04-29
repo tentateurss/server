@@ -73,10 +73,11 @@ public class PlayerHUDManager {
         if (data == null) {
             return;
         }
-        
-        // Обновляем ActionBar (текст над хотбаром)
-        updateActionBar(player, data);
-        
+
+        // ActionBar теперь пишет ТОЛЬКО HUDActionBarListener из EclipsiaSkills
+        // (единый формат с HP/Эгида/Мана/реген + базовые статы). Старая
+        // строчка отсюда вызывала мерцание из-за двух источников 1× и 0.5×/тик.
+
         // Обновляем BossBar (полоса опыта)
         updateBossBar(player, data);
     }

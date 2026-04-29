@@ -62,10 +62,9 @@ public class RegenerationListener implements Listener {
                         double newHealth = Math.min(currentHealth + regenBonus, maxHealth);
                         player.setHealth(newHealth);
                         
-                        // Визуальный эффект (опционально)
-                        if (regenBonus >= 1.0) {
-                            player.sendActionBar("§a❤ +" + String.format("%.1f", regenBonus) + " HP");
-                        }
+                        // ActionBar НЕ пишем — единая HUD-строка живёт в
+                        // HUDActionBarListener (EclipsiaSkills); старая надпись
+                        // "+X HP" на 1с подменяла HUD и вызывала мерцание.
                     }
                 }
             }

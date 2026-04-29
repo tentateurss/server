@@ -32,6 +32,17 @@ public final class DamageCalculator {
     public static final double BLOCK_CAP   = 0.75;
     public static final double CRIT_CAP    = 0.95;
 
+    /**
+     * Включает подробный лог защитной цепочки в server.log. Включается
+     * через системное свойство -Declipsia.combat.debug=true или /teststats
+     * (см. EclipsiaTests). По умолчанию выключен.
+     */
+    public static volatile boolean DEBUG =
+            Boolean.getBoolean("eclipsia.combat.debug");
+
+    private static final java.util.logging.Logger LOG =
+            java.util.logging.Logger.getLogger("Eclipsia/Combat");
+
     private DamageCalculator() { /* utility */ }
 
     /**
@@ -71,6 +82,11 @@ public final class DamageCalculator {
         }
 
         double damage = incomingDamage;
+        StringBuilder dbg = DEBUG ? new StringBuilder("[DamageCalc] ")
+                .append("type=").append(type)
+                .append(" inc=").append(String.format("%.2f", incomingDamage))
+                .append(" lvlAtk=").append(attackerLevel)
+                : null;
 
         // 1. УКЛОНЕНИЕ (только удары, а не AOE/огонь — но проверки типа здесь нет;
         // вызывающий код решает, нужно ли применять защиту вообще).
@@ -79,7 +95,10 @@ public final class DamageCalculator {
             double dodgeChance = (double) evasion
                     / (evasion + Math.max(1, attackerLevel) * 10.0);
             dodgeChance = Math.min(dodgeChance, DODGE_CAP);
+            if (DEBUG) dbg.append(" eva=").append(evasion)
+                    .append("(").append(String.format("%.0f%%", dodgeChance * 100)).append(")");
             if (ThreadLocalRandom.current().nextDouble() < dodgeChance) {
+                if (DEBUG) LOG.info(dbg.append(" → DODGED").toString());
                 return Result.dodged();
             }
         }
@@ -134,6 +153,12 @@ public final class DamageCalculator {
             }
         }
 
+        if (DEBUG) {
+            dbg.append(" block=").append(blocked)
+                    .append(" aegis=").append(aegisBefore).append("→").append(aegisAfter)
+                    .append(" final=").append(String.format("%.2f", Math.max(0, damage)));
+            LOG.info(dbg.toString());
+        }
         return new Result(false, blocked, Math.max(0, damage), aegisBefore, aegisAfter);
     }
 

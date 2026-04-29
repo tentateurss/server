@@ -32,15 +32,20 @@ public class StatsCombatListener implements Listener {
         if (event.getEntity() instanceof Player defender) {
             DamageCalculator.markDamaged(defender.getUniqueId());
             applyDefences(event, defender);
-            // Показываем итоговый урон, который реально дойдёт до HP игрока.
-            // Делается после applyDefences (он мог сменить event.getDamage()).
-            if (!event.isCancelled() && event.getDamage() > 0) {
-                DamageDisplay.show(defender, event.getDamage(), DamageType.PHYSICAL);
-            }
+            // НЕ показываем DamageDisplay над игроком — попадание видно по
+            // мерцанию красного экрана и по HUD. До фикса цифра вылетала
+            // и над мобом, и над игроком, и часто дублировалась.
             return;
         }
 
         // ===== ИГРОК — АТАКУЮЩИЙ (обычная физическая атака, не эклипс-навык) =====
+        // Если урон уже был нанесён эклипс-скиллом (handleArrowHit/handleFireballHit/
+        // handleMeleeStrike) — там уже показан DamageDisplay, и мы НЕ должны
+        // делать ещё один + крит-бросок поверх. Метку ставит сам SkillListener.
+        if (event.getEntity().hasMetadata("eclipse_skill_dmg")) {
+            return;
+        }
+
         Player attacker = null;
         if (event.getDamager() instanceof Player p) {
             attacker = p;
