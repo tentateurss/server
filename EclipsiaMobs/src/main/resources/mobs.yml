@@ -1,63 +1,120 @@
 # Конфигурация кастомных мобов
 
 mobs:
-  # Зомби-воин (начальная зона)
+  # ===========================================================================
+  # СТАРТОВЫЕ МОБЫ БЕРЕГА (5 типов) — заменяют high-level мобов на пляже.
+  # Темы: вода (Утопленник), песок (Песчаный ползун), лес у тропы (Гниющий
+  # зомби), лес дальше (Скелет-страж), деревья (Щелкун).
+  # ===========================================================================
+
+  # 1) Утопленник — у кромки воды (z = -100..-90), starter L3.
+  zombie_drowned:
+    display-name: "§3Утопленник"
+    entity-type: DROWNED
+    level: 3
+    health: 60
+    damage: 6
+    armor: 1
+    experience: 30
+    equipment:
+      mainhand: STICK
+    drops:
+      orbs:
+        min: 3
+        max: 8
+        chance: 80
+    spawn-zones:
+      - beach_coast_south
+
+  # 2) Песчаный ползун — пляж и опушки леса, стайки.
+  sand_crawler:
+    display-name: "§8Песчаный ползун"
+    entity-type: SILVERFISH
+    level: 2
+    health: 25
+    damage: 4
+    armor: 0
+    experience: 15
+    drops:
+      orbs:
+        min: 1
+        max: 4
+        chance: 70
+    spawn-zones:
+      - beach_coast_south
+      - beach_forest_west
+      - beach_forest_east
+
+  # 3) Гниющий зомби — лес вдоль тропы, в ржавых железных доспехах.
   zombie_warrior:
-    display-name: "§cЗомби-воин"
+    display-name: "§2Гниющий зомби"
     entity-type: ZOMBIE
     level: 5
     health: 100
-    damage: 15
-    armor: 5
-    experience: 50
+    damage: 12
+    armor: 4
+    experience: 40
     equipment:
       helmet: IRON_HELMET
       chestplate: IRON_CHESTPLATE
-      leggings: IRON_LEGGINGS
-      boots: IRON_BOOTS
       mainhand: IRON_SWORD
     drops:
       orbs:
         min: 5
-        max: 15
-        chance: 100
+        max: 12
+        chance: 90
     spawn-zones:
-      - starter_zone
-      - forest_zone
       - beach_forest_west
       - beach_forest_center
       - beach_forest_east
-      - beach_mountain_center
-      - beach_coast_south
-    
-  # Скелет-лучник
+
+  # 4) Скелет-страж — лес дальше от тропы, для обучения уклонению.
   skeleton_archer:
-    display-name: "§aСкелет-лучник"
+    display-name: "§7Скелет-страж"
     entity-type: SKELETON
     level: 7
     health: 80
-    damage: 20
-    armor: 3
-    experience: 60
+    damage: 16
+    armor: 2
+    experience: 50
     equipment:
+      mainhand: BOW
       helmet: LEATHER_HELMET
       chestplate: LEATHER_CHESTPLATE
-      mainhand: BOW
     drops:
       orbs:
-        min: 7
-        max: 20
-        chance: 100
+        min: 6
+        max: 15
+        chance: 90
     spawn-zones:
-      - forest_zone
-      - mountain_zone
+      - beach_mountain_west
+      - beach_mountain_center
+      - beach_mountain_east
+
+  # 5) Щелкун — крупный паук на деревьях, не нападает первым.
+  forest_spider:
+    display-name: "§5Щелкун"
+    entity-type: SPIDER
+    level: 6
+    health: 70
+    damage: 10
+    armor: 1
+    experience: 35
+    drops:
+      orbs:
+        min: 4
+        max: 10
+        chance: 85
+    spawn-zones:
       - beach_forest_center
       - beach_forest_east
-      - beach_mountain_west
-      - beach_mountain_east
       - beach_mountain_center
-    
-  # Зомби-маг
+
+  # ===========================================================================
+  # ВЫСОКОУРОВНЕВЫЕ МОБЫ — оставлены для зон high-level (НЕ берег).
+  # ===========================================================================
+
+  # Зомби-маг (поздняя зона)
   zombie_mage:
     display-name: "§9Зомби-маг"
     entity-type: ZOMBIE
@@ -78,8 +135,8 @@ mobs:
     spawn-zones:
       - dark_forest
       - ruins_zone
-    
-  # Крипер-взрывник (элитный)
+
+  # Крипер-взрывник (элитный, для босс-зон)
   elite_creeper:
     display-name: "§6§lЭлитный взрывник"
     entity-type: CREEPER
@@ -99,6 +156,7 @@ mobs:
 
 # Зоны спавна мобов
 spawn-zones:
+  # Default world зоны (overworld) — оставляем старого зомби-воина.
   starter_zone:
     world: world
     center:
@@ -111,7 +169,7 @@ spawn-zones:
     mobs:
       - zombie_warrior
     spawn-rate: 5
-    
+
   forest_zone:
     world: world
     center:
@@ -124,8 +182,9 @@ spawn-zones:
     mobs:
       - zombie_warrior
       - skeleton_archer
+      - forest_spider
     spawn-rate: 7
-    
+
   dark_forest:
     world: world
     center:
@@ -139,7 +198,7 @@ spawn-zones:
       - zombie_mage
       - skeleton_archer
     spawn-rate: 10
-    
+
   elite_zone:
     world: world
     center:
@@ -154,44 +213,50 @@ spawn-zones:
       - zombie_mage
     spawn-rate: 3
 
-  # v8: Лес на Берегу — ОЧЕНЬ много мобов. Несколько зон с пересечением.
+  # ===========================================================================
+  # БЕРЕГ (стартовый мир beach) — атмосферные L2-L7 мобы по биомам.
+  # ===========================================================================
+
+  # Прибрежный лес (запад) — гниющие зомби + ползуны.
   beach_forest_west:
     world: beach
     center: {x: -50, y: 12, z: 20}
     radius: 70
-    min-level: 1
-    max-level: 4
-    mobs: [zombie_warrior]
+    min-level: 2
+    max-level: 5
+    mobs: [zombie_warrior, sand_crawler]
     spawn-rate: 40
     max-mobs: 120
 
+  # Прибрежный лес (центр) — комбо: зомби + щелкун + редко страж.
   beach_forest_center:
     world: beach
     center: {x: 0, y: 12, z: 30}
     radius: 80
-    min-level: 1
-    max-level: 5
-    mobs: [zombie_warrior, skeleton_archer]
+    min-level: 3
+    max-level: 7
+    mobs: [zombie_warrior, forest_spider, skeleton_archer]
     spawn-rate: 45
     max-mobs: 150
 
+  # Прибрежный лес (восток).
   beach_forest_east:
     world: beach
     center: {x: 50, y: 12, z: 20}
     radius: 70
-    min-level: 1
-    max-level: 4
-    mobs: [zombie_warrior, skeleton_archer]
+    min-level: 2
+    max-level: 6
+    mobs: [zombie_warrior, sand_crawler, forest_spider]
     spawn-rate: 40
     max-mobs: 120
 
-  # v8: Горный пояс — лучники, плотно.
+  # Горный пояс — стражи и щелкуны на скалах.
   beach_mountain_west:
     world: beach
     center: {x: -60, y: 18, z: 140}
     radius: 60
-    min-level: 3
-    max-level: 6
+    min-level: 4
+    max-level: 7
     mobs: [skeleton_archer]
     spawn-rate: 35
     max-mobs: 80
@@ -200,8 +265,8 @@ spawn-zones:
     world: beach
     center: {x: 60, y: 18, z: 140}
     radius: 60
-    min-level: 3
-    max-level: 6
+    min-level: 4
+    max-level: 7
     mobs: [skeleton_archer]
     spawn-rate: 35
     max-mobs: 80
@@ -210,19 +275,19 @@ spawn-zones:
     world: beach
     center: {x: 0, y: 18, z: 150}
     radius: 70
-    min-level: 4
+    min-level: 5
     max-level: 7
-    mobs: [skeleton_archer, zombie_warrior]
+    mobs: [skeleton_archer, forest_spider]
     spawn-rate: 40
     max-mobs: 120
 
-  # Окраины пляжа — у воды
+  # Берег у воды (юг) — утопленники и редкие ползуны.
   beach_coast_south:
     world: beach
     center: {x: 0, y: 8, z: -90}
     radius: 90
-    min-level: 1
-    max-level: 3
-    mobs: [zombie_warrior]
+    min-level: 2
+    max-level: 4
+    mobs: [zombie_drowned, sand_crawler]
     spawn-rate: 30
     max-mobs: 80

@@ -28,6 +28,10 @@ commands:
     description: Выдать skill/support gems для тестов
     usage: /testgems <all|skills|supports|<id>>
     permission: eclipsia.admin
+  teststats:
+    description: Тестовая выдача статов профиля
+    usage: /teststats <max|addall <n>|set <key> <val>|reset|show>
+    permission: eclipsia.admin
 
 permissions:
   eclipsia.admin:

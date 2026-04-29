@@ -402,6 +402,13 @@ public final class PerkWebAPI {
                     return out;
                 }
             } else {
+                // Стартовый узел класса нельзя сбросить — иначе после "Сбросить всё"
+                // игрок остаётся без точки входа в дерево (баг user-теста).
+                if (node.getType() == ru.eclipsia.perks.node.NodeType.START) {
+                    out.addProperty("ok", false);
+                    out.addProperty("error", "Cannot deallocate starting node");
+                    return out;
+                }
                 if (!data.deallocateNode(nodeId, node.getCost())) {
                     out.addProperty("ok", false);
                     out.addProperty("error", "Node not allocated");
@@ -409,6 +416,19 @@ public final class PerkWebAPI {
                 }
             }
             playerManager.savePlayerData(uuid);
+
+            // После любой мутации перков пересчитываем модификаторы атрибутов
+            // игрока (HP, ATTACK_DAMAGE) + Эгиду. До фикса прокачка в дереве
+            // не отражалась в игре, пока игрок не перезайдёт.
+            org.bukkit.entity.Player online = Bukkit.getPlayer(uuid);
+            if (online != null) {
+                try {
+                    ru.eclipsia.core.stats.StatsBonusApplier.applyAllBonuses(online);
+                } catch (Throwable t) {
+                    plugin.getLogger().warning(
+                            "StatsBonusApplier.applyAllBonuses failed: " + t.getMessage());
+                }
+            }
 
             out.addProperty("ok", true);
             out.addProperty("availablePoints", data.getAvailablePoints());

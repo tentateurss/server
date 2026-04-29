@@ -36,14 +36,21 @@ public class StatsBonusApplier {
     public static void applyAllBonuses(Player player) {
         PlayerData data = DataManager.getInstance().getCachedPlayer(player.getUniqueId());
         if (data == null) return;
-        
+
         // Удаляем старые модификаторы
         removeAllBonuses(player);
-        
-        // Получаем статы
-        int strength = data.getStat("strength");
-        int dexterity = data.getStat("dexterity");
-        int intelligence = data.getStat("intelligence");
+
+        // Получаем статы — суммарно из профиля + экипировки + изученных
+        // перков, чтобы прокачка в дереве сразу увеличивала максимум HP/маны
+        // и реальный урон. До этого фикса данные из перков игнорились
+        // applier'ом — игрок видел в HUD числа, но дамаг/HP не менялся.
+        ru.eclipsia.core.data.PlayerProfile profile =
+                ru.eclipsia.core.api.EclipsiaAPI.getInstance() == null
+                        ? null
+                        : ru.eclipsia.core.api.EclipsiaAPI.getInstance().getActiveProfile(player);
+        int strength     = StatResolver.total(player, profile, "strength");
+        int dexterity    = StatResolver.total(player, profile, "dexterity");
+        int intelligence = StatResolver.total(player, profile, "intelligence");
         
         // Применяем бонусы от силы
         if (strength > 0) {

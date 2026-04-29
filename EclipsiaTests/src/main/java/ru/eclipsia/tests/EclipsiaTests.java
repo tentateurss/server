@@ -6,6 +6,7 @@ import ru.eclipsia.tests.commands.TestResultCommand;
 import ru.eclipsia.tests.commands.AutoTestCommand;
 import ru.eclipsia.tests.commands.TestGemsCommand;
 import ru.eclipsia.tests.commands.TestPerksCommand;
+import ru.eclipsia.tests.commands.TestStatsCommand;
 import ru.eclipsia.tests.manager.TestManager;
 
 /**
@@ -79,6 +80,12 @@ public class EclipsiaTests extends JavaPlugin {
             } else {
                 getLogger().warning("EclipsiaPerks не загружен — /testperks недоступна");
             }
+        }
+
+        var testStatsCmd = getCommand("teststats");
+        if (testStatsCmd != null) {
+            testStatsCmd.setExecutor(new TestStatsCommand());
+            getLogger().info("✓ Команда /teststats зарегистрирована");
         }
 
         var testGemsCmd = getCommand("testgems");

@@ -144,9 +144,9 @@ public class SkillListener implements Listener {
         boolean hasMulti = false;
         for (EclipseItem support : supports) {
             switch (support.getSupportClass()) {
-                case AOE_RADIUS -> radius += 2.0;
-                case EXPLOSION  -> hasExplosion = true;
-                case MULTI_SHOT -> hasMulti = true;
+                case AOE_RADIUS -> radius += 3.0;          // увеличиваем радиус взмаха
+                case EXPLOSION  -> hasExplosion = true;     // взрыв всех в зоне взмаха
+                case MULTI_SHOT -> hasMulti = true;         // +2 удара подряд
             }
         }
 
@@ -157,30 +157,34 @@ public class SkillListener implements Listener {
         meleeStrikeAt(player, targetLoc, radius, damage);
 
         if (hasExplosion) {
-            // EXPLOSION в мили — визуальный взрыв + лёгкий бонус-урон по площади.
+            // EXPLOSION в мили — взрывает всех, кто попал под взмах: повтор
+            // damageInRadius с полным damage и крупный визуальный взрыв.
             targetLoc.getWorld().createExplosion(targetLoc, 0f, false, false);
-            targetLoc.getWorld().spawnParticle(Particle.EXPLOSION_LARGE, targetLoc, 1);
-            damageInRadius(targetLoc, radius, player, damage * 0.3);
+            targetLoc.getWorld().spawnParticle(Particle.EXPLOSION_LARGE, targetLoc, 3, 0.6, 0.6, 0.6);
+            targetLoc.getWorld().spawnParticle(Particle.LAVA, targetLoc, 18, radius / 2, radius / 2, radius / 2);
+            damageInRadius(targetLoc, radius, player, damage * 0.7);
         }
 
         if (hasMulti) {
-            // MULTI_SHOT в мили — повторный удар через 4 тика, эмулирует комбо.
+            // MULTI_SHOT в мили — два дополнительных удара (всего 3) с интервалом
+            // 3 тика, эмулирует комбо. До фикса был +1 (всего 2).
             final double finalRadius = radius;
             final double finalDamage = damage;
-            org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                if (!player.isOnline()) return;
-                Location follow = player.getEyeLocation()
-                        .add(player.getEyeLocation().getDirection().normalize().multiply(finalRadius));
-                meleeStrikeAt(player, follow, finalRadius, finalDamage * 0.7);
-            }, 4L);
+            for (int i = 1; i <= 2; i++) {
+                final int idx = i;
+                org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    if (!player.isOnline()) return;
+                    Location follow = player.getEyeLocation()
+                            .add(player.getEyeLocation().getDirection().normalize().multiply(finalRadius));
+                    meleeStrikeAt(player, follow, finalRadius, finalDamage * 0.7);
+                }, 3L * idx);
+            }
         }
 
-        // Красная "вспышка" в точке удара — индикатор активной поддержки.
+        // Яркая красная вспышка в точке удара — индикатор активной поддержки.
         if (!supports.isEmpty()) {
-            spawnSkillFx(targetLoc, EclipseItem.SkillClass.MELEE_STRIKE, 16);
+            spawnSkillFx(targetLoc, EclipseItem.SkillClass.MELEE_STRIKE, 28);
         }
-
-        // Урон не дублируем в чат — теперь видно цифрой над целью (DamageDisplay).
     }
 
     /** Один "сэндвич" удара — урон + sweep-эффект в указанной точке. */
@@ -195,13 +199,23 @@ public class SkillListener implements Listener {
         for (Entity entity : entities) {
             if (entity instanceof LivingEntity living) {
                 markKiller(living, player);
+                tagSkillDmg(living);
                 living.damage(damage, player);
                 ru.eclipsia.core.combat.DamageDisplay.show(
                         living, damage, ru.eclipsia.core.combat.DamageType.PHYSICAL);
             }
         }
 
-        player.getWorld().spawnParticle(Particle.SWEEP_ATTACK, targetLoc, 8,
+        // Яркие красные частицы вместо тусклого sweep — DUST RED + FLAME +
+        // DAMAGE_INDICATOR; ванильный sweep оставляем, но толще.
+        player.getWorld().spawnParticle(Particle.SWEEP_ATTACK, targetLoc, 12,
+                radius / 2, radius / 2, radius / 2);
+        player.getWorld().spawnParticle(Particle.REDSTONE, targetLoc, 30,
+                radius / 2, radius / 2, radius / 2,
+                new Particle.DustOptions(org.bukkit.Color.fromRGB(255, 40, 40), 1.8f));
+        player.getWorld().spawnParticle(Particle.FLAME, targetLoc, 14,
+                radius / 2, radius / 2, radius / 2, 0.02);
+        player.getWorld().spawnParticle(Particle.DAMAGE_INDICATOR, targetLoc, 8,
                 radius / 2, radius / 2, radius / 2);
         player.getWorld().playSound(player.getLocation(),
                 Sound.ENTITY_PLAYER_ATTACK_SWEEP, 1.0f, 1.0f);
@@ -233,31 +247,67 @@ public class SkillListener implements Listener {
      * </ul>
      * При наличии любой поддержки стрелы получают зелёный partikle-trail.
      */
+    /**
+     * Подавляет ванильный EntityShootBowEvent сразу после нашего выстрела —
+     * иначе если игрок ПКМ-кастует ARROW_SHOT, удерживая лук, через
+     * release-trigger Bukkit спавнит ВТОРУЮ стрелу (она часто летит назад,
+     * т.к. velocity берётся из release-force, а наш кастомный shootArrow
+     * уже двинул игрока). До фикса юзер видел "стрела возвращается".
+     */
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onBowShootSuppressIfSkillFiring(
+            org.bukkit.event.entity.EntityShootBowEvent event) {
+        if (!(event.getEntity() instanceof Player p)) return;
+        if (p.hasMetadata("eclipse_skill_firing")) {
+            event.setCancelled(true);
+        }
+    }
+
     private void executeArrowShot(Player player, List<EclipseItem> supports, double damage) {
+        // Метка для подавления ванильного EntityShootBowEvent на 6 тиков —
+        // см. onBowShootSuppressIfSkillFiring.
+        player.setMetadata("eclipse_skill_firing",
+                new org.bukkit.metadata.FixedMetadataValue(plugin, true));
+        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            try { player.removeMetadata("eclipse_skill_firing", plugin); }
+            catch (Throwable ignored) {}
+        }, 6L);
+
+
         boolean multiShot = supports.stream()
                 .anyMatch(s -> s.getSupportClass() == EclipseItem.SupportClass.MULTI_SHOT);
+        boolean explosion = supports.stream()
+                .anyMatch(s -> s.getSupportClass() == EclipseItem.SupportClass.EXPLOSION);
         String supportCsv = csvSupports(supports);
 
-        if (multiShot) {
-            shootArrow(player, 0, damage, supportCsv, supports);
-            shootArrow(player, 15, damage, supportCsv, supports);
-            shootArrow(player, -15, damage, supportCsv, supports);
-        } else {
-            shootArrow(player, 0, damage, supportCsv, supports);
-        }
+        // EXPLOSION на стреле — взрывается на месте попадания + ДОПОЛНИТЕЛЬНО
+        // даёт +2 стрелы (по ТЗ user'а: «стрелы взрываются... +2 стрелы»).
+        // MULTI_SHOT — отдельно тоже даёт +2. Если оба активны — суммируется
+        // в 5 стрел. AOE_RADIUS — превращает стрелу в "луч" (см. handleArrowHit
+        // и трейл, который наносит урон по всем мобам по пути).
+        int total = 1;
+        if (multiShot) total += 2;
+        if (explosion) total += 2;
 
-        // Урон не дублируем в чат — теперь видно цифрой над целью.
+        // Углы веером: 0, ±15, ±30 для 5 стрел (с дублями фильтруем).
+        double[][] angles = {
+            {0, 0, 0, 0, 0},
+            {0, 15, -15, 0, 0},
+            {0, 15, -15, 30, -30}
+        };
+        double[] use;
+        if (total <= 1) use = new double[]{0};
+        else if (total <= 3) use = new double[]{0, 15, -15};
+        else use = new double[]{0, 15, -15, 30, -30};
+        for (double a : use) {
+            shootArrow(player, a, damage, supportCsv, supports);
+        }
     }
 
     /** Выпустить стрелу + повесить на неё метаданные эклипса и трейл частиц. */
     private void shootArrow(Player player, double angleOffset, double damage,
                             String supportCsv, List<EclipseItem> supports) {
         Arrow arrow = player.launchProjectile(Arrow.class);
-        // Ванильный урон стрелы = setDamage * velocity (≈ ×3 при стандартной
-        // скорости launchProjectile) + рандом-крит. Из-за этого стрелы
-        // эклипса били ~×3 от реального baseDamage * statMultiplier — лук
-        // выглядел сильно мощнее меча/фаербола. Обнуляем ванильный урон
-        // и применяем точный damage сами в handleArrowHit.
         arrow.setDamage(0);
         arrow.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
         arrow.setCritical(true);
@@ -275,10 +325,19 @@ public class SkillListener implements Listener {
             arrow.setVelocity(velocity);
         }
 
-        player.getWorld().spawnParticle(Particle.CRIT, arrow.getLocation(), 3);
+        // Яркие зелёные частицы на спавне.
+        player.getWorld().spawnParticle(Particle.CRIT, arrow.getLocation(), 6);
+        player.getWorld().spawnParticle(Particle.REDSTONE, arrow.getLocation(), 8,
+                0.2, 0.2, 0.2,
+                new Particle.DustOptions(org.bukkit.Color.fromRGB(60, 255, 60), 1.6f));
 
-        // Трейл — только если у выстрела есть хоть одна поддержка.
-        if (!supports.isEmpty()) {
+        // Трейл — всегда (а не только при поддержке): красивее, и AOE
+        // ("луч") нуждается в каждом тике для damage-along-path.
+        boolean aoeBeam = supports.stream()
+                .anyMatch(s -> s.getSupportClass() == EclipseItem.SupportClass.AOE_RADIUS);
+        if (aoeBeam) {
+            startArrowBeam(arrow, player, damage);
+        } else {
             startProjectileTrail(arrow, EclipseItem.SkillClass.ARROW_SHOT);
         }
     }
@@ -400,6 +459,7 @@ public class SkillListener implements Listener {
                     new org.bukkit.metadata.FixedMetadataValue(plugin, shooterId.toString()));
             directHit.setMetadata("eclipse_last_damager",
                     new org.bukkit.metadata.FixedMetadataValue(plugin, shooterId.toString()));
+            tagSkillDmg(directHit);
             if (shooter != null) {
                 directHit.damage(damage, shooter);
             } else {
@@ -414,21 +474,20 @@ public class SkillListener implements Listener {
 
         Location loc = arrow.getLocation();
 
-        // EXPLOSION — визуальный взрыв + урон по 4-блочной сфере.
+        // EXPLOSION — взрыв в точке попадания (AoE урон в радиусе 4 блока).
         if (supports.contains(EclipseItem.SupportClass.EXPLOSION)) {
             loc.getWorld().createExplosion(loc, 0f, false, false);
-            loc.getWorld().spawnParticle(Particle.EXPLOSION_LARGE, loc, 1);
-            damageInRadius(loc, 4.0, shooter, damage * 0.5);
+            loc.getWorld().spawnParticle(Particle.EXPLOSION_LARGE, loc, 2, 0.4, 0.4, 0.4);
+            loc.getWorld().spawnParticle(Particle.REDSTONE, loc, 40, 1.5, 1.5, 1.5,
+                    new Particle.DustOptions(org.bukkit.Color.fromRGB(60, 255, 60), 1.6f));
+            damageInRadius(loc, 4.0, shooter, damage * 0.6);
         }
 
-        // AOE_RADIUS — дополнительный урон по 3-блочной сфере (отдельно от EXPLOSION).
-        if (supports.contains(EclipseItem.SupportClass.AOE_RADIUS)) {
-            damageInRadius(loc, 3.0, shooter, damage * 0.5);
-            loc.getWorld().spawnParticle(Particle.SWEEP_ATTACK, loc, 1);
-        }
+        // AOE_RADIUS уже отработал "лучом" по пути полёта (startArrowBeam),
+        // здесь только финальный flash в точке попадания.
 
         // Зелёный "флэш" в точке попадания — индикатор поддержки.
-        spawnSkillFx(loc, EclipseItem.SkillClass.ARROW_SHOT, 12);
+        spawnSkillFx(loc, EclipseItem.SkillClass.ARROW_SHOT, 24);
     }
 
     /**
@@ -468,30 +527,42 @@ public class SkillListener implements Listener {
         Location loc = fireball.getLocation();
         java.util.Set<EclipseItem.SupportClass> supports = readSupports(fireball);
 
+        // Связки складываются: AOE_RADIUS расширяет радиус, EXPLOSION даёт
+        // дополнительный мощный взрыв с увеличенным damage-фактором,
+        // MULTI_SHOT уже отработал на старте (3 шара). Сложные связки типа
+        // aoe+explosion+multi работают: 3 шара × увеличенный радиус ×
+        // удвоенная зона. Каждое попадание здесь — независимое событие.
         double radius = 4.0;
-        if (supports.contains(EclipseItem.SupportClass.AOE_RADIUS)) radius = 7.0;
+        double aoeMult = 1.0;
+        if (supports.contains(EclipseItem.SupportClass.AOE_RADIUS))  { radius = 7.0; aoeMult += 0.3; }
+        if (supports.contains(EclipseItem.SupportClass.EXPLOSION))   { radius += 1.5; aoeMult += 0.4; }
 
-        // Прямое попадание + AOE-урон.
+        // Прямое попадание (с метаданными чтобы StatsCombatListener не дублировал).
         if (event.getHitEntity() instanceof LivingEntity directHit
                 && !(directHit instanceof Player)) {
             directHit.setMetadata("eclipse_killer",
                     new org.bukkit.metadata.FixedMetadataValue(plugin, shooterId.toString()));
+            tagSkillDmg(directHit);
             directHit.damage(damage, shooter);
             ru.eclipsia.core.combat.DamageDisplay.show(
                     directHit, damage, ru.eclipsia.core.combat.DamageType.FIRE);
         }
-        damageInRadius(loc, radius, shooter, damage,
+        damageInRadius(loc, radius, shooter, damage * aoeMult,
                 ru.eclipsia.core.combat.DamageType.FIRE);
 
-        // Визуальный взрыв (без блоков).
+        // Визуальный взрыв (без блоков). EXPLOSION в связке — двойной flash.
         loc.getWorld().createExplosion(loc, 0f, false, false);
-        loc.getWorld().spawnParticle(Particle.EXPLOSION_LARGE, loc, 3);
-
-        // Искры — индикатор поддержки.
-        if (!supports.isEmpty()) {
-            spawnSkillFx(loc, EclipseItem.SkillClass.FIREBALL, 20);
+        loc.getWorld().spawnParticle(Particle.EXPLOSION_LARGE, loc, 3, 0.5, 0.5, 0.5);
+        if (supports.contains(EclipseItem.SupportClass.EXPLOSION)) {
+            loc.getWorld().spawnParticle(Particle.EXPLOSION_HUGE, loc, 1);
+            loc.getWorld().spawnParticle(Particle.LAVA, loc, 14, radius / 2, radius / 2, radius / 2);
         }
-        loc.getWorld().spawnParticle(Particle.FLAME, loc, 20, 1, 1, 1);
+        loc.getWorld().spawnParticle(Particle.FLAME, loc, 50, radius / 2, radius / 2, radius / 2, 0.05);
+        loc.getWorld().spawnParticle(Particle.SMOKE_LARGE, loc, 12, 0.8, 0.8, 0.8, 0.02);
+
+        if (!supports.isEmpty()) {
+            spawnSkillFx(loc, EclipseItem.SkillClass.FIREBALL, 30);
+        }
     }
     
     /**
@@ -517,9 +588,12 @@ public class SkillListener implements Listener {
             case FIREBALL -> "intelligence";
         };
 
-        int profileStat = profile.getStat(statName);
-        int equipBonus = (player != null) ? getEquipmentStatBonus(player, statName) : 0;
-        int totalStat = profileStat + equipBonus;
+        // Берём суммарный стат: профиль + экипировка + изученные перки.
+        // До фикса перки не влияли на урон навыков — игрок прокачивал
+        // dex/intl/str в дереве, а fireball/arrow/melee били как прежде.
+        int totalStat = (player != null)
+                ? ru.eclipsia.core.stats.StatResolver.total(player, profile, statName)
+                : profile.getStat(statName);
 
         return baseDamage * (1 + totalStat / 50.0);
     }
@@ -1137,9 +1211,61 @@ public class SkillListener implements Listener {
             if (e.equals(shooter)) continue;
             if (e instanceof Player) continue;
             markKiller(living, shooter);
+            tagSkillDmg(living);
             living.damage(damage, shooter);
             ru.eclipsia.core.combat.DamageDisplay.show(living, damage, type);
         }
+    }
+
+    /**
+     * Помечаем жертву меткой эклипс-урона на 1 тик. StatsCombatListener
+     * увидит метку и не будет ни считать крит, ни рисовать второй
+     * DamageDisplay поверх нашего. До фикса каждое попадание по мобу
+     * приводило к двум всплывающим цифрам.
+     */
+    private void tagSkillDmg(LivingEntity victim) {
+        if (victim == null) return;
+        victim.setMetadata("eclipse_skill_dmg",
+                new org.bukkit.metadata.FixedMetadataValue(plugin, true));
+        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            try { victim.removeMetadata("eclipse_skill_dmg", plugin); }
+            catch (Throwable ignored) {}
+        }, 2L);
+    }
+
+    /**
+     * AOE-стрела — "луч": каждый тик пока летит, наносит урон по всем
+     * живым в радиусе 1.5 блока вокруг своей текущей позиции. Каждый моб
+     * может получить урон от одной стрелы только один раз (через сет).
+     */
+    private void startArrowBeam(Arrow arrow, Player shooter, double damage) {
+        java.util.Set<UUID> alreadyHit = new java.util.HashSet<>();
+        new org.bukkit.scheduler.BukkitRunnable() {
+            int ticks = 0;
+            @Override
+            public void run() {
+                if (arrow == null || arrow.isDead() || arrow.isOnGround() || ticks++ > 200) {
+                    cancel();
+                    return;
+                }
+                Location l = arrow.getLocation();
+                // Зелёный лучевой trail.
+                l.getWorld().spawnParticle(Particle.REDSTONE, l, 6, 0.4, 0.4, 0.4,
+                        new Particle.DustOptions(org.bukkit.Color.fromRGB(60, 255, 60), 1.6f));
+                l.getWorld().spawnParticle(Particle.CRIT, l, 2);
+                for (Entity e : l.getWorld().getNearbyEntities(l, 1.5, 1.5, 1.5)) {
+                    if (!(e instanceof LivingEntity living)) continue;
+                    if (e instanceof Player) continue;
+                    if (e.equals(shooter)) continue;
+                    if (!alreadyHit.add(e.getUniqueId())) continue;
+                    markKiller(living, shooter);
+                    tagSkillDmg(living);
+                    living.damage(damage * 0.6, shooter);
+                    ru.eclipsia.core.combat.DamageDisplay.show(
+                            living, damage * 0.6, ru.eclipsia.core.combat.DamageType.PHYSICAL);
+                }
+            }
+        }.runTaskTimer(plugin, 0L, 1L);
     }
 
     /**
@@ -1155,14 +1281,26 @@ public class SkillListener implements Listener {
     private void spawnSkillFx(Location loc, EclipseItem.SkillClass cls, int count) {
         if (loc == null || loc.getWorld() == null) return;
         switch (cls) {
-            case ARROW_SHOT -> loc.getWorld().spawnParticle(
-                    Particle.REDSTONE, loc, count, 0.5, 0.5, 0.5,
-                    new Particle.DustOptions(org.bukkit.Color.LIME, 1.4f));
-            case FIREBALL -> loc.getWorld().spawnParticle(
-                    Particle.FIREWORKS_SPARK, loc, count, 0.5, 0.5, 0.5, 0.05);
-            case MELEE_STRIKE -> loc.getWorld().spawnParticle(
-                    Particle.REDSTONE, loc, count, 0.6, 0.6, 0.6,
-                    new Particle.DustOptions(org.bukkit.Color.RED, 1.4f));
+            case ARROW_SHOT -> {
+                loc.getWorld().spawnParticle(Particle.REDSTONE, loc, count, 0.5, 0.5, 0.5,
+                        new Particle.DustOptions(org.bukkit.Color.fromRGB(60, 255, 60), 1.8f));
+                loc.getWorld().spawnParticle(Particle.CRIT, loc, count / 2, 0.3, 0.3, 0.3);
+                loc.getWorld().spawnParticle(Particle.COMPOSTER, loc, count / 3,
+                        0.4, 0.4, 0.4, 0.0);
+            }
+            case FIREBALL -> {
+                loc.getWorld().spawnParticle(Particle.FIREWORKS_SPARK, loc, count,
+                        0.5, 0.5, 0.5, 0.05);
+                loc.getWorld().spawnParticle(Particle.FLAME, loc, count, 0.5, 0.5, 0.5, 0.04);
+            }
+            case MELEE_STRIKE -> {
+                loc.getWorld().spawnParticle(Particle.REDSTONE, loc, count, 0.6, 0.6, 0.6,
+                        new Particle.DustOptions(org.bukkit.Color.fromRGB(255, 40, 40), 1.8f));
+                loc.getWorld().spawnParticle(Particle.FLAME, loc, count / 2,
+                        0.5, 0.5, 0.5, 0.02);
+                loc.getWorld().spawnParticle(Particle.DAMAGE_INDICATOR, loc, count / 3,
+                        0.4, 0.4, 0.4);
+            }
         }
     }
 

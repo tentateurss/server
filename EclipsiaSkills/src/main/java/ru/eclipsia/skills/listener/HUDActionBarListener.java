@@ -10,6 +10,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import ru.eclipsia.core.data.PlayerProfile;
 import ru.eclipsia.core.data.StatKeys;
+import ru.eclipsia.core.stats.StatResolver;
 import ru.eclipsia.skills.EclipsiaSkills;
 
 /**
@@ -69,21 +70,21 @@ public class HUDActionBarListener implements Listener {
         int maxHp = (int) Math.round(maxHpAttr != null
                 ? maxHpAttr.getValue() : player.getMaxHealth());
         int hp = (int) Math.round(player.getHealth());
-        int hpRegenBonus = profile.getStat(StatKeys.HEALTH_REGEN);
+        int hpRegenBonus = StatResolver.total(player, profile, StatKeys.HEALTH_REGEN);
 
         // Мана
         int curMana = profile.getCurrentMana();
         int maxMana = profile.getMaxMana();
-        int manaRegenBonus = profile.getStat(StatKeys.MANA_REGEN);
+        int manaRegenBonus = StatResolver.total(player, profile, StatKeys.MANA_REGEN);
 
         // Эгида
         int aegis = profile.getAegis();
         int maxAegis = profile.getMaxAegis();
 
-        // Базовые статы (для контроля прокачки)
-        int str = profile.getStat(StatKeys.STRENGTH);
-        int dex = profile.getStat(StatKeys.DEXTERITY);
-        int intl = profile.getStat(StatKeys.INTELLIGENCE);
+        // Базовые статы (для контроля прокачки) — суммарно из перков+экипировки+профиля.
+        int str = StatResolver.total(player, profile, StatKeys.STRENGTH);
+        int dex = StatResolver.total(player, profile, StatKeys.DEXTERITY);
+        int intl = StatResolver.total(player, profile, StatKeys.INTELLIGENCE);
 
         StringBuilder sb = new StringBuilder();
         sb.append("§c❤ ").append(hp).append('/').append(maxHp);

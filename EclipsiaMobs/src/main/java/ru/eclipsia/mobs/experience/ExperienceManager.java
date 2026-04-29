@@ -50,7 +50,9 @@ public class ExperienceManager {
         maxLevel = plugin.getConfig().getInt("experience.max-level", 100);
         statPointsPerLevel = plugin.getConfig().getInt("experience.stat-points-per-level", 1);
         showExpMessages = plugin.getConfig().getBoolean("experience.show-exp-messages", true);
-        showExpActionBar = plugin.getConfig().getBoolean("experience.show-exp-actionbar", true);
+        // По умолчанию false — единый ActionBar пишет HUDActionBarListener
+        // (HP/Эгида/Мана + статы). Прогресс опыта виден в BossBar (PlayerHUDManager).
+        showExpActionBar = plugin.getConfig().getBoolean("experience.show-exp-actionbar", false);
     }
     
     /**
