@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Eclipsia — Дерево перков</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: radial-gradient(1200px 800px at 30% 20%, #1a1530 0%, #0a0a14 60%, #050509 100%);
+    color: #e8e6f4;
+    font-family: 'Cinzel','Trajan Pro','Segoe UI',serif;
+    overflow: hidden;
+    user-select: none;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ========= Background magical effect ========= */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'><filter id='n'><feTurbulence baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='400' height='400' filter='url(%23n)' opacity='0.06'/></svg>");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ========= Login overlay ========= */
+  #login {
+    position: fixed; inset: 0; display: flex;
+    align-items: center; justify-content: center;
+    background: radial-gradient(800px 500px at center, #1a1535 0%, #0a0a12 80%);
+    z-index: 100; backdrop-filter: blur(2px);
+  }
+  #login.hidden { display: none; }
+  .login-card {
+    background: linear-gradient(160deg, rgba(40,30,80,0.85), rgba(15,10,30,0.95));
+    border: 1px solid #c8a84e55;
+    border-radius: 12px;
+    padding: 40px 48px 36px;
+    box-shadow: 0 0 40px #c8a84e22, inset 0 0 0 1px rgba(255,255,255,0.04);
+    width: 380px; max-width: 90vw;
+    text-align: center;
+  }
+  .login-card h1 {
+    margin: 0 0 4px; font-size: 28px;
+    background: linear-gradient(120deg, #f5d97c, #c8a84e, #f5d97c);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    letter-spacing: 0.05em;
+  }
+  .login-card .sub {
+    font-size: 12px; color: #aaa; margin-bottom: 28px;
+    font-family: 'Segoe UI', sans-serif; letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .login-card label {
+    display: block; text-align: left;
+    font-size: 11px; color: #c8a84e;
+    text-transform: uppercase; letter-spacing: 0.15em;
+    margin: 12px 2px 4px;
+    font-family: 'Segoe UI',sans-serif;
+  }
+  .login-card input {
+    width: 100%; background: #0e0a1c;
+    border: 1px solid #4a3a7a; border-radius: 6px;
+    padding: 10px 14px; color: #fff;
+    font-family: 'Cascadia Code',monospace; font-size: 16px;
+    transition: all 0.2s;
+  }
+  .login-card input:focus {
+    outline: none;
+    border-color: #c8a84e;
+    box-shadow: 0 0 0 3px #c8a84e33;
+  }
+  .login-card button {
+    margin-top: 24px; width: 100%;
+    padding: 12px; border: 0; border-radius: 6px;
+    background: linear-gradient(180deg, #d4b35e, #a8862e);
+    color: #1a0e02; font-family: 'Cinzel',serif; font-weight: 700;
+    font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .login-card button:hover { transform: translateY(-1px); box-shadow: 0 6px 16px #c8a84e44; }
+  .login-card button:active { transform: translateY(0); }
+  .login-card .hint {
+    margin-top: 18px; font-size: 11px; color: #777;
+    font-family: 'Segoe UI',sans-serif;
+  }
+  .login-card .hint code { color: #c8a84e; background: #1a1530; padding: 2px 6px; border-radius: 3px; }
+  .err {
+    margin-top: 14px; color: #ff8a8a; font-size: 13px;
+    font-family: 'Segoe UI',sans-serif; min-height: 18px;
+  }
+
+  /* ========= Top HUD ========= */
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    height: 56px; padding: 0 22px;
+    display: flex; align-items: center; gap: 24px;
+    background: linear-gradient(180deg, rgba(10,8,20,0.94), rgba(10,8,20,0.7));
+    border-bottom: 1px solid #c8a84e33;
+    z-index: 20; backdrop-filter: blur(8px);
+  }
+  #hud.hidden { display: none; }
+  .hud-title {
+    font-size: 18px; letter-spacing: 0.08em;
+    background: linear-gradient(120deg, #f5d97c, #c8a84e);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    font-weight: 700;
+  }
+  .hud-stat {
+    display: flex; flex-direction: column;
+    font-family: 'Segoe UI',sans-serif;
+  }
+  .hud-stat .label { font-size: 10px; color: #888; letter-spacing: 0.2em; text-transform: uppercase; }
+  .hud-stat .value { font-size: 16px; color: #f5d97c; font-weight: 700; font-family: 'Cinzel',serif; }
+  .hud-spacer { flex: 1; }
+  .hud-search {
+    position: relative;
+    width: 240px;
+  }
+  .hud-search input {
+    width: 100%;
+    background: rgba(20,15,35,0.85);
+    border: 1px solid #4a3a7a; border-radius: 999px;
+    padding: 8px 14px 8px 34px;
+    color: #fff;
+    font-family: 'Segoe UI',sans-serif; font-size: 13px;
+    transition: all 0.2s;
+  }
+  .hud-search input:focus { outline: none; border-color: #c8a84e; box-shadow: 0 0 0 3px #c8a84e33; }
+  .hud-search::before {
+    content: '🔍'; position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    font-size: 13px; opacity: 0.5;
+  }
+  .hud-btn {
+    padding: 8px 16px; border: 1px solid #c8a84e44;
+    background: rgba(40,25,80,0.5); color: #c8a84e;
+    border-radius: 6px; cursor: pointer;
+    font-family: 'Cinzel',serif; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;
+    transition: all 0.15s;
+  }
+  .hud-btn:hover { background: rgba(80,40,40,0.7); border-color: #ff6b6b; color: #ff8a8a; }
+  .hud-btn.logout { background: rgba(40,25,80,0.5); }
+  .hud-btn.logout:hover { background: rgba(80,40,40,0.7); border-color: #888; color: #aaa; }
+
+  /* ========= Canvas ========= */
+  #cv { display: block; cursor: grab; position: absolute; inset: 0; }
+  #cv:active { cursor: grabbing; }
+
+  /* ========= Right info panel ========= */
+  #info {
+    position: fixed; top: 76px; right: 16px; bottom: 16px; width: 320px;
+    background: linear-gradient(160deg, rgba(20,15,35,0.95), rgba(10,8,20,0.98));
+    border: 1px solid #c8a84e44;
+    border-radius: 10px; padding: 18px 22px;
+    box-shadow: 0 10px 40px #00000088;
+    z-index: 15; overflow-y: auto;
+    transition: opacity 0.15s, transform 0.15s;
+    backdrop-filter: blur(6px);
+  }
+  #info.hidden { opacity: 0; transform: translateX(20px); pointer-events: none; }
+  #info h3 {
+    margin: 0 0 4px; font-size: 18px; letter-spacing: 0.05em;
+  }
+  #info .ntype {
+    font-size: 10px; color: #888; letter-spacing: 0.2em;
+    text-transform: uppercase; margin-bottom: 14px;
+    font-family: 'Segoe UI',sans-serif;
+  }
+  #info .stats {
+    list-style: none; padding: 0; margin: 0;
+    font-family: 'Segoe UI',sans-serif;
+  }
+  #info .stats li {
+    display: flex; justify-content: space-between;
+    padding: 6px 0; border-bottom: 1px solid #2a223e;
+    font-size: 13px;
+  }
+  #info .stats .k { color: #aaa; }
+  #info .stats .v { color: #5dc55d; font-weight: 700; }
+  #info .stats .v.neg { color: #e85d5d; }
+  #info .actions {
+    margin-top: 18px; display: flex; gap: 8px;
+  }
+  #info .actions button {
+    flex: 1; padding: 10px; border: 0; border-radius: 6px;
+    cursor: pointer; font-family: 'Cinzel',serif; font-size: 11px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    transition: all 0.15s;
+  }
+  .btn-alloc { background: linear-gradient(180deg, #5dc55d, #3a8a3a); color: #082a08; }
+  .btn-alloc:hover { box-shadow: 0 4px 12px #5dc55d55; }
+  .btn-alloc:disabled { background: #333; color: #666; cursor: not-allowed; box-shadow: none; }
+  .btn-dealloc { background: linear-gradient(180deg, #e85d5d, #8a3a3a); color: #2a0808; }
+  .btn-dealloc:hover { box-shadow: 0 4px 12px #e85d5d55; }
+  .btn-dealloc:disabled { background: #333; color: #666; cursor: not-allowed; box-shadow: none; }
+
+  /* ========= Toast ========= */
+  #toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: rgba(20,15,35,0.97);
+    border: 1px solid #c8a84e88; border-radius: 6px;
+    padding: 10px 18px; color: #f5d97c;
+    font-family: 'Segoe UI',sans-serif; font-size: 14px;
+    box-shadow: 0 6px 24px #00000088;
+    opacity: 0; transition: opacity 0.2s;
+    pointer-events: none; z-index: 50;
+  }
+  #toast.show { opacity: 1; }
+  #toast.err { border-color: #e85d5d; color: #ff8a8a; }
+  #toast.ok { border-color: #5dc55d; color: #c0f0c0; }
+
+  /* ========= Footer hint ========= */
+  #help {
+    position: fixed; bottom: 12px; left: 12px;
+    font-size: 11px; color: #555;
+    font-family: 'Segoe UI',sans-serif; letter-spacing: 0.05em;
+    z-index: 10; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN OVERLAY -->
+<div id="login">
+  <form class="login-card" onsubmit="event.preventDefault(); doLogin();">
+    <h1>Eclipsia</h1>
+    <div class="sub">Дерево перков</div>
+    <label for="li-nick">Никнейм Minecraft</label>
+    <input id="li-nick" autocomplete="username" autofocus>
+    <label for="li-code">Код входа</label>
+    <input id="li-code" inputmode="numeric" pattern="[0-9]{1,6}" maxlength="6"
+           placeholder="000000" autocomplete="one-time-code">
+    <button type="submit">Войти</button>
+    <div class="err" id="li-err"></div>
+    <div class="hint">
+      Получи код в игре: <code>/perkscode</code>
+    </div>
+  </form>
+</div>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div class="hud-title">Eclipsia · Дерево перков</div>
+  <div class="hud-stat">
+    <div class="label">Игрок</div>
+    <div class="value" id="hud-name">—</div>
+  </div>
+  <div class="hud-stat">
+    <div class="label">Очков</div>
+    <div class="value" id="hud-points">0</div>
+  </div>
+  <div class="hud-stat">
+    <div class="label">Изучено</div>
+    <div class="value" id="hud-allocated">0</div>
+  </div>
+  <div class="hud-spacer"></div>
+  <div class="hud-search"><input id="search" placeholder="Найти узел…"></div>
+  <button class="hud-btn" onclick="resetAll()">Сбросить всё</button>
+  <button class="hud-btn logout" onclick="logout()">Выйти</button>
+</div>
+
+<!-- CANVAS -->
+<canvas id="cv"></canvas>
+
+<!-- INFO PANEL -->
+<div id="info" class="hidden">
+  <h3 id="info-name">—</h3>
+  <div class="ntype" id="info-type">—</div>
+  <ul class="stats" id="info-stats"></ul>
+  <div class="actions">
+    <button class="btn-alloc" id="btn-alloc" onclick="allocSelected()">Изучить</button>
+    <button class="btn-dealloc" id="btn-dealloc" onclick="deallocSelected()">Сбросить</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="help">ЛКМ — изучить · ПКМ — сбросить · Колесо — зум · Перетаскивание — pan</div>
+
+<script>
+'use strict';
+
+// ============================================================================
+// STATE
+// ============================================================================
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+
+let tree = null;
+let allocated = new Set();
+let availablePoints = 0;
+let session = null;       // {uuid, name}
+let scale = 0.7, ox = 0, oy = 0;
+let dragging = false, dragStart = null, dragMoved = false;
+let hover = null;
+let selected = null;
+let highlight = '';       // search query
+
+// ----- Visual constants -----
+const COLORS = {
+  START:     { fill: '#fff8d6', stroke: '#f5d97c', glow: '#f5d97caa' },
+  SMALL:     { fill: '#a4d8ff', stroke: '#5da6e8', glow: '#5da6e899' },
+  MEDIUM:    { fill: '#cfa3ff', stroke: '#8a5ad9', glow: '#8a5ad999' },
+  NOTABLE:   { fill: '#ffc870', stroke: '#e89c2e', glow: '#e89c2eaa' },
+  KEYSTONE:  { fill: '#ff8080', stroke: '#d23c3c', glow: '#d23c3cbb' },
+};
+const SIZES = { START: 22, SMALL: 11, MEDIUM: 16, NOTABLE: 22, KEYSTONE: 28 };
+
+// Stat → human-readable Russian label
+const STAT_LABELS = {
+  strength:'Сила', dexterity:'Ловкость', intelligence:'Интеллект',
+  health:'Здоровье', mana:'Мана', aegis:'Эгида',
+  health_regen:'Реген здоровья', mana_regen:'Реген маны', aegis_regen:'Реген Эгиды',
+  aegis_delay:'Задержка Эгиды',
+  armour:'Броня', armor:'Броня', evasion:'Уклонение', dodge:'Уклонение',
+  block_chance:'Шанс блока', block_amount:'Сила блока',
+  fire_resist:'Сопр. огню', cold_resist:'Сопр. холоду', lightning_resist:'Сопр. молнии',
+  damage:'Урон', physical_damage:'Физ. урон',
+  fire_damage:'Урон огнём', cold_damage:'Урон холодом', lightning_damage:'Урон молнией',
+  spell_damage:'Урон заклинаний',
+  crit_chance:'Шанс крита', crit_damage:'Урон крита',
+  attack_speed:'Скор. атаки', move_speed:'Скор. бега',
+};
+const PERCENT_STATS = new Set([
+  'crit_chance','block_chance','block_amount','fire_resist','cold_resist',
+  'lightning_resist','attack_speed','move_speed','dodge'
+]);
+
+// ============================================================================
+// API
+// ============================================================================
+async function api(path, method, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(path, opts);
+  let d;
+  try { d = await r.json(); } catch (e) { d = { error: 'Сервер вернул не-JSON' }; }
+  if (!r.ok || d.error || d.ok === false) throw new Error(d.error || ('HTTP ' + r.status));
+  return d;
+}
+
+async function doLogin() {
+  const nick = document.getElementById('li-nick').value.trim();
+  const code = document.getElementById('li-code').value.trim();
+  const err = document.getElementById('li-err');
+  err.textContent = '';
+  if (!nick) { err.textContent = 'Введите никнейм'; return; }
+  if (!code) { err.textContent = 'Введите код'; return; }
+  try {
+    const d = await api('/api/perks/auth', 'POST', { nick, code });
+    session = { uuid: d.uuid, name: d.name || nick };
+    allocated = new Set(d.allocatedNodes || []);
+    availablePoints = d.availablePoints || 0;
+    localStorage.setItem('eclipsiaSession', JSON.stringify(session));
+    enterTree();
+  } catch (e) {
+    err.textContent = e.message || 'Ошибка авторизации';
+  }
+}
+
+function logout() {
+  session = null;
+  allocated.clear();
+  localStorage.removeItem('eclipsiaSession');
+  document.getElementById('login').classList.remove('hidden');
+  document.getElementById('hud').classList.add('hidden');
+  document.getElementById('info').classList.add('hidden');
+}
+
+async function loadTree() {
+  if (tree) return;
+  const r = await fetch('/api/perks/tree');
+  tree = await r.json();
+  // Centre canvas approximately on the tree midpoint.
+  scale = Math.min(innerWidth, innerHeight - 60) / 1500;
+  ox = innerWidth/2  - 800 * scale;
+  oy = (innerHeight + 56)/2 - 500 * scale;
+}
+
+async function refreshPlayer() {
+  if (!session) return;
+  try {
+    const d = await api('/api/perks/player?uuid=' + session.uuid);
+    allocated = new Set(d.allocatedNodes || []);
+    availablePoints = d.availablePoints || 0;
+    if (d.name) session.name = d.name;
+    updateHud();
+  } catch (e) {
+    toast(e.message, 'err');
+  }
+}
+
+async function alloc(nodeId) {
+  if (!session) return;
+  try {
+    const d = await api('/api/perks/allocate', 'POST', { uuid: session.uuid, nodeId });
+    allocated = new Set(d.allocatedNodes || []);
+    availablePoints = d.availablePoints || 0;
+    updateHud();
+    draw();
+    if (selected && selected.id === nodeId) showInfo(selected);
+    toast('Узел изучен: ' + (tree.nodes.find(n=>n.id===nodeId)||{}).name, 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function dealloc(nodeId) {
+  if (!session) return;
+  try {
+    const d = await api('/api/perks/deallocate', 'POST', { uuid: session.uuid, nodeId });
+    allocated = new Set(d.allocatedNodes || []);
+    availablePoints = d.availablePoints || 0;
+    updateHud();
+    draw();
+    if (selected && selected.id === nodeId) showInfo(selected);
+    toast('Узел сброшен', 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function resetAll() {
+  if (!session || allocated.size === 0) return;
+  if (!confirm('Сбросить ВСЕ изученные узлы (' + allocated.size + ')?')) return;
+  // Сбрасываем по одному на сервере (нет batch endpoint).
+  const ids = [...allocated];
+  // Сбрасываем от листьев к корню — обратный порядок аллокации.
+  for (const id of ids.reverse()) {
+    try { await api('/api/perks/deallocate', 'POST', { uuid: session.uuid, nodeId: id }); }
+    catch (e) { /* ignore — start node etc */ }
+  }
+  await refreshPlayer();
+  draw();
+  toast('Все узлы сброшены', 'ok');
+}
+
+// ============================================================================
+// CANVAS DRAW
+// ============================================================================
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = innerWidth * dpr;
+  cv.height = innerHeight * dpr;
+  cv.style.width = innerWidth + 'px';
+  cv.style.height = innerHeight + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  draw();
+}
+
+function draw() {
+  ctx.fillStyle = 'rgba(8,6,16,0)'; // transparent so background gradient shows
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  if (!tree) return;
+  ctx.save();
+  ctx.translate(ox, oy);
+  ctx.scale(scale, scale);
+
+  // ===== zone tints =====
+  drawZone(50,  300, 550,  900, '#d23c3c11');   // warrior — red
+  drawZone(1050,300, 1550, 900, '#3ad26122');   // archer — green
+  drawZone(550, 0,   1100, 500, '#3a7ad222');   // mage — blue
+  drawZone(500, 500, 1100, 900, '#c8a84e11');   // centre — gold
+
+  // ===== edges =====
+  ctx.lineCap = 'round';
+  for (const e of tree.edges) {
+    const a = tree.nodes.find(n => n.id === e.from);
+    const b = tree.nodes.find(n => n.id === e.to);
+    if (!a || !b) continue;
+    const both = allocated.has(a.id) && allocated.has(b.id);
+    const reachable = allocated.has(a.id) || allocated.has(b.id);
+    ctx.lineWidth = both ? 5 : (reachable ? 3 : 2);
+    ctx.strokeStyle = both ? '#f5d97c' : (reachable ? '#c8a84e88' : '#3a3a4a');
+    if (both) {
+      ctx.shadowColor = '#f5d97caa';
+      ctx.shadowBlur = 12;
+    }
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  // ===== nodes =====
+  for (const n of tree.nodes) {
+    const c = COLORS[n.type] || COLORS.SMALL;
+    const r = (SIZES[n.type] || 12);
+    const isAlloc = allocated.has(n.id);
+    const isHover = hover && hover.id === n.id;
+    const isSel   = selected && selected.id === n.id;
+    const isHl    = highlight && (n.name || '').toLowerCase().includes(highlight);
+
+    // glow
+    if (isAlloc || isHover || isSel || isHl) {
+      ctx.shadowColor = c.glow;
+      ctx.shadowBlur = isAlloc ? 24 : 14;
+    }
+
+    // outer ring (for hover/selected/search highlight)
+    if (isSel) {
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, r + 6, 0, Math.PI*2);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#fff';
+      ctx.stroke();
+    } else if (isHl) {
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, r + 4, 0, Math.PI*2);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#f5d97c';
+      ctx.stroke();
+    }
+
+    // base disc
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, r, 0, Math.PI*2);
+    if (isAlloc) {
+      const grad = ctx.createRadialGradient(n.x - r/3, n.y - r/3, r/4, n.x, n.y, r);
+      grad.addColorStop(0, '#fff');
+      grad.addColorStop(1, c.fill);
+      ctx.fillStyle = grad;
+    } else {
+      ctx.fillStyle = '#181426';
+    }
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = isAlloc ? '#fff' : c.stroke;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // inner sigil for keystones / notables
+    if ((n.type === 'KEYSTONE' || n.type === 'NOTABLE' || n.type === 'START') && tree) {
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, r * 0.42, 0, Math.PI*2);
+      ctx.fillStyle = isAlloc ? c.stroke : '#2a223a';
+      ctx.fill();
+    }
+  }
+
+  ctx.restore();
+
+  // Hover label (above node, in screen coords)
+  if (hover) {
+    const sx = hover.x * scale + ox;
+    const sy = hover.y * scale + oy - (SIZES[hover.type] || 12) * scale - 14;
+    const txt = stripColors(hover.name);
+    ctx.font = '600 13px "Segoe UI",sans-serif';
+    const w = ctx.measureText(txt).width + 18;
+    ctx.fillStyle = 'rgba(15,10,28,0.95)';
+    ctx.strokeStyle = '#c8a84e88';
+    ctx.lineWidth = 1;
+    roundRect(ctx, sx - w/2, sy - 24, w, 24, 4);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#f5d97c';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(txt, sx, sy - 12);
+    ctx.textAlign = 'start';
+  }
+}
+
+function drawZone(x1, y1, x2, y2, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function stripColors(s) { return (s || '').replace(/§./g, ''); }
+
+// ============================================================================
+// INTERACTION
+// ============================================================================
+function worldXY(ev) {
+  return {
+    x: (ev.clientX - ox) / scale,
+    y: (ev.clientY - oy) / scale,
+  };
+}
+
+function nodeAt(ev) {
+  if (!tree) return null;
+  const w = worldXY(ev);
+  for (const n of tree.nodes) {
+    const r = (SIZES[n.type] || 12) + 2;
+    const dx = n.x - w.x, dy = n.y - w.y;
+    if (dx*dx + dy*dy <= r*r) return n;
+  }
+  return null;
+}
+
+cv.addEventListener('mousedown', ev => {
+  dragging = true;
+  dragMoved = false;
+  dragStart = { x: ev.clientX, y: ev.clientY };
+});
+cv.addEventListener('contextmenu', ev => ev.preventDefault());
+addEventListener('mousemove', ev => {
+  if (dragging) {
+    const dx = ev.clientX - dragStart.x;
+    const dy = ev.clientY - dragStart.y;
+    if (dragMoved || (dx*dx + dy*dy) > 12) {
+      dragMoved = true;
+      ox += dx; oy += dy;
+      dragStart = { x: ev.clientX, y: ev.clientY };
+      draw();
+    }
+    return;
+  }
+  const n = nodeAt(ev);
+  if (n !== hover) { hover = n; draw(); }
+});
+addEventListener('mouseup', ev => {
+  if (!dragging) return;
+  const wasMoved = dragMoved;
+  dragging = false;
+  dragMoved = false;
+  if (wasMoved) return;
+  const n = nodeAt(ev);
+  if (!n) {
+    selected = null;
+    document.getElementById('info').classList.add('hidden');
+    return;
+  }
+  if (ev.button === 2) {
+    dealloc(n.id);
+  } else if (ev.button === 0) {
+    selected = n;
+    showInfo(n);
+    if (!allocated.has(n.id)) {
+      // ЛКМ по неизученному узлу — попытка изучить.
+      alloc(n.id);
+    }
+  }
+});
+
+cv.addEventListener('wheel', ev => {
+  ev.preventDefault();
+  const z = ev.deltaY < 0 ? 1.15 : 1/1.15;
+  const before = worldXY(ev);
+  scale = Math.min(3, Math.max(0.18, scale * z));
+  const after = worldXY(ev);
+  ox += (after.x - before.x) * scale;
+  oy += (after.y - before.y) * scale;
+  draw();
+}, { passive: false });
+
+document.getElementById('search').addEventListener('input', ev => {
+  highlight = ev.target.value.trim().toLowerCase();
+  draw();
+});
+
+addEventListener('resize', resize);
+
+// ============================================================================
+// UI
+// ============================================================================
+function updateHud() {
+  document.getElementById('hud-name').textContent = (session && session.name) || '—';
+  document.getElementById('hud-points').textContent = availablePoints;
+  document.getElementById('hud-allocated').textContent = allocated.size;
+}
+
+function showInfo(n) {
+  if (!n) {
+    document.getElementById('info').classList.add('hidden');
+    return;
+  }
+  document.getElementById('info-name').innerHTML = renderColored(n.name);
+  document.getElementById('info-type').textContent = n.type + ' · стоимость: ' + (n.cost || 0);
+  const ul = document.getElementById('info-stats');
+  ul.innerHTML = '';
+  const keys = Object.keys(n.stats || {});
+  if (keys.length === 0) {
+    const li = document.createElement('li');
+    li.style.color = '#666'; li.style.justifyContent = 'center';
+    li.textContent = 'Нет статов';
+    ul.appendChild(li);
+  } else {
+    for (const k of keys) {
+      const v = n.stats[k];
+      const li = document.createElement('li');
+      const kspan = document.createElement('span'); kspan.className = 'k';
+      kspan.textContent = STAT_LABELS[k] || k;
+      const vspan = document.createElement('span'); vspan.className = 'v' + (v < 0 ? ' neg' : '');
+      const pct = PERCENT_STATS.has(k) ? '%' : '';
+      vspan.textContent = (v > 0 ? '+' : '') + v + pct;
+      li.appendChild(kspan); li.appendChild(vspan);
+      ul.appendChild(li);
+    }
+  }
+  document.getElementById('info').classList.remove('hidden');
+  // disabled-state buttons
+  const btnA = document.getElementById('btn-alloc');
+  const btnD = document.getElementById('btn-dealloc');
+  btnA.disabled = allocated.has(n.id);
+  btnD.disabled = !allocated.has(n.id) || n.type === 'START';
+}
+
+function renderColored(s) {
+  // Render Minecraft §X color codes as inline spans.
+  s = s || '';
+  const out = [];
+  let cur = '';
+  let color = null;
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '§' && i + 1 < s.length) {
+      if (cur) {
+        out.push(color ? `<span style="color:${color}">${esc(cur)}</span>` : esc(cur));
+        cur = '';
+      }
+      color = mcColor(s[++i]);
+    } else cur += s[i];
+  }
+  if (cur) out.push(color ? `<span style="color:${color}">${esc(cur)}</span>` : esc(cur));
+  return out.join('');
+}
+function esc(s) { return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function mcColor(c) {
+  return ({
+    '0':'#000','1':'#00a','2':'#0a0','3':'#0aa','4':'#a00','5':'#a0a','6':'#fa0','7':'#aaa',
+    '8':'#555','9':'#55f','a':'#5f5','b':'#5ff','c':'#f55','d':'#f5f','e':'#ff5','f':'#fff'
+  })[c] || null;
+}
+
+function allocSelected() { if (selected) alloc(selected.id); }
+function deallocSelected() { if (selected) dealloc(selected.id); }
+
+function toast(msg, kind) {
+  const t = document.getElementById('toast');
+  t.textContent = msg || '';
+  t.className = 'show ' + (kind || '');
+  clearTimeout(toast._h);
+  toast._h = setTimeout(() => t.className = '', 2500);
+}
+
+// ============================================================================
+// BOOT
+// ============================================================================
+async function enterTree() {
+  document.getElementById('login').classList.add('hidden');
+  document.getElementById('hud').classList.remove('hidden');
+  await loadTree();
+  updateHud();
+  resize();
+}
+
+async function bootstrap() {
+  // Восстановить сессию (без ре-проверки кода — он одноразовый).
+  // Если /api/perks/player вернёт 200, считаем сессию валидной.
+  const saved = localStorage.getItem('eclipsiaSession');
+  if (saved) {
+    try {
+      session = JSON.parse(saved);
+      const d = await api('/api/perks/player?uuid=' + session.uuid);
+      allocated = new Set(d.allocatedNodes || []);
+      availablePoints = d.availablePoints || 0;
+      if (d.name) session.name = d.name;
+      enterTree();
+      return;
+    } catch (e) {
+      session = null;
+      localStorage.removeItem('eclipsiaSession');
+    }
+  }
+  // Иначе остаёмся на login screen.
+  document.getElementById('li-nick').focus();
+}
+
+bootstrap();
+</script>
+</body>
+</html>

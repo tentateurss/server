@@ -8,9 +8,13 @@ description: Система перков с единым деревом
 
 commands:
   perks:
-    description: Открыть дерево перков
+    description: Открыть дерево перков (показывает URL + код)
     usage: /perks
     aliases: [perk, skill, skills]
+  perkscode:
+    description: Получить новый код для входа в web-дерево перков
+    usage: /perkscode
+    aliases: [perksauth, perksurl]
   perksadmin:
     description: Админские команды для перков
     usage: /perksadmin <reload|reset>

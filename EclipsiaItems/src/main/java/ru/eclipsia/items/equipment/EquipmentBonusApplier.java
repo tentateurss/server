@@ -49,10 +49,16 @@ public class EquipmentBonusApplier {
         // Применяем бонусы
         applyHealthBonus(player, totalBonuses.getOrDefault("health", 0));
         applyArmorBonus(player, totalBonuses.getOrDefault("armor", 0));
-        applyDamageBonus(player, totalBonuses.getOrDefault("damage", 0));
+        applyDamageBonus(player, totalBonuses.getOrDefault("damage", 0)
+                + totalBonuses.getOrDefault("physical_damage", 0));
         applySpeedBonus(player, totalBonuses.getOrDefault("speed", 0));
-        
-        // TODO: Применить другие бонусы (крит, регенерация и т.д.)
+
+        // Пересчёт maxAegis (учитывает aegis с экипировки + перки + intelligence).
+        try {
+            ru.eclipsia.core.stats.AegisManager.recompute(player);
+        } catch (Throwable ignored) {
+            // EclipsiaCore может быть не загружен на момент init — это ок.
+        }
     }
     
     /**
@@ -78,29 +84,85 @@ public class EquipmentBonusApplier {
     }
     
     /**
-     * Парсить строку лора для извлечения бонусов
+     * Парсить строку лора для извлечения бонусов.
+     *
+     * <p>Поддерживаются ВСЕ статы, которые умеют выдавать новые аффиксы и
+     * базовые предметы: vanilla-атрибуты (Урон/Броня/Здоровье/Крит/Скорость),
+     * базовые статы класса (Сила/Ловкость/Интеллект), стихийный урон и
+     * резисты, уклонение/блок, эгида, реген, скорость бега, мана.
+     *
+     * <p>Парсер тупой: ищет подстроку «лейбл:» и берёт первое число справа.
+     * Для процентных статов (резисты, шанс крита, скорость атаки и т.д.)
+     * процент в значение не превращается — это нужно учитывать в
+     * DamageCalculator (он и так берёт процент через {@link Math#min}).
      */
     private static void parseBonusLine(String line, Map<String, Integer> bonuses) {
         String cleaned = line.replaceAll("§.", "");
+        String l = cleaned.toLowerCase();
 
-        // Vanilla-атрибуты (применяются как AttributeModifier)
-        if (cleaned.contains("Урон:")) {
+        // ---- Vanilla-атрибуты (применяются ниже как AttributeModifier) ----
+        if (l.contains("физ. урон:") || l.contains("физический урон:")) {
+            bonuses.merge("physical_damage", extractValue(cleaned), Integer::sum);
+        } else if (l.contains("урон огнём:") || l.contains("урон огнем:")) {
+            bonuses.merge("fire_damage", extractValue(cleaned), Integer::sum);
+        } else if (l.contains("урон холодом:")) {
+            bonuses.merge("cold_damage", extractValue(cleaned), Integer::sum);
+        } else if (l.contains("урон молнией:")) {
+            bonuses.merge("lightning_damage", extractValue(cleaned), Integer::sum);
+        } else if (l.contains("урон:")) {
             bonuses.merge("damage", extractValue(cleaned), Integer::sum);
-        } else if (cleaned.contains("Броня:")) {
-            bonuses.merge("armor", extractValue(cleaned), Integer::sum);
-        } else if (cleaned.contains("Здоровье:")) {
+        } else if (l.contains("броня:")) {
+            int v = extractValue(cleaned);
+            bonuses.merge("armor", v, Integer::sum);   // vanilla
+            bonuses.merge("armour", v, Integer::sum);  // RPG-stat синоним
+        } else if (l.contains("здоровье:")) {
             bonuses.merge("health", extractValue(cleaned), Integer::sum);
-        } else if (cleaned.contains("Крит. урон:")) {
-            bonuses.merge("crit", extractValue(cleaned), Integer::sum);
-        } else if (cleaned.contains("Скорость атаки:")) {
-            bonuses.merge("speed", extractValue(cleaned), Integer::sum);
+        } else if (l.contains("крит. урон:") || l.contains("крит урон:")) {
+            int v = extractValue(cleaned);
+            bonuses.merge("crit", v, Integer::sum);
+            bonuses.merge("crit_damage", v, Integer::sum);
+        } else if (l.contains("шанс крита:")) {
+            bonuses.merge("crit_chance", extractValue(cleaned), Integer::sum);
+        } else if (l.contains("скор. атаки:") || l.contains("скорость атаки:")) {
+            int v = extractValue(cleaned);
+            bonuses.merge("speed", v, Integer::sum);
+            bonuses.merge("attack_speed", v, Integer::sum);
+        } else if (l.contains("скор. бега:") || l.contains("скорость бега:")) {
+            bonuses.merge("move_speed", extractValue(cleaned), Integer::sum);
         }
-        // RPG-статы (читаются на лету через getStatBonus)
-        else if (cleaned.contains("Сила:") || cleaned.contains("Strength:")) {
+        // ---- Защиты ----
+        else if (l.contains("сопр. огню:") || l.contains("сопротивление огню:")) {
+            bonuses.merge("fire_resist", extractValue(cleaned), Integer::sum);
+        } else if (l.contains("сопр. холоду:") || l.contains("сопротивление холоду:")) {
+            bonuses.merge("cold_resist", extractValue(cleaned), Integer::sum);
+        } else if (l.contains("сопр. молнии:") || l.contains("сопротивление молнии:")) {
+            bonuses.merge("lightning_resist", extractValue(cleaned), Integer::sum);
+        } else if (l.contains("уклонение:")) {
+            bonuses.merge("evasion", extractValue(cleaned), Integer::sum);
+            bonuses.merge("dodge",   extractValue(cleaned), Integer::sum);
+        } else if (l.contains("шанс блока:")) {
+            bonuses.merge("block_chance", extractValue(cleaned), Integer::sum);
+        } else if (l.contains("сила блока:")) {
+            bonuses.merge("block_amount", extractValue(cleaned), Integer::sum);
+        }
+        // ---- Эгида / реген / мана ----
+        else if (l.contains("реген эгиды:")) {
+            bonuses.merge("aegis_regen", extractValue(cleaned), Integer::sum);
+        } else if (l.contains("эгида:")) {
+            bonuses.merge("aegis", extractValue(cleaned), Integer::sum);
+        } else if (l.contains("реген здоровья:")) {
+            bonuses.merge("health_regen", extractValue(cleaned), Integer::sum);
+        } else if (l.contains("реген маны:")) {
+            bonuses.merge("mana_regen", extractValue(cleaned), Integer::sum);
+        } else if (l.contains("мана:")) {
+            bonuses.merge("mana", extractValue(cleaned), Integer::sum);
+        }
+        // ---- Базовые RPG-статы ----
+        else if (l.contains("сила:") || l.contains("strength:")) {
             bonuses.merge("strength", extractValue(cleaned), Integer::sum);
-        } else if (cleaned.contains("Ловкость:") || cleaned.contains("Dexterity:")) {
+        } else if (l.contains("ловкость:") || l.contains("dexterity:")) {
             bonuses.merge("dexterity", extractValue(cleaned), Integer::sum);
-        } else if (cleaned.contains("Интеллект:") || cleaned.contains("Intelligence:")) {
+        } else if (l.contains("интеллект:") || l.contains("intelligence:")) {
             bonuses.merge("intelligence", extractValue(cleaned), Integer::sum);
         }
     }

@@ -18,6 +18,10 @@ settings:
 web:
   enabled: true
   port: 8080
+  # Публичный хост сервера, который видят игроки в браузере.
+  # Можно указать домен (example.com), IP (1.2.3.4) или полный URL (https://...).
+  # Если пусто — используется server-ip из server.properties или "localhost".
+  public-host: ""
 
 # Отладка
 debug: false

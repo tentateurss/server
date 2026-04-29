@@ -27,6 +27,8 @@ public final class StatKeys {
     public static final String HEALTH_BONUS = "health";
     /** Бонус к максимуму маны (поверх базовой формулы класса). */
     public static final String MANA_BONUS   = "mana";
+    /** Бонус к максимуму Эгиды (поверх формулы intelligence × 2). */
+    public static final String AEGIS        = "aegis";
 
     // ===== РЕГЕНЕРАЦИЯ (за тик, тик = 1 сек в CustomRegenerationListener) =====
     public static final String HEALTH_REGEN = "health_regen";

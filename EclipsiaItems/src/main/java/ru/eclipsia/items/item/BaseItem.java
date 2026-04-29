@@ -72,6 +72,8 @@ public class BaseItem {
             } else {
                 return "STAFF";
             }
+        } else if (slot == ItemSlot.OFFHAND) {
+            return "SHIELD";
         } else if (slot == ItemSlot.HEAD) {
             return "HELMET";
         } else if (slot == ItemSlot.CHEST) {
