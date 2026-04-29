@@ -60,5 +60,21 @@
             <version>0.1.0-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
+
+        <!-- EclipsiaPerks (для /testperks all) -->
+        <dependency>
+            <groupId>ru.eclipsia</groupId>
+            <artifactId>EclipsiaPerks</artifactId>
+            <version>0.1.0-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- EclipsiaSkills (для /testgems all — выдача всех skill/support-камней) -->
+        <dependency>
+            <groupId>ru.eclipsia</groupId>
+            <artifactId>EclipsiaSkills</artifactId>
+            <version>1.0.0</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 </project>
