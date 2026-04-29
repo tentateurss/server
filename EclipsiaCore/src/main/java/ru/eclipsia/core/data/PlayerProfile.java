@@ -24,6 +24,8 @@ public class PlayerProfile {
     private final int orbs;
     private final int currentMana;
     private final int maxMana;
+    private final int aegis;
+    private final int maxAegis;
     private final Map<String, Integer> stats;
     private final String lastLocation; // формат: "world:x:y:z:pitch:yaw"
     private final String equipmentData; // JSON экипировки
@@ -42,6 +44,8 @@ public class PlayerProfile {
         this.orbs = builder.orbs;
         this.currentMana = builder.currentMana;
         this.maxMana = builder.maxMana;
+        this.aegis = builder.aegis;
+        this.maxAegis = builder.maxAegis;
         this.stats = new HashMap<>(builder.stats);
         this.lastLocation = builder.lastLocation;
         this.equipmentData = builder.equipmentData;
@@ -61,6 +65,15 @@ public class PlayerProfile {
     public int getOrbs() { return orbs; }
     public int getCurrentMana() { return currentMana; }
     public int getMaxMana() { return maxMana; }
+    /**
+     * Текущий запас Эгиды — магического щита, поглощающего входящий урон
+     * ПЕРЕД здоровьем. Реген запускается через {@code stat("aegis_delay")}
+     * секунд после последнего получения урона со скоростью
+     * {@code stat("aegis_regen")} единиц/сек.
+     */
+    public int getAegis() { return aegis; }
+    /** Максимум Эгиды (intelligence * 2 + бонусы экипировки и перков). */
+    public int getMaxAegis() { return maxAegis; }
     public Map<String, Integer> getStats() { return new HashMap<>(stats); }
     public int getStat(String statName) { return stats.getOrDefault(statName, 0); }
     public String getLastLocation() { return lastLocation; }
@@ -84,6 +97,8 @@ public class PlayerProfile {
         json.addProperty("orbs", orbs);
         json.addProperty("currentMana", currentMana);
         json.addProperty("maxMana", maxMana);
+        json.addProperty("aegis", aegis);
+        json.addProperty("maxAegis", maxAegis);
         json.add("stats", GSON.toJsonTree(stats));
         
         if (lastLocation != null && !lastLocation.isEmpty()) {
@@ -119,6 +134,8 @@ public class PlayerProfile {
                .orbs(obj.has("orbs") ? obj.get("orbs").getAsInt() : 0)
                .currentMana(obj.has("currentMana") ? obj.get("currentMana").getAsInt() : 100)
                .maxMana(obj.has("maxMana") ? obj.get("maxMana").getAsInt() : 100)
+               .aegis(obj.has("aegis") ? obj.get("aegis").getAsInt() : 0)
+               .maxAegis(obj.has("maxAegis") ? obj.get("maxAegis").getAsInt() : 0)
                .createdAt(obj.get("createdAt").getAsLong())
                .lastPlayed(obj.get("lastPlayed").getAsLong());
         
@@ -185,6 +202,8 @@ public class PlayerProfile {
                 .orbs(orbs)
                 .currentMana(currentMana)
                 .maxMana(maxMana)
+                .aegis(aegis)
+                .maxAegis(maxAegis)
                 .stats(stats)
                 .lastLocation(lastLocation)
                 .equipmentData(equipmentData)
@@ -204,6 +223,8 @@ public class PlayerProfile {
         private int orbs = 0;
         private int currentMana = 100;
         private int maxMana = 100;
+        private int aegis = 0;
+        private int maxAegis = 0;
         private final Map<String, Integer> stats = new HashMap<>();
         private String lastLocation = null;
         private String equipmentData = null;
@@ -259,7 +280,17 @@ public class PlayerProfile {
             this.maxMana = maxMana;
             return this;
         }
-        
+
+        public Builder aegis(int aegis) {
+            this.aegis = aegis;
+            return this;
+        }
+
+        public Builder maxAegis(int maxAegis) {
+            this.maxAegis = maxAegis;
+            return this;
+        }
+
         public Builder stat(String name, int value) {
             this.stats.put(name, value);
             return this;

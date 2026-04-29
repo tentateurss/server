@@ -51,6 +51,10 @@ public class EclipsiaCore extends JavaPlugin {
             return;
         }
         
+        // DamageDisplay использует Bukkit-шедулер для удаления стендов —
+        // привязываем к этому плагину один раз на старте.
+        ru.eclipsia.core.combat.DamageDisplay.init(this);
+
         // Регистрируем команды
         registerCommands();
         

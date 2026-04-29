@@ -180,7 +180,7 @@ public class SkillListener implements Listener {
             spawnSkillFx(targetLoc, EclipseItem.SkillClass.MELEE_STRIKE, 16);
         }
 
-        player.sendMessage("§aУдар! Урон: §c" + String.format("%.1f", damage));
+        // Урон не дублируем в чат — теперь видно цифрой над целью (DamageDisplay).
     }
 
     /** Один "сэндвич" удара — урон + sweep-эффект в указанной точке. */
@@ -196,6 +196,8 @@ public class SkillListener implements Listener {
             if (entity instanceof LivingEntity living) {
                 markKiller(living, player);
                 living.damage(damage, player);
+                ru.eclipsia.core.combat.DamageDisplay.show(
+                        living, damage, ru.eclipsia.core.combat.DamageType.PHYSICAL);
             }
         }
 
@@ -244,7 +246,7 @@ public class SkillListener implements Listener {
             shootArrow(player, 0, damage, supportCsv, supports);
         }
 
-        player.sendMessage("§aВыстрел! Урон: §c" + String.format("%.1f", damage));
+        // Урон не дублируем в чат — теперь видно цифрой над целью.
     }
 
     /** Выпустить стрелу + повесить на неё метаданные эклипса и трейл частиц. */
@@ -307,7 +309,7 @@ public class SkillListener implements Listener {
             shootFireball(player, 0, 0, damage, supportCsv, supports);
         }
 
-        player.sendMessage("§aОгненный шар! Урон: §c" + String.format("%.1f", damage));
+        // Урон не дублируем в чат — теперь видно цифрой над целью.
     }
 
     /**
@@ -403,6 +405,8 @@ public class SkillListener implements Listener {
             } else {
                 directHit.damage(damage);
             }
+            ru.eclipsia.core.combat.DamageDisplay.show(
+                    directHit, damage, ru.eclipsia.core.combat.DamageType.PHYSICAL);
         }
 
         java.util.Set<EclipseItem.SupportClass> supports = readSupports(arrow);
@@ -473,8 +477,11 @@ public class SkillListener implements Listener {
             directHit.setMetadata("eclipse_killer",
                     new org.bukkit.metadata.FixedMetadataValue(plugin, shooterId.toString()));
             directHit.damage(damage, shooter);
+            ru.eclipsia.core.combat.DamageDisplay.show(
+                    directHit, damage, ru.eclipsia.core.combat.DamageType.FIRE);
         }
-        damageInRadius(loc, radius, shooter, damage);
+        damageInRadius(loc, radius, shooter, damage,
+                ru.eclipsia.core.combat.DamageType.FIRE);
 
         // Визуальный взрыв (без блоков).
         loc.getWorld().createExplosion(loc, 0f, false, false);
@@ -1114,12 +1121,24 @@ public class SkillListener implements Listener {
 
     /** Нанести урон всем мобам в сфере вокруг точки (исключая стрелка). */
     private void damageInRadius(Location loc, double radius, Player shooter, double damage) {
+        damageInRadius(loc, radius, shooter, damage,
+                ru.eclipsia.core.combat.DamageType.PHYSICAL);
+    }
+
+    /**
+     * Вариант с явным типом урона — нужен фаерболу, чтобы цифры всплывали
+     * оранжевым (FIRE), а не белым (PHYSICAL).
+     */
+    private void damageInRadius(Location loc, double radius, Player shooter,
+                                double damage,
+                                ru.eclipsia.core.combat.DamageType type) {
         for (Entity e : loc.getWorld().getNearbyEntities(loc, radius, radius, radius)) {
             if (!(e instanceof LivingEntity living)) continue;
             if (e.equals(shooter)) continue;
             if (e instanceof Player) continue;
             markKiller(living, shooter);
             living.damage(damage, shooter);
+            ru.eclipsia.core.combat.DamageDisplay.show(living, damage, type);
         }
     }
 
