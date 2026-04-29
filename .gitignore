@@ -77,5 +77,8 @@ Desktop.ini
 hs_err_pid*
 replay_pid*
 
-# dist/plugins/ — built jars, tracked (exception to *.jar rule)
+# dist/plugins/ — built jars, tracked (exception to NetBeans dist/ rule
+# и общему *.jar). Включает каталог обратно, чтобы jars попадали в git.
+!dist/
+!dist/plugins/
 !dist/plugins/*.jar
