@@ -46,8 +46,9 @@ public class EclipsiaPerks extends JavaPlugin {
         gui = new PerkTreeGUI(treeManager, playerManager);
         
         // Регистрация команд
-        getCommand("perks").setExecutor(new PerksCommand(gui, treeManager));
-        
+        getCommand("perks").setExecutor(new PerksCommand(this));
+        getCommand("perkscode").setExecutor(new ru.eclipsia.perks.commands.PerksCodeCommand(this));
+
         // Регистрация слушателей
         getServer().getPluginManager().registerEvents(new PerkTreeGUIListener(gui, treeManager, playerManager), this);
         getServer().getPluginManager().registerEvents(new PlayerPerkListener(playerManager), this);
@@ -101,5 +102,51 @@ public class EclipsiaPerks extends JavaPlugin {
         reloadConfig();
         treeManager.loadPerkTree();
         getLogger().info("Конфигурация перезагружена!");
+    }
+
+    // =========================================================================
+    // PUBLIC CROSS-PLUGIN API
+    // =========================================================================
+
+    /**
+     * Сумма значений одного стата по всем изученным узлам игрока.
+     * Используется EclipsiaCore#StatResolver через рефлексию (без compile-time deps).
+     */
+    public int getPerkStat(java.util.UUID uuid, String statKey) {
+        if (uuid == null || statKey == null) return 0;
+        ru.eclipsia.perks.player.PlayerPerkData data = playerManager.getPlayerData(uuid);
+        if (data == null) return 0;
+        int sum = 0;
+        for (String nodeId : data.getAllocatedNodes()) {
+            ru.eclipsia.perks.node.PerkNode node = treeManager.getNode(nodeId);
+            if (node == null) continue;
+            Integer v = node.getStats().get(statKey);
+            if (v != null) sum += v;
+        }
+        return sum;
+    }
+
+    /** Все статы со всех изученных узлов игрока (для StatResolver#totals). */
+    public java.util.Map<String, Integer> getAllPerkStats(java.util.UUID uuid) {
+        java.util.Map<String, Integer> out = new java.util.HashMap<>();
+        if (uuid == null) return out;
+        ru.eclipsia.perks.player.PlayerPerkData data = playerManager.getPlayerData(uuid);
+        if (data == null) return out;
+        for (String nodeId : data.getAllocatedNodes()) {
+            ru.eclipsia.perks.node.PerkNode node = treeManager.getNode(nodeId);
+            if (node == null) continue;
+            for (java.util.Map.Entry<String, Integer> e : node.getStats().entrySet()) {
+                out.merge(e.getKey(), e.getValue(), Integer::sum);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * 6-значный код, который игрок вводит на web-странице вместе со своим ником
+     * для авторизации. Поднимается лениво при первом обращении.
+     */
+    public int getOrCreatePlayerCode(java.util.UUID uuid) {
+        return ru.eclipsia.perks.web.PerkAuthCodes.getOrCreate(uuid);
     }
 }

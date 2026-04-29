@@ -59,6 +59,9 @@ public class StatsBonusApplier {
         if (intelligence > 0) {
             applyIntelligenceBonuses(player, intelligence);
         }
+
+        // Пересчитываем максимум Эгиды (intelligence × 2 + экипировка + перки).
+        AegisManager.recompute(player);
     }
     
     /**

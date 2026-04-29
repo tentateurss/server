@@ -74,8 +74,74 @@ prefixes:
     tier: 3
     min-value: 11
     max-value: 18
-    item-types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS, BELT]
+    item-types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS, BELT, SHIELD]
     min-item-level: 20
+
+  # ===== Стихийный урон (на оружии) =====
+  fire_damage_minor:
+    name: "Пылающий"
+    tier: 1
+    min-value: 3
+    max-value: 8
+    item-types: [SWORD, AXE, BOW, STAFF]
+    min-item-level: 1
+
+  fire_damage_major:
+    name: "Огненный"
+    tier: 2
+    min-value: 9
+    max-value: 16
+    item-types: [SWORD, AXE, BOW, STAFF]
+    min-item-level: 15
+
+  cold_damage_minor:
+    name: "Ледяной"
+    tier: 1
+    min-value: 3
+    max-value: 8
+    item-types: [SWORD, AXE, BOW, STAFF]
+    min-item-level: 1
+
+  cold_damage_major:
+    name: "Морозный"
+    tier: 2
+    min-value: 9
+    max-value: 16
+    item-types: [SWORD, AXE, BOW, STAFF]
+    min-item-level: 15
+
+  lightning_damage_minor:
+    name: "Грозовой"
+    tier: 1
+    min-value: 3
+    max-value: 8
+    item-types: [SWORD, AXE, BOW, STAFF]
+    min-item-level: 1
+
+  lightning_damage_major:
+    name: "Громовой"
+    tier: 2
+    min-value: 9
+    max-value: 16
+    item-types: [SWORD, AXE, BOW, STAFF]
+    min-item-level: 15
+
+  # ===== Эгида (на шлеме / амулете / щите) =====
+  aegis_minor:
+    name: "Зачарованный"
+    tier: 1
+    min-value: 10
+    max-value: 30
+    item-types: [HELMET, AMULET, SHIELD]
+    min-item-level: 1
+
+  aegis_major:
+    name: "Магический"
+    tier: 2
+    min-value: 31
+    max-value: 60
+    item-types: [HELMET, AMULET, SHIELD]
+    min-item-level: 15
 
 # Суффиксы (дополнительные бонусы)
 suffixes:
@@ -131,21 +197,189 @@ suffixes:
     min-item-level: 15
   
   # Регенерация здоровья
-  regen_minor:
+  health_regen_minor:
     name: "Восстановления"
     tier: 1
     min-value: 1
     max-value: 2
-    item-types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS, RING, AMULET, BELT]
+    item-types: [CHESTPLATE, LEGGINGS, BELT, AMULET]
     min-item-level: 10
-  
-  regen_moderate:
+
+  health_regen_moderate:
     name: "Возрождения"
     tier: 2
     min-value: 3
     max-value: 5
-    item-types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS, RING, AMULET, BELT]
+    item-types: [CHESTPLATE, LEGGINGS, BELT, AMULET]
     min-item-level: 20
+
+  # Регенерация маны
+  mana_regen_minor:
+    name: "Сосредоточения"
+    tier: 1
+    min-value: 1
+    max-value: 2
+    item-types: [HELMET, RING, AMULET, BELT]
+    min-item-level: 5
+
+  mana_regen_moderate:
+    name: "Просветления"
+    tier: 2
+    min-value: 3
+    max-value: 5
+    item-types: [HELMET, RING, AMULET, BELT]
+    min-item-level: 15
+
+  # Реген эгиды
+  aegis_regen_minor:
+    name: "Эфирный"
+    tier: 1
+    min-value: 1
+    max-value: 3
+    item-types: [HELMET, AMULET]
+    min-item-level: 10
+
+  # Мана (запас)
+  mana_minor:
+    name: "Мудрого"
+    tier: 1
+    min-value: 5
+    max-value: 15
+    item-types: [HELMET, RING, AMULET, BELT]
+    min-item-level: 1
+
+  mana_moderate:
+    name: "Магистра"
+    tier: 2
+    min-value: 16
+    max-value: 35
+    item-types: [HELMET, RING, AMULET, BELT]
+    min-item-level: 15
+
+  # Стихийные резисты (на броне и щите)
+  fire_resist_minor:
+    name: "Огнеупорный"
+    tier: 1
+    min-value: 5
+    max-value: 15
+    item-types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS, RING, AMULET, SHIELD]
+    min-item-level: 1
+
+  fire_resist_major:
+    name: "Огнестойкий"
+    tier: 2
+    min-value: 16
+    max-value: 30
+    item-types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS, RING, AMULET, SHIELD]
+    min-item-level: 15
+
+  cold_resist_minor:
+    name: "Морозостойкий"
+    tier: 1
+    min-value: 5
+    max-value: 15
+    item-types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS, RING, AMULET, SHIELD]
+    min-item-level: 1
+
+  cold_resist_major:
+    name: "Ледостойкий"
+    tier: 2
+    min-value: 16
+    max-value: 30
+    item-types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS, RING, AMULET, SHIELD]
+    min-item-level: 15
+
+  lightning_resist_minor:
+    name: "Заземлённый"
+    tier: 1
+    min-value: 5
+    max-value: 15
+    item-types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS, RING, AMULET, SHIELD]
+    min-item-level: 1
+
+  lightning_resist_major:
+    name: "Громостойкий"
+    tier: 2
+    min-value: 16
+    max-value: 30
+    item-types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS, RING, AMULET, SHIELD]
+    min-item-level: 15
+
+  # Уклонение
+  evasion_minor:
+    name: "Увёртливый"
+    tier: 1
+    min-value: 20
+    max-value: 50
+    item-types: [BOOTS, LEGGINGS, RING, AMULET]
+    min-item-level: 1
+
+  evasion_major:
+    name: "Призрачный"
+    tier: 2
+    min-value: 51
+    max-value: 100
+    item-types: [BOOTS, LEGGINGS, RING, AMULET]
+    min-item-level: 15
+
+  # Скорость бега
+  move_speed_minor:
+    name: "Быстрый"
+    tier: 1
+    min-value: 5
+    max-value: 10
+    item-types: [BOOTS]
+    min-item-level: 1
+
+  move_speed_major:
+    name: "Стремительный"
+    tier: 2
+    min-value: 11
+    max-value: 18
+    item-types: [BOOTS]
+    min-item-level: 15
+
+  # Блок (только щиты)
+  block_chance_minor:
+    name: "Укреплённый"
+    tier: 1
+    min-value: 5
+    max-value: 15
+    item-types: [SHIELD]
+    min-item-level: 1
+
+  block_chance_major:
+    name: "Бастионный"
+    tier: 2
+    min-value: 16
+    max-value: 25
+    item-types: [SHIELD]
+    min-item-level: 15
+
+  block_amount_minor:
+    name: "Поглощающий"
+    tier: 1
+    min-value: 10
+    max-value: 25
+    item-types: [SHIELD]
+    min-item-level: 1
+
+  # Шанс крита (на оружии и кольцах)
+  crit_chance_minor:
+    name: "Зоркий"
+    tier: 1
+    min-value: 3
+    max-value: 8
+    item-types: [SWORD, AXE, BOW, STAFF, RING, AMULET]
+    min-item-level: 5
+
+  crit_chance_major:
+    name: "Смертельный"
+    tier: 2
+    min-value: 9
+    max-value: 18
+    item-types: [SWORD, AXE, BOW, STAFF, RING, AMULET]
+    min-item-level: 15
 
 # Уникальные предметы (фиксированные аффиксы)
 uniques:

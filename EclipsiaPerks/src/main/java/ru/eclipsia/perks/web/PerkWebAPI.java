@@ -67,10 +67,11 @@ public final class PerkWebAPI {
         server = HttpServer.create(new InetSocketAddress(port), 0);
         server.createContext("/",                     new IndexHandler());
         server.createContext("/api/perks/tree",       new TreeHandler());
+        server.createContext("/api/perks/auth",       new AuthHandler());
         server.createContext("/api/perks/player",     new PlayerHandler());
         server.createContext("/api/perks/allocate",   new AllocateHandler(true));
         server.createContext("/api/perks/deallocate", new AllocateHandler(false));
-        server.setExecutor(Executors.newFixedThreadPool(2));
+        server.setExecutor(Executors.newFixedThreadPool(4));
         server.start();
         plugin.getLogger().info("PerkWebAPI запущен на порту " + port);
     }
@@ -159,7 +160,7 @@ public final class PerkWebAPI {
                 respond(ex, 404, error(404, "Not found"));
                 return;
             }
-            byte[] bytes = INDEX_HTML.getBytes(StandardCharsets.UTF_8);
+            byte[] bytes = indexHtml().getBytes(StandardCharsets.UTF_8);
             ex.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
             ex.getResponseHeaders().add("Content-Type", "text/html; charset=UTF-8");
             ex.sendResponseHeaders(200, bytes.length);
@@ -247,11 +248,87 @@ public final class PerkWebAPI {
             JsonObject out = new JsonObject();
             out.addProperty("uuid", uuid.toString());
             out.addProperty("availablePoints", data.getAvailablePoints());
+            String name = Bukkit.getOfflinePlayer(uuid).getName();
+            if (name != null) out.addProperty("name", name);
 
             JsonArray allocated = new JsonArray();
             for (String id : data.getAllocatedNodes()) allocated.add(id);
             out.add("allocatedNodes", allocated);
 
+            respond(ex, 200, GSON.toJson(out));
+        }
+    }
+
+    /**
+     * POST /api/perks/auth body {nick, code}
+     * Возвращает {ok:true, uuid, name, availablePoints, allocatedNodes} если код совпадает.
+     * Резолв ника — через Bukkit#getOfflinePlayer (включая историю и кэш).
+     */
+    private final class AuthHandler implements HttpHandler {
+        @Override public void handle(HttpExchange ex) throws IOException {
+            if (handleOptions(ex)) return;
+            if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
+                respond(ex, 405, error(405, "Method not allowed"));
+                return;
+            }
+            String body;
+            try (InputStream is = ex.getRequestBody()) {
+                body = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+            }
+            JsonObject req;
+            try {
+                req = GSON.fromJson(body, JsonObject.class);
+            } catch (Exception e) {
+                respond(ex, 400, error(400, "Invalid JSON"));
+                return;
+            }
+            if (req == null || !req.has("nick") || !req.has("code")) {
+                respond(ex, 400, error(400, "Missing nick or code"));
+                return;
+            }
+            String nick = req.get("nick").getAsString().trim();
+            int code;
+            try {
+                code = Integer.parseInt(req.get("code").getAsString().trim());
+            } catch (NumberFormatException e) {
+                respond(ex, 400, error(400, "Invalid code"));
+                return;
+            }
+            if (nick.isEmpty()) {
+                respond(ex, 400, error(400, "Empty nick"));
+                return;
+            }
+
+            // Ник → UUID. Bukkit.getOfflinePlayer кэширует, но всё равно на main thread безопаснее.
+            UUID uuid;
+            try {
+                uuid = sync(() -> {
+                    var off = Bukkit.getOfflinePlayer(nick);
+                    return off == null ? null : off.getUniqueId();
+                });
+            } catch (Exception e) {
+                respond(ex, 500, error(500, "Lookup failed: " + e.getMessage()));
+                return;
+            }
+            if (uuid == null) {
+                respond(ex, 404, error(404, "Игрок с таким ником не найден"));
+                return;
+            }
+            if (!PerkAuthCodes.verify(uuid, code)) {
+                respond(ex, 401, error(401, "Неверный код. Введи /perkscode в игре, чтобы получить новый."));
+                return;
+            }
+
+            PlayerPerkData data = playerManager.getPlayerData(uuid);
+            if (data == null) data = playerManager.getPlayerData(uuid); // ensure load
+            JsonObject out = new JsonObject();
+            out.addProperty("ok", true);
+            out.addProperty("uuid", uuid.toString());
+            out.addProperty("name", nick);
+            out.addProperty("availablePoints", data == null ? 0 : data.getAvailablePoints());
+            JsonArray allocated = new JsonArray();
+            if (data != null) for (String id : data.getAllocatedNodes()) allocated.add(id);
+            out.add("allocatedNodes", allocated);
             respond(ex, 200, GSON.toJson(out));
         }
     }
@@ -342,204 +419,24 @@ public final class PerkWebAPI {
         }
     }
 
+
     // =========================================================================
-    // ВСТРОЕННЫЙ HTML-ФРОНТЕНД (canvas-рендер дерева перков)
+    // FRONTEND HTML — ленивый кэш из resources/perks_tree.html
     // =========================================================================
 
-    private static final String INDEX_HTML = """
-            <!doctype html>
-            <html lang="ru">
-            <head>
-            <meta charset="utf-8">
-            <title>Eclipsia — Дерево перков</title>
-            <style>
-              html,body { margin:0; height:100%; background:#0d0d12; color:#eee;
-                          font-family: 'Segoe UI', sans-serif; overflow:hidden; }
-              #ui { position:fixed; top:0; left:0; right:0; padding:8px 12px;
-                    background:rgba(0,0,0,0.6); z-index:10; display:flex;
-                    gap:12px; align-items:center; flex-wrap:wrap; }
-              #ui label { font-size:12px; opacity:0.7; }
-              #ui input { background:#222; color:#fff; border:1px solid #444;
-                          padding:4px 8px; font-family:monospace; }
-              #ui button { background:#4a3a8a; color:#fff; border:0;
-                           padding:4px 10px; cursor:pointer; }
-              #ui button:hover { background:#5a4aaa; }
-              #info { position:fixed; bottom:12px; left:12px; background:rgba(0,0,0,0.75);
-                      padding:10px 14px; border-radius:6px; font-size:13px; max-width:280px;
-                      display:none; z-index:10; }
-              #info h3 { margin:0 0 4px 0; }
-              canvas { display:block; cursor:grab; }
-              canvas:active { cursor:grabbing; }
-              .pts { color:#dd66ff; font-weight:bold; }
-            </style>
-            </head>
-            <body>
-            <div id="ui">
-              <label>UUID игрока: <input id="uuid" size="36" placeholder="00000000-0000-0000-0000-000000000000"></label>
-              <button onclick="loadPlayer()">Загрузить</button>
-              <span>Очков: <span id="pts" class="pts">—</span></span>
-              <span>Всего узлов: <span id="cnt">—</span></span>
-              <span style="opacity:0.6;font-size:12px;">ЛКМ — изучить · ПКМ — сбросить · колесо — zoom</span>
-            </div>
-            <canvas id="cv"></canvas>
-            <div id="info"></div>
-            <script>
-            const cv = document.getElementById('cv');
-            const ctx = cv.getContext('2d');
-            const info = document.getElementById('info');
-            let tree = null;
-            let allocated = new Set();
-            let availablePoints = 0;
-            let scale = 0.5, ox = 0, oy = 0;
-            let dragging = false, dragX = 0, dragY = 0;
-            let hover = null;
-            let uuid = localStorage.getItem('eclipsiaUuid') || '';
-            document.getElementById('uuid').value = uuid;
+    private static volatile String INDEX_HTML_CACHED;
 
-            const COLORS = {
-              START: '#ffffff', SMALL: '#888', MEDIUM: '#5dc55d',
-              NOTABLE: '#e8a93c', KEYSTONE: '#d23c3c'
-            };
-            const SIZES = { START: 16, SMALL: 8, MEDIUM: 12, NOTABLE: 16, KEYSTONE: 22 };
-
-            function resize() { cv.width = innerWidth; cv.height = innerHeight; draw(); }
-            addEventListener('resize', resize);
-
-            async function loadTree() {
-              const r = await fetch('/api/perks/tree');
-              tree = await r.json();
-              document.getElementById('cnt').textContent = tree.nodes.length;
-              // центрируем
-              ox = innerWidth/2 - tree.canvas.width*scale/2;
-              oy = innerHeight/2 - tree.canvas.height*scale/2;
-              draw();
-            }
-            async function loadPlayer() {
-              uuid = document.getElementById('uuid').value.trim();
-              if (!uuid) return;
-              localStorage.setItem('eclipsiaUuid', uuid);
-              const r = await fetch('/api/perks/player?uuid=' + uuid);
-              const d = await r.json();
-              if (d.error) { alert(d.error); return; }
-              allocated = new Set(d.allocatedNodes);
-              availablePoints = d.availablePoints;
-              document.getElementById('pts').textContent = availablePoints;
-              draw();
-            }
-
-            function draw() {
-              if (!tree) return;
-              ctx.fillStyle = '#0d0d12';
-              ctx.fillRect(0, 0, cv.width, cv.height);
-              ctx.save();
-              ctx.translate(ox, oy);
-              ctx.scale(scale, scale);
-              // edges
-              ctx.lineWidth = 2;
-              for (const e of tree.edges) {
-                const a = nodeById(e.from), b = nodeById(e.to);
-                if (!a || !b) continue;
-                const both = allocated.has(a.id) && allocated.has(b.id);
-                ctx.strokeStyle = both ? '#a7d4ff' : '#3a3a44';
-                ctx.beginPath();
-                ctx.moveTo(a.x, a.y);
-                ctx.lineTo(b.x, b.y);
-                ctx.stroke();
-              }
-              // nodes
-              for (const n of tree.nodes) {
-                const r = SIZES[n.type] || 8;
-                const isAlloc = allocated.has(n.id);
-                ctx.fillStyle = isAlloc ? COLORS[n.type] : '#222';
-                ctx.strokeStyle = COLORS[n.type] || '#888';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(n.x, n.y, r, 0, Math.PI*2);
-                ctx.fill();
-                ctx.stroke();
-              }
-              ctx.restore();
-            }
-            function nodeById(id) { return tree.nodes.find(n => n.id === id); }
-
-            function worldXY(ev) {
-              const rect = cv.getBoundingClientRect();
-              return {
-                x: (ev.clientX - rect.left - ox) / scale,
-                y: (ev.clientY - rect.top - oy) / scale
-              };
-            }
-            function nodeAt(ev) {
-              if (!tree) return null;
-              const w = worldXY(ev);
-              for (const n of tree.nodes) {
-                const r = SIZES[n.type] || 8;
-                const dx = n.x - w.x, dy = n.y - w.y;
-                if (dx*dx + dy*dy <= r*r) return n;
-              }
-              return null;
-            }
-
-            cv.addEventListener('mousedown', ev => {
-              if (ev.button === 0 || ev.button === 2) {
-                const n = nodeAt(ev);
-                if (n) {
-                  if (!uuid) { alert('Введи UUID игрока'); return; }
-                  const path = ev.button === 0 ? '/api/perks/allocate' : '/api/perks/deallocate';
-                  fetch(path, {method:'POST', headers:{'Content-Type':'application/json'},
-                                body: JSON.stringify({uuid, nodeId: n.id})})
-                    .then(r => r.json()).then(d => {
-                      if (!d.ok) { alert(d.error); return; }
-                      allocated = new Set(d.allocatedNodes);
-                      availablePoints = d.availablePoints;
-                      document.getElementById('pts').textContent = availablePoints;
-                      draw();
-                    });
-                  return;
-                }
-              }
-              dragging = true; dragX = ev.clientX; dragY = ev.clientY;
-            });
-            cv.addEventListener('contextmenu', ev => ev.preventDefault());
-            addEventListener('mousemove', ev => {
-              if (dragging) {
-                ox += ev.clientX - dragX; oy += ev.clientY - dragY;
-                dragX = ev.clientX; dragY = ev.clientY;
-                draw();
-                return;
-              }
-              const n = nodeAt(ev);
-              if (n !== hover) {
-                hover = n;
-                if (n) {
-                  let stats = '';
-                  for (const k in n.stats) stats += `<div>${k}: <b>${n.stats[k] > 0 ? '+' : ''}${n.stats[k]}</b></div>`;
-                  info.innerHTML = `<h3 style="color:${COLORS[n.type]}">${n.name}</h3>
-                    <div style="opacity:0.6">${n.type} · стоимость: ${n.cost}</div>${stats}`;
-                  info.style.display = 'block';
-                  info.style.left = (ev.clientX + 14) + 'px';
-                  info.style.top = (ev.clientY + 14) + 'px';
-                } else info.style.display = 'none';
-              } else if (n) {
-                info.style.left = (ev.clientX + 14) + 'px';
-                info.style.top = (ev.clientY + 14) + 'px';
-              }
-            });
-            addEventListener('mouseup', () => dragging = false);
-            cv.addEventListener('wheel', ev => {
-              ev.preventDefault();
-              const z = ev.deltaY < 0 ? 1.1 : 0.9;
-              const w = worldXY(ev);
-              scale *= z;
-              ox -= w.x * (scale - scale/z);
-              oy -= w.y * (scale - scale/z);
-              draw();
-            }, {passive:false});
-
-            resize();
-            loadTree().then(() => { if (uuid) loadPlayer(); });
-            </script>
-            </body>
-            </html>
-            """;
+    private static String indexHtml() {
+        String cached = INDEX_HTML_CACHED;
+        if (cached != null) return cached;
+        try (java.io.InputStream is = PerkWebAPI.class.getResourceAsStream("/perks_tree.html")) {
+            if (is == null) return "<h1>perks_tree.html не найден</h1>";
+            byte[] bytes = is.readAllBytes();
+            cached = new String(bytes, StandardCharsets.UTF_8);
+            INDEX_HTML_CACHED = cached;
+            return cached;
+        } catch (java.io.IOException e) {
+            return "<h1>Ошибка загрузки страницы: " + e.getMessage() + "</h1>";
+        }
+    }
 }

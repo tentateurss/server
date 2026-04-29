@@ -53,6 +53,28 @@ weapons:
     required-class: mage
     min-level: 10
 
+  # Щиты (OFFHAND, итем-тип SHIELD)
+  wooden_shield:
+    material: SHIELD
+    name: "Деревянный щит"
+    slot: OFFHAND
+    base-armor: 5
+    min-level: 1
+
+  iron_shield:
+    material: SHIELD
+    name: "Железный щит"
+    slot: OFFHAND
+    base-armor: 10
+    min-level: 10
+
+  magic_shield:
+    material: SHIELD
+    name: "Магический щит"
+    slot: OFFHAND
+    base-armor: 8
+    min-level: 15
+
 # Броня
 armor:
   # Шлемы
