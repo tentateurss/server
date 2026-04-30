@@ -195,6 +195,39 @@
   .btn-dealloc:hover { box-shadow: 0 4px 12px #e85d5d55; }
   .btn-dealloc:disabled { background: #333; color: #666; cursor: not-allowed; box-shadow: none; }
 
+  /* ========= Player stats panel (left) ========= */
+  #stats-panel {
+    position: fixed; top: 76px; left: 16px; width: 220px;
+    background: linear-gradient(160deg, rgba(20,15,35,0.95), rgba(10,8,20,0.98));
+    border: 1px solid #c8a84e44;
+    border-radius: 10px; padding: 14px 16px;
+    box-shadow: 0 10px 40px #00000088;
+    z-index: 15;
+    backdrop-filter: blur(6px);
+    font-family: 'Segoe UI',sans-serif; font-size: 12px;
+    max-height: calc(100vh - 92px); overflow-y: auto;
+  }
+  #stats-panel.hidden { display: none; }
+  #stats-panel h4 {
+    margin: 0 0 10px; font-size: 13px; letter-spacing: 0.1em;
+    color: #c8a84e; text-transform: uppercase;
+    font-family: 'Cinzel',serif; font-weight: 700;
+  }
+  #stats-panel .group { margin-bottom: 10px; }
+  #stats-panel .group-title {
+    font-size: 10px; color: #888; letter-spacing: 0.18em;
+    text-transform: uppercase; margin: 4px 0 4px;
+  }
+  #stats-panel .row {
+    display: flex; justify-content: space-between;
+    padding: 3px 0; border-bottom: 1px dashed #2a223e;
+  }
+  #stats-panel .row:last-child { border-bottom: 0; }
+  #stats-panel .k { color: #aaa; }
+  #stats-panel .v { color: #f5d97c; font-weight: 700; }
+  #stats-panel .v.warn { color: #e85d5d; }
+  #stats-panel .v.zero { color: #555; }
+
   /* ========= Toast ========= */
   #toast {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
@@ -258,6 +291,12 @@
   <div class="hud-search"><input id="search" placeholder="Найти узел…"></div>
   <button class="hud-btn" onclick="resetAll()">Сбросить всё</button>
   <button class="hud-btn logout" onclick="logout()">Выйти</button>
+</div>
+
+<!-- LEFT: stats panel -->
+<div id="stats-panel" class="hidden">
+  <h4>Статы игрока</h4>
+  <div id="stats-body"><div class="group-title">Загрузка...</div></div>
 </div>
 
 <!-- CANVAS -->
@@ -380,6 +419,7 @@ function logout() {
   document.getElementById('login').classList.remove('hidden');
   document.getElementById('hud').classList.add('hidden');
   document.getElementById('info').classList.add('hidden');
+  document.getElementById('stats-panel').classList.add('hidden');
 }
 
 async function loadTree() {
@@ -387,9 +427,13 @@ async function loadTree() {
   const r = await fetch('/api/perks/tree');
   tree = await r.json();
   // Centre canvas approximately on the tree midpoint.
-  scale = Math.min(innerWidth, innerHeight - 60) / 1500;
-  ox = innerWidth/2  - 800 * scale;
-  oy = (innerHeight + 56)/2 - 500 * scale;
+  // Holst 2400x1500. Класс игрока определяет, какой хаб ставим в центр.
+  // Если playerClass неизвестен — центрируем на середине холста.
+  const HUBS = {warrior:[500,800], mage:[1200,350], archer:[1900,800]};
+  const target = HUBS[playerClass] || [1200, 750];
+  scale = Math.min(innerWidth / 1400, (innerHeight - 60) / 900);
+  ox = innerWidth / 2  - target[0] * scale;
+  oy = (innerHeight + 56) / 2 - target[1] * scale;
 }
 
 async function refreshPlayer() {
@@ -502,10 +546,11 @@ function draw() {
   ctx.scale(scale, scale);
 
   // ===== zone tints — мягкие радиальные аро́ры классов =====
-  drawZoneRadial( 300, 600, 280, '#d23c3c22');  // warrior — red
-  drawZoneRadial(1300, 600, 280, '#3ad26124');  // archer — green
-  drawZoneRadial( 800, 250, 280, '#3a7ad222');  // mage — blue
-  drawZoneRadial( 800, 700, 200, '#c8a84e1a');  // centre — gold
+  // Подсветки зон совпадают с хабами perks.yml (warrior 500/800, mage 1200/350, archer 1900/800).
+  drawZoneRadial( 500, 800, 360, '#d23c3c26');  // warrior — red
+  drawZoneRadial(1900, 800, 360, '#3ad26128');  // archer  — green
+  drawZoneRadial(1200, 350, 360, '#3a7ad226');  // mage    — blue
+  drawZoneRadial(1200, 750, 200, '#c8a84e1a');  // centre  — gold
 
   // ===== edges =====
   ctx.lineCap = 'round';
@@ -842,6 +887,84 @@ function updateHud() {
   document.getElementById('hud-name').textContent = (session && session.name) || '—';
   document.getElementById('hud-points').textContent = availablePoints;
   document.getElementById('hud-allocated').textContent = allocated.size;
+  // Левая панель со статами обновляется отдельным запросом —
+  // суммирование (профиль+экипировка+перки) делает сервер через StatResolver.
+  refreshStatsPanel();
+}
+
+// Группы статов в порядке отображения слева → как у HUD в игре.
+// Если стат отсутствует или = 0 — всё равно показываем (видно прокачку).
+const STAT_GROUPS = [
+  { title: 'Атрибуты',
+    keys: ['strength', 'dexterity', 'intelligence'] },
+  { title: 'Жизнь / Мана / Эгида',
+    keys: ['health', 'mana', 'aegis',
+           'health_regen', 'mana_regen', 'aegis_regen', 'aegis_delay'] },
+  { title: 'Защита',
+    keys: ['armour', 'evasion', 'dodge',
+           'block_chance', 'block_amount',
+           'fire_resist', 'cold_resist', 'lightning_resist'] },
+  { title: 'Атака',
+    keys: ['damage', 'physical_damage', 'fire_damage', 'cold_damage',
+           'lightning_damage', 'spell_damage',
+           'crit_chance', 'crit_damage',
+           'attack_speed', 'move_speed'] },
+];
+
+let statsRefreshInflight = false;
+async function refreshStatsPanel() {
+  if (!session) return;
+  if (statsRefreshInflight) return;
+  statsRefreshInflight = true;
+  try {
+    const r = await fetch('/api/perks/stats?uuid=' + encodeURIComponent(session.uuid));
+    if (!r.ok) return;
+    const d = await r.json();
+    const stats = d.stats || {};
+    const root = document.getElementById('stats-body');
+    // Заголовок: имя класса + онлайн
+    const lines = [];
+    if (d.className) {
+      lines.push('<div class="group-title">' +
+        (d.online ? 'В игре · ' : 'Оффлайн · ') +
+        escapeHtml(d.className) + '</div>');
+    }
+    if (d.online && typeof d.currentHealth === 'number') {
+      lines.push('<div class="row"><span class="k">HP сейчас</span>' +
+        '<span class="v">' + Math.round(d.currentHealth) + ' / ' +
+        Math.round(d.maxHealth || 0) + '</span></div>');
+    }
+    for (const g of STAT_GROUPS) {
+      let any = false;
+      let body = '';
+      for (const k of g.keys) {
+        const v = stats[k] || 0;
+        if (v === 0) continue;
+        any = true;
+        const pct = PERCENT_STATS.has(k) ? '%' : '';
+        body += '<div class="row"><span class="k">' +
+          escapeHtml(STAT_LABELS[k] || k) + '</span>' +
+          '<span class="v' + (v < 0 ? ' warn' : '') + '">' +
+          (v > 0 ? '+' : '') + v + pct + '</span></div>';
+      }
+      if (any) {
+        lines.push('<div class="group"><div class="group-title">' +
+          escapeHtml(g.title) + '</div>' + body + '</div>');
+      }
+    }
+    if (lines.length === 0) {
+      lines.push('<div class="group-title">Статов нет — прокачайся в дереве</div>');
+    }
+    root.innerHTML = lines.join('');
+    document.getElementById('stats-panel').classList.remove('hidden');
+  } catch (e) { /* silent */ }
+  finally { statsRefreshInflight = false; }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
 }
 
 function showInfo(n) {
@@ -932,6 +1055,11 @@ async function enterTree() {
     window._tickStarted = true;
     requestAnimationFrame(tick);
   }
+  // Лёгкий polling статов: 3 сек — чтобы видеть, как меняется HP/мана
+  // когда тестер сидит на сайте, а сам играет в Майне.
+  if (!window._statsTimer) {
+    window._statsTimer = setInterval(() => refreshStatsPanel(), 3000);
+  }
 }
 
 async function bootstrap() {
@@ -945,6 +1073,9 @@ async function bootstrap() {
       allocated = new Set(d.allocatedNodes || []);
       availablePoints = d.availablePoints || 0;
       if (d.name) session.name = d.name;
+      // Без этого после F5 все 3 START-узла подсвечивались, потому что
+      // isForeignStart() полагается на playerClass.
+      if (d.playerClass) playerClass = d.playerClass;
       enterTree();
       return;
     } catch (e) {

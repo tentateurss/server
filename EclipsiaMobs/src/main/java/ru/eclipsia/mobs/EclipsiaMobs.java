@@ -42,7 +42,27 @@ public class EclipsiaMobs extends JavaPlugin {
         
         // Сохраняем дефолтные конфиги
         saveDefaultConfig();
-        saveResource("mobs.yml", false);
+        // mobs.yml: автоматическое обновление при смене ростера/зон.
+        // На диске должна быть метка версии из ресурса; если нет — перезаписываем.
+        try {
+            java.io.File f = new java.io.File(getDataFolder(), "mobs.yml");
+            boolean needWrite = !f.exists();
+            if (!needWrite) {
+                String content = new String(java.nio.file.Files.readAllBytes(f.toPath()),
+                        java.nio.charset.StandardCharsets.UTF_8);
+                if (!content.contains("version-marker: beach-roster-v2")) {
+                    needWrite = true;
+                    getLogger().info("mobs.yml устарел — перезаписываю свежим ростером.");
+                }
+            }
+            if (needWrite) {
+                if (f.exists()) f.delete();
+                saveResource("mobs.yml", true);
+            }
+        } catch (Exception e) {
+            getLogger().warning("Не удалось проверить mobs.yml: " + e.getMessage());
+            saveResource("mobs.yml", false);
+        }
         
         // Инициализируем менеджеры
         try {

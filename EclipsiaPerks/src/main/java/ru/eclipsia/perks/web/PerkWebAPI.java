@@ -72,6 +72,7 @@ public final class PerkWebAPI {
         server.createContext("/api/perks/allocate",   new AllocateHandler(true));
         server.createContext("/api/perks/deallocate", new AllocateHandler(false));
         server.createContext("/api/perks/reset",       new ResetHandler());
+        server.createContext("/api/perks/stats",       new StatsHandler());
         server.setExecutor(Executors.newFixedThreadPool(4));
         server.start();
         plugin.getLogger().info("PerkWebAPI запущен на порту " + port);
@@ -181,8 +182,8 @@ public final class PerkWebAPI {
 
             JsonObject root = new JsonObject();
             JsonObject canvas = new JsonObject();
-            canvas.addProperty("width", 2000);
-            canvas.addProperty("height", 2000);
+            canvas.addProperty("width", 2400);
+            canvas.addProperty("height", 1500);
             root.add("canvas", canvas);
 
             JsonArray nodes = new JsonArray();
@@ -409,7 +410,8 @@ public final class PerkWebAPI {
             if (allocate) {
                 if (!treeManager.canAllocateNode(nodeId, data.getAllocatedNodes())) {
                     out.addProperty("ok", false);
-                    out.addProperty("error", "Node not connected to allocated tree");
+                    out.addProperty("error", "Узел не примыкает к изученным. "
+                            + "Сначала прокачай соседний узел (от START идти по цепочке).");
                     return out;
                 }
                 if (!data.allocateNode(nodeId, node.getCost())) {
@@ -535,6 +537,75 @@ public final class PerkWebAPI {
     // =========================================================================
 
     private static volatile String INDEX_HTML_CACHED;
+
+    /**
+     * GET /api/perks/stats?uuid=...
+     * Возвращает резолвнутые статы игрока: профиль + экипировка + перки.
+     * Используется на web-странице, чтобы тестер видел эффект allocate в
+     * реальном времени без захода на сервер. {@link ru.eclipsia.core.stats.StatResolver}
+     * уже умеет агрегировать всё в единую map{ключ→int}.
+     */
+    private final class StatsHandler implements HttpHandler {
+        @Override public void handle(HttpExchange ex) throws IOException {
+            if (handleOptions(ex)) return;
+            if (!"GET".equalsIgnoreCase(ex.getRequestMethod())) {
+                respond(ex, 405, error(405, "Method not allowed"));
+                return;
+            }
+            Map<String, String> q = parseQuery(ex.getRequestURI().getQuery());
+            String rawUuid = q.get("uuid");
+            if (rawUuid == null) {
+                respond(ex, 400, error(400, "Missing uuid"));
+                return;
+            }
+            UUID uuid;
+            try {
+                uuid = UUID.fromString(rawUuid);
+            } catch (IllegalArgumentException e) {
+                respond(ex, 400, error(400, "Invalid uuid"));
+                return;
+            }
+
+            try {
+                JsonObject out = sync(() -> {
+                    JsonObject root = new JsonObject();
+                    org.bukkit.entity.Player p = Bukkit.getPlayer(uuid);
+                    ru.eclipsia.core.api.EclipsiaAPI api =
+                            ru.eclipsia.core.api.EclipsiaAPI.getInstance();
+                    ru.eclipsia.core.data.PlayerProfile profile =
+                            (p != null && api != null) ? api.getActiveProfile(p) : null;
+
+                    Map<String, Integer> totals = ru.eclipsia.core.stats.StatResolver
+                            .totals(p, profile);
+
+                    JsonObject statsJson = new JsonObject();
+                    for (Map.Entry<String, Integer> e : totals.entrySet()) {
+                        statsJson.addProperty(e.getKey(), e.getValue());
+                    }
+                    root.add("stats", statsJson);
+                    root.addProperty("online", p != null);
+
+                    if (profile != null) {
+                        root.addProperty("className",
+                                profile.getClassName() == null ? "" :
+                                        profile.getClassName());
+                    }
+                    if (p != null) {
+                        // Текущие живые значения (HP/мана) из Bukkit
+                        try {
+                            root.addProperty("currentHealth", p.getHealth());
+                            root.addProperty("maxHealth",
+                                    p.getAttribute(org.bukkit.attribute.Attribute.GENERIC_MAX_HEALTH).getValue());
+                        } catch (Throwable ignored) {}
+                    }
+                    return root;
+                });
+                respond(ex, 200, GSON.toJson(out));
+            } catch (Exception e) {
+                respond(ex, 500, error(500, "Internal error: " + e.getMessage()));
+            }
+        }
+    }
 
     private static String indexHtml() {
         String cached = INDEX_HTML_CACHED;

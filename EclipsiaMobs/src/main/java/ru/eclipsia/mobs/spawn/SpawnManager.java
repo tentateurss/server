@@ -298,18 +298,56 @@ public class SpawnManager {
     public int purgeAllCustomMobs() {
         NamespacedKey key = new NamespacedKey(plugin, ZONE_ID_KEY);
         int removed = 0;
+        int removedVanilla = 0;
         for (World w : Bukkit.getWorlds()) {
+            boolean managed = isManagedWorld(w.getName());
             for (Entity e : w.getEntities()) {
                 if (!(e instanceof LivingEntity living)) continue;
                 if (e instanceof org.bukkit.entity.Player) continue;
                 if (e.hasMetadata("eclipsia_boss")) continue;
-                if (living.getPersistentDataContainer().get(key, PersistentDataType.STRING) == null) continue;
-                e.remove();
-                removed++;
+                boolean ours = living.getPersistentDataContainer()
+                        .get(key, PersistentDataType.STRING) != null;
+                if (ours) {
+                    e.remove();
+                    removed++;
+                    continue;
+                }
+                // В наших мирах ванильный hostile тоже сносим — это «лишние»
+                // мобы из чанков, которые игрок видит на берегу.
+                if (managed && isVanillaHostile(e.getType())) {
+                    e.remove();
+                    removedVanilla++;
+                }
             }
         }
-        plugin.getLogger().info("purgeAllCustomMobs: удалено " + removed);
+        plugin.getLogger().info("purgeAllCustomMobs: удалено custom=" + removed
+                + ", vanilla(в наших мирах)=" + removedVanilla);
         return removed;
+    }
+
+    private static boolean isVanillaHostile(org.bukkit.entity.EntityType t) {
+        return t == org.bukkit.entity.EntityType.ZOMBIE
+                || t == org.bukkit.entity.EntityType.SKELETON
+                || t == org.bukkit.entity.EntityType.CREEPER
+                || t == org.bukkit.entity.EntityType.SPIDER
+                || t == org.bukkit.entity.EntityType.ENDERMAN
+                || t == org.bukkit.entity.EntityType.WITCH
+                || t == org.bukkit.entity.EntityType.SLIME
+                || t == org.bukkit.entity.EntityType.PHANTOM
+                || t == org.bukkit.entity.EntityType.DROWNED
+                || t == org.bukkit.entity.EntityType.HUSK
+                || t == org.bukkit.entity.EntityType.STRAY
+                || t == org.bukkit.entity.EntityType.CAVE_SPIDER
+                || t == org.bukkit.entity.EntityType.SILVERFISH
+                || t == org.bukkit.entity.EntityType.PILLAGER
+                || t == org.bukkit.entity.EntityType.VINDICATOR
+                || t == org.bukkit.entity.EntityType.RAVAGER
+                || t == org.bukkit.entity.EntityType.EVOKER
+                || t == org.bukkit.entity.EntityType.ZOMBIE_VILLAGER
+                || t == org.bukkit.entity.EntityType.ZOMBIFIED_PIGLIN
+                || t == org.bukkit.entity.EntityType.PIGLIN
+                || t == org.bukkit.entity.EntityType.MAGMA_CUBE
+                || t == org.bukkit.entity.EntityType.GUARDIAN;
     }
 
     /**
@@ -335,6 +373,21 @@ public class SpawnManager {
      */
     public int getZoneCount() {
         return zones.size();
+    }
+
+    /**
+     * Возвращает {@code true}, если в данном мире присутствует хотя бы одна
+     * зона спавна. {@link ru.eclipsia.mobs.listeners.MobSpawnListener}
+     * по этому флагу решает: в «нашем» мире нужно резать ВСЕ ванильные
+     * пути спавна (NATURAL/SPAWNER/CHUNK_GEN/RAID/...), оставляя только
+     * наши CUSTOM-спавны.
+     */
+    public boolean isManagedWorld(String worldName) {
+        if (worldName == null || worldName.isEmpty()) return false;
+        for (SpawnZone z : zones.values()) {
+            if (worldName.equals(z.getWorldName())) return true;
+        }
+        return false;
     }
 
     /**

@@ -34,14 +34,59 @@ public class PerksCodeCommand implements CommandExecutor {
     public static void send(Player player, EclipsiaPerks plugin) {
         int code = PerkAuthCodes.getOrCreate(player.getUniqueId());
         String url = buildUrl(plugin);
-        player.sendMessage("");
-        player.sendMessage("§6§l⟡ Дерево перков (web) ⟡");
-        player.sendMessage("§7Открой ссылку в браузере и войди по нику + коду:");
-        player.sendMessage("§b§n" + url);
-        player.sendMessage("§7Ник: §f" + player.getName());
-        player.sendMessage("§7Код: §a§l" + PerkAuthCodes.format(code));
-        player.sendMessage("§8(Код одноразовый на сессию. /perkscode выдаст новый.)");
-        player.sendMessage("");
+        String codeStr = PerkAuthCodes.format(code);
+
+        // Adventure-компоненты с click-actions: URL открывается в браузере,
+        // ник и код копируются в буфер обмена. Hover-подсказки на всё.
+        player.sendMessage(net.kyori.adventure.text.Component.empty());
+        player.sendMessage(net.kyori.adventure.text.Component.text(
+                "⟡ Дерево перков (web) ⟡",
+                net.kyori.adventure.text.format.NamedTextColor.GOLD,
+                net.kyori.adventure.text.format.TextDecoration.BOLD));
+        player.sendMessage(net.kyori.adventure.text.Component.text(
+                "Открой ссылку в браузере и войди по нику + коду:",
+                net.kyori.adventure.text.format.NamedTextColor.GRAY));
+
+        net.kyori.adventure.text.Component urlComp = net.kyori.adventure.text.Component
+                .text(url, net.kyori.adventure.text.format.NamedTextColor.AQUA,
+                        net.kyori.adventure.text.format.TextDecoration.UNDERLINED)
+                .clickEvent(net.kyori.adventure.text.event.ClickEvent.openUrl(url))
+                .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(
+                        net.kyori.adventure.text.Component.text("Кликни — откроет в браузере",
+                                net.kyori.adventure.text.format.NamedTextColor.YELLOW)));
+        player.sendMessage(urlComp);
+
+        net.kyori.adventure.text.Component nickComp = net.kyori.adventure.text.Component
+                .text("Ник: ", net.kyori.adventure.text.format.NamedTextColor.GRAY)
+                .append(net.kyori.adventure.text.Component.text(player.getName(),
+                                net.kyori.adventure.text.format.NamedTextColor.WHITE)
+                        .clickEvent(net.kyori.adventure.text.event.ClickEvent.copyToClipboard(player.getName()))
+                        .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(
+                                net.kyori.adventure.text.Component.text("Кликни — скопирует ник",
+                                        net.kyori.adventure.text.format.NamedTextColor.YELLOW))))
+                .append(net.kyori.adventure.text.Component.text("  [копировать]",
+                                net.kyori.adventure.text.format.NamedTextColor.DARK_GRAY)
+                        .clickEvent(net.kyori.adventure.text.event.ClickEvent.copyToClipboard(player.getName())));
+        player.sendMessage(nickComp);
+
+        net.kyori.adventure.text.Component codeComp = net.kyori.adventure.text.Component
+                .text("Код: ", net.kyori.adventure.text.format.NamedTextColor.GRAY)
+                .append(net.kyori.adventure.text.Component.text(codeStr,
+                                net.kyori.adventure.text.format.NamedTextColor.GREEN,
+                                net.kyori.adventure.text.format.TextDecoration.BOLD)
+                        .clickEvent(net.kyori.adventure.text.event.ClickEvent.copyToClipboard(codeStr))
+                        .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(
+                                net.kyori.adventure.text.Component.text("Кликни — скопирует код",
+                                        net.kyori.adventure.text.format.NamedTextColor.YELLOW))))
+                .append(net.kyori.adventure.text.Component.text("  [копировать]",
+                                net.kyori.adventure.text.format.NamedTextColor.DARK_GRAY)
+                        .clickEvent(net.kyori.adventure.text.event.ClickEvent.copyToClipboard(codeStr)));
+        player.sendMessage(codeComp);
+
+        player.sendMessage(net.kyori.adventure.text.Component.text(
+                "(Код одноразовый на сессию. /perkscode выдаст новый.)",
+                net.kyori.adventure.text.format.NamedTextColor.DARK_GRAY));
+        player.sendMessage(net.kyori.adventure.text.Component.empty());
     }
 
     private static String buildUrl(EclipsiaPerks plugin) {
