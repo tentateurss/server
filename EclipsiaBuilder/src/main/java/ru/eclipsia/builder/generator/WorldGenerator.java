@@ -63,8 +63,11 @@ public final class WorldGenerator {
      * <p><b>v2</b>: + город Эликий (стены, башни, ворота, собор, шпиль) — PR 2.
      * <p><b>v3</b>: + здания внутри города, улицы, 3 внешних дороги,
      *               окружение (поля/лес/шахта/рыбацкая деревня), декор — PR 3.
+     * <p><b>v4</b>: фиксы по Devin Review: камин кузницы, цветы на земле,
+     *               деревья через RegionPainter, восточная дорога с
+     *               чистой центральной полосой, скаттер-диапазоны.
      */
-    public static final String GENERATED_FLAG = "eclipsia_world_generated_v3";
+    public static final String GENERATED_FLAG = "eclipsia_world_generated_v4";
 
     // =========================================================================
     // КООРДИНАТЫ И РАЗМЕРЫ
@@ -473,7 +476,15 @@ public final class WorldGenerator {
             if (Math.abs(z - CITY_Z) <= 4 && x > CITY_HALF) continue;  // восточная
             if (Math.abs(z - CITY_Z) <= 4 && x < -CITY_HALF) continue; // западная
 
-            int yPlace = CITY_FLOOR_Y; // травяной слой ~ FLOOR_Y - 1; цветок на FLOOR_Y
+            // Поверхность считаем по реальному ландшафту фазы 1 — иначе декор
+            // парит над землёй за пределами городского плато (CITY_FLOOR_Y=70
+            // против BASE_GROUND_Y≈64).
+            int surface = computeHeight(x, z);
+            // Внутри плато (через CITY_PAD_HALF, см. фазу 2) поверхность
+            // выровнена в CITY_FLOOR_Y, так что считаем максимум.
+            int yGround = Math.max(surface, BASE_GROUND_Y);
+            int yPlace = yGround + 1; // цветок/трава ставится НА поверхность
+
             double r = rng.nextDouble();
             if (r < 0.55 && placedFlowers < targetFlowers) {
                 p.place(x, yPlace, z, flowers[rng.nextInt(flowers.length)]);
@@ -482,7 +493,8 @@ public final class WorldGenerator {
                 p.place(x, yPlace, z, grasses[rng.nextInt(grasses.length)]);
                 placedGrass++;
             } else if (placedStones < targetStones) {
-                p.place(x, yPlace - 1, z, Material.MOSSY_COBBLESTONE);
+                // Мшистый камень заменяет верхний блок поверхности.
+                p.place(x, yGround, z, Material.MOSSY_COBBLESTONE);
                 placedStones++;
             }
         }
