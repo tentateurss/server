@@ -68,8 +68,13 @@ public final class WorldGenerator {
      * <p><b>v6</b>: PR 1 — полный rewrite. Скелет 8 фаз, мостовая под
      * городом (POLISHED_DEEPSLATE), точка спавна перед южными воротами
      * (0, 75, 38), плоский внешний мир из flatSettings.
+     *
+     * <p><b>v7</b>: PR 2 — стена-полигон 22 вершины из COBBLED_DEEPSLATE +
+     * DEEPSLATE_BRICKS, 4 ворот с арками, башни через 18-22 блока
+     * ({@link ElikiumWall}), южная горная гряда z=50..190 / x=±200,
+     * h=18..60 ({@link WorldMountains}, шум SimplexOctaveGenerator).
      */
-    public static final String GENERATED_FLAG = "eclipsia_world_generated_v6";
+    public static final String GENERATED_FLAG = "eclipsia_world_generated_v7";
 
     // =========================================================================
     // ГЕОМЕТРИЯ ГОРОДА
@@ -306,7 +311,16 @@ public final class WorldGenerator {
     // =========================================================================
 
     private void phase6Structures(RegionPainter p, Random rng) {
-        plugin.getLogger().info("WorldGenerator/phase6: стена + собор — TODO в PR 2 (стена) и PR 3 (собор).");
+        plugin.getLogger().info(
+                "WorldGenerator/phase6: стена + горы (собор — TODO в PR 3).");
+
+        // PR 2 / часть A: стена-полигон + 4 ворот + башни.
+        new ElikiumWall(plugin, p, rng).build();
+
+        // PR 2 / часть B: южные горы (z=50..190, x=±200, h=18..60).
+        new WorldMountains(plugin, p, rng).build();
+
+        // PR 3: собор на (15, -5) — пока заглушка, будет в следующем PR.
     }
 
     // =========================================================================
