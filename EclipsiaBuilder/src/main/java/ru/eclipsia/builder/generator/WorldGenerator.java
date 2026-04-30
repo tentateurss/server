@@ -128,16 +128,31 @@ public final class WorldGenerator {
     // =========================================================================
 
     /**
-     * Координаты центра «глаза» на вершине шпиля собора. Заполняются
-     * {@link ElikiumCityBuilder} при постройке шпиля; читаются
-     * {@link SpireParticles} при выпуске частиц.
+     * Координаты центра «глаза» на вершине шпиля собора. Читаются
+     * {@link SpireParticles} при выпуске частиц; перезаписываются
+     * {@link ElikiumCityBuilder} при постройке шпиля.
      *
-     * <p>{@link Double#NaN} означает «шпиль ещё не построен» — в этом
-     * случае {@link SpireParticles} ничего не делает.
+     * <p>Инициализируются <b>сразу к финальным значениям</b>, выведенным
+     * из констант города (а не {@link Double#NaN}). Иначе после первого
+     * перезапуска сервера {@link #generate(Runnable)} попадает в
+     * ранний return по PDC-маркеру, координаты остаются {@code NaN},
+     * и {@link SpireParticles} прекращает работать.
+     *
+     * <p>Геометрия (см. {@code ElikiumCityBuilder.buildSpire}):
+     * <pre>
+     *   yWallTop  = CITY_FLOOR_Y + 20 (CATHEDRAL_NAVE_H)
+     *   peak      = yWallTop + 5
+     *   spireBase = peak + 1
+     *   platY     = spireBase + 10 (spireH)
+     *   rodY      = platY + 1
+     *   center    = (CITY_X + 0.5, rodY + 1.5, CITY_Z + 0.5)
+     *             = (0.5, 70 + 20 + 5 + 1 + 10 + 1 + 1.5, 0.5)
+     *             = (0.5, 108.5, 0.5)
+     * </pre>
      */
-    public static volatile double spireCenterX = Double.NaN;
-    public static volatile double spireCenterY = Double.NaN;
-    public static volatile double spireCenterZ = Double.NaN;
+    public static volatile double spireCenterX = CITY_X + 0.5;
+    public static volatile double spireCenterY = CITY_FLOOR_Y + 20 + 5 + 1 + 10 + 1 + 1.5;
+    public static volatile double spireCenterZ = CITY_Z + 0.5;
 
     // =========================================================================
     // СОСТОЯНИЕ
