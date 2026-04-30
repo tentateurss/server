@@ -71,6 +71,7 @@ public final class PerkWebAPI {
         server.createContext("/api/perks/player",     new PlayerHandler());
         server.createContext("/api/perks/allocate",   new AllocateHandler(true));
         server.createContext("/api/perks/deallocate", new AllocateHandler(false));
+        server.createContext("/api/perks/reset",       new ResetHandler());
         server.setExecutor(Executors.newFixedThreadPool(4));
         server.start();
         plugin.getLogger().info("PerkWebAPI запущен на порту " + port);
@@ -250,6 +251,14 @@ public final class PerkWebAPI {
             out.addProperty("availablePoints", data.getAvailablePoints());
             String name = Bukkit.getOfflinePlayer(uuid).getName();
             if (name != null) out.addProperty("name", name);
+            // Класс игрока — нужен фронту, чтобы скрыть START-узлы чужих классов.
+            try {
+                ru.eclipsia.core.data.PlayerData coreData =
+                        ru.eclipsia.core.api.EclipsiaAPI.getInstance().getPlayerData(uuid);
+                if (coreData != null && coreData.getClassName() != null) {
+                    out.addProperty("playerClass", coreData.getClassName().toLowerCase());
+                }
+            } catch (Throwable ignored) {}
 
             JsonArray allocated = new JsonArray();
             for (String id : data.getAllocatedNodes()) allocated.add(id);
@@ -326,6 +335,13 @@ public final class PerkWebAPI {
             out.addProperty("uuid", uuid.toString());
             out.addProperty("name", nick);
             out.addProperty("availablePoints", data == null ? 0 : data.getAvailablePoints());
+            try {
+                ru.eclipsia.core.data.PlayerData coreData =
+                        ru.eclipsia.core.api.EclipsiaAPI.getInstance().getPlayerData(uuid);
+                if (coreData != null && coreData.getClassName() != null) {
+                    out.addProperty("playerClass", coreData.getClassName().toLowerCase());
+                }
+            } catch (Throwable ignored) {}
             JsonArray allocated = new JsonArray();
             if (data != null) for (String id : data.getAllocatedNodes()) allocated.add(id);
             out.add("allocatedNodes", allocated);
@@ -436,6 +452,80 @@ public final class PerkWebAPI {
             for (String id : data.getAllocatedNodes()) arr.add(id);
             out.add("allocatedNodes", arr);
             return out;
+        }
+    }
+
+    /**
+     * POST /api/perks/reset body {uuid}
+     * Полный сброс дерева: очищаем allocated, возвращаем очки по уровню,
+     * заново выдаём стартовый узел текущего класса (через
+     * ClassStartNodeListener.checkAndUnlockStartNode на следующем тике).
+     */
+    private final class ResetHandler implements HttpHandler {
+        @Override public void handle(HttpExchange ex) throws IOException {
+            if (handleOptions(ex)) return;
+            if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
+                respond(ex, 405, error(405, "Method not allowed"));
+                return;
+            }
+            String body;
+            try (InputStream is = ex.getRequestBody()) {
+                body = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+            }
+            JsonObject req;
+            try { req = GSON.fromJson(body, JsonObject.class); }
+            catch (Exception e) { respond(ex, 400, error(400, "Invalid JSON")); return; }
+            if (req == null || !req.has("uuid")) {
+                respond(ex, 400, error(400, "Missing uuid")); return;
+            }
+            UUID uuid;
+            try { uuid = UUID.fromString(req.get("uuid").getAsString()); }
+            catch (IllegalArgumentException e) {
+                respond(ex, 400, error(400, "Invalid uuid")); return;
+            }
+            try {
+                JsonObject out = sync(() -> {
+                    playerManager.resetTree(uuid);
+                    // Через 2 тика ClassStartNodeListener подтянет стартовый
+                    // узел класса. Здесь же просто возвращаем актуальный
+                    // снимок данных (без start-узла, т.к. он восстановится
+                    // на следующем тике, и фронт перетянет /api/perks/player
+                    // через 100 мс).
+                    PlayerPerkData data = playerManager.getPlayerData(uuid);
+                    JsonObject j = new JsonObject();
+                    j.addProperty("ok", true);
+                    j.addProperty("availablePoints", data.getAvailablePoints());
+                    JsonArray arr = new JsonArray();
+                    for (String id : data.getAllocatedNodes()) arr.add(id);
+                    j.add("allocatedNodes", arr);
+                    // Сразу попробовать выдать стартовый узел синхронно —
+                    // чтобы фронт получил уже корректное состояние.
+                    org.bukkit.entity.Player p = Bukkit.getPlayer(uuid);
+                    if (p != null) {
+                        try {
+                            // ClassStartNodeListener — package-private check;
+                            // вызываем через бросок join-event'а нет смысла,
+                            // а простой allocate(start, 0) дешевле:
+                            ru.eclipsia.core.data.PlayerData coreData =
+                                    ru.eclipsia.core.api.EclipsiaAPI.getInstance().getPlayerData(p);
+                            if (coreData != null && coreData.getClassName() != null) {
+                                String startId = treeManager.getStartNodeForClass(coreData.getClassName());
+                                if (startId != null) {
+                                    data.allocateNode(startId, 0);
+                                    playerManager.savePlayerData(uuid);
+                                    JsonArray arr2 = new JsonArray();
+                                    for (String id : data.getAllocatedNodes()) arr2.add(id);
+                                    j.add("allocatedNodes", arr2);
+                                }
+                            }
+                        } catch (Throwable ignored) {}
+                    }
+                    return j;
+                });
+                respond(ex, 200, GSON.toJson(out));
+            } catch (Exception e) {
+                respond(ex, 500, error(500, "Internal error: " + e.getMessage()));
+            }
         }
     }
 

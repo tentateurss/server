@@ -28,7 +28,20 @@ import java.util.Map;
  */
 public class TestStatsCommand implements CommandExecutor {
 
-    /** Полный набор ключей, которые умеет двигать ванильный игровой контур. */
+    /**
+     * Полный набор ключей, которые умеет двигать ванильный игровой контур.
+     *
+     * <p>ВАЖНО: некоторые ключи являются «настройками», а не «бонусами», и
+     * выкручивать их в 999 опасно (см. {@link #safeMaxFor(String)}):
+     * <ul>
+     *   <li>{@code aegis_delay} — секунды до начала регена Эгиды; 999 = реген
+     *       никогда не запустится → тестер думает «эгида сломалась».</li>
+     *   <li>{@code attack_speed/move_speed} — процентные бонусы; 999% = +999%
+     *       умножается в боевом конвейере и приводит к деградации логики
+     *       (мобы умирают за 1 тик, скиллы кулдаунятся раньше прорисовки).</li>
+     *   <li>{@code crit_chance} — процент; >100 нет смысла, всё равно клампим.</li>
+     * </ul>
+     */
     private static final String[] ALL_KEYS = new String[]{
             StatKeys.STRENGTH, StatKeys.DEXTERITY, StatKeys.INTELLIGENCE,
             StatKeys.HEALTH_BONUS, StatKeys.MANA_BONUS, StatKeys.AEGIS,
@@ -42,6 +55,39 @@ public class TestStatsCommand implements CommandExecutor {
             StatKeys.ARMOUR,
             StatKeys.FIRE_RESIST, StatKeys.COLD_RESIST, StatKeys.LIGHTNING_RESIST
     };
+
+    /**
+     * Безопасный «потолок» для {@code /teststats max} по каждому ключу.
+     * Без этого все статы получают 999 и боевой конвейер срывает баланс
+     * (HP 5000+, attack_damage 500+, мобы умирают мгновенно, эгида не
+     * восстанавливается). Тестер видит «всё сломалось» — на самом деле
+     * это работает, но игра в этом состоянии непригодна.
+     */
+    private static int safeMaxFor(String key) {
+        return switch (key) {
+            // Атрибутные статы — 100 более чем достаточно для теста.
+            case StatKeys.STRENGTH, StatKeys.DEXTERITY, StatKeys.INTELLIGENCE -> 100;
+            // Прибавки к maxHP/maxMana/maxAegis: даём по +500 к базе — игрок ощутит
+            // увеличение, но 999 сразу + STR=999×0.5 = > 1500 HP, что портит UX.
+            case StatKeys.HEALTH_BONUS, StatKeys.MANA_BONUS, StatKeys.AEGIS -> 200;
+            // Реген: 50/сек — заметно, не сломанно.
+            case StatKeys.HEALTH_REGEN, StatKeys.MANA_REGEN, StatKeys.AEGIS_REGEN -> 50;
+            // Задержка Эгиды: 1 сек (а не 999). Иначе reg никогда не стартует.
+            case StatKeys.AEGIS_DELAY -> 1;
+            // Шансы — клампим в 80%, чтобы было видно эффект, но не «100% всё».
+            case StatKeys.CRIT_CHANCE, StatKeys.BLOCK_CHANCE, StatKeys.EVASION -> 80;
+            // Множители урона / резисты — 100% даёт явный эффект.
+            case StatKeys.CRIT_DAMAGE, StatKeys.BLOCK_AMOUNT,
+                 StatKeys.FIRE_RESIST, StatKeys.COLD_RESIST, StatKeys.LIGHTNING_RESIST -> 100;
+            // Скорости — 50% (а не 999%): иначе игрок улетает в текстуры.
+            case StatKeys.ATTACK_SPEED, StatKeys.MOVE_SPEED -> 50;
+            // Чистый урон / броня: 200 — достаточно для теста one-shot.
+            case StatKeys.PHYSICAL_DAMAGE, StatKeys.FIRE_DAMAGE,
+                 StatKeys.COLD_DAMAGE, StatKeys.LIGHTNING_DAMAGE,
+                 StatKeys.ARMOUR -> 200;
+            default -> 100;
+        };
+    }
 
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
@@ -64,8 +110,12 @@ public class TestStatsCommand implements CommandExecutor {
         switch (sub) {
             case "max" -> {
                 Map<String, Integer> next = new LinkedHashMap<>(profile.getStats());
-                for (String k : ALL_KEYS) next.put(k, 999);
-                applyAndNotify(player, profile, next, "Все статы → §e999");
+                for (String k : ALL_KEYS) next.put(k, safeMaxFor(k));
+                applyAndNotify(player, profile, next, "Все статы → safe-max (см. чат)");
+                // Для прозрачности показываем потолки.
+                player.sendMessage("§7STR/DEX/INT=100, HP/Mana/Aegis bonus=200, "
+                        + "regen=50, aegis_delay=1, dmg=200, crit_chance/block/evasion=80%, "
+                        + "speeds=50%, resists=100%");
             }
             case "addall" -> {
                 if (args.length < 2) {

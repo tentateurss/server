@@ -29,6 +29,14 @@ public class MobCommand implements CommandExecutor {
             case "spawn" -> handleSpawn(sender, args);
             case "list" -> handleList(sender);
             case "info" -> handleInfo(sender, args);
+            case "purge" -> {
+                int n = SpawnManager.getInstance().purgeAllCustomMobs();
+                sender.sendMessage("§aУдалено кастом-мобов: §e" + n);
+            }
+            case "reload" -> {
+                SpawnManager.getInstance().reload();
+                sender.sendMessage("§aMobs.yml перезагружен. Зоны и мобы пересчитаны.");
+            }
             default -> sendHelp(sender);
         }
         
@@ -40,6 +48,8 @@ public class MobCommand implements CommandExecutor {
         sender.sendMessage("§e/mob spawn <id> §7- Заспавнить моба");
         sender.sendMessage("§e/mob list §7- Список всех мобов");
         sender.sendMessage("§e/mob info <id> §7- Информация о мобе");
+        sender.sendMessage("§e/mob purge §7- Удалить ВСЕХ кастом-мобов");
+        sender.sendMessage("§e/mob reload §7- Перечитать mobs.yml");
     }
     
     private void handleSpawn(CommandSender sender, String[] args) {
