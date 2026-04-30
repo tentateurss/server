@@ -47,20 +47,20 @@ import java.util.Random;
  */
 public final class WorldMountains {
 
-    /** Полоса гор по Z: от z=130 (80 блоков южнее стены z≈100) до z=380. */
-    private static final int Z_MIN = 130;
-    private static final int Z_MAX = 380;
+    /** Полоса гор по Z: от z=170 (50 блоков южнее стены z≈120) до z=480. */
+    private static final int Z_MIN = 170;
+    private static final int Z_MAX = 480;
 
-    /** По X — от x=-400 до x=400 (видны из любой точки города). */
-    private static final int X_MIN = -400;
-    private static final int X_MAX =  400;
+    /** По X — от x=-600 до x=600 (видны из любой точки города). */
+    private static final int X_MIN = -600;
+    private static final int X_MAX =  600;
 
     /** Базовый y, на котором сидит вся flatSettings-травa. */
     private static final int Y_BASE = WorldGenerator.CITY_FLOOR_Y; // 70
 
     /** Минимальная и максимальная высота вершин над baseline. */
-    private static final int PEAK_MIN = 30;  // y≈100, низкие холмы у подножия
-    private static final int PEAK_MAX = 100; // y≈170, главные пики
+    private static final int PEAK_MIN = 40;  // y≈110, низкие холмы у подножия
+    private static final int PEAK_MAX = 130; // y≈200, главные пики выше облаков
 
     private final Plugin plugin;
     private final RegionPainter painter;
@@ -71,8 +71,8 @@ public final class WorldMountains {
         this.painter = painter;
         this.noise = new SimplexOctaveGenerator(rng.nextLong(), 4);
         // scale маленький → крупные складки, большой → мелкая зернистость.
-        // 0.008 под ×2-масштаб даёт хребты «ярких» размеров.
-        this.noise.setScale(0.008);
+        // 0.006 под ×3-масштаб даёт более крупные хребты.
+        this.noise.setScale(0.006);
     }
 
     public void build() {
@@ -159,9 +159,9 @@ public final class WorldMountains {
 
         // Поверхность.
         Material surface;
-        if (peakY >= Y_BASE + 50) { // y ≥ 120 — снежная вершина
+        if (peakY >= Y_BASE + 80) { // y ≥ 150 — снежная вершина
             surface = Material.SNOW_BLOCK;
-        } else if (peakY >= Y_BASE + 40) { // y ≥ 110 — голая скала
+        } else if (peakY >= Y_BASE + 60) { // y ≥ 130 — голая скала
             surface = Material.STONE;
         } else {
             surface = Material.GRASS_BLOCK;

@@ -79,9 +79,15 @@ public final class WorldGenerator {
      * башни d=5/h=14 → d=9/h=28; ворота 5×7 → 7×12; горы отодвинуты
      * z=130..380 и расширены x=±400, h=30..100 (пики до y=170);
      * спавн игрока (0,75,38) → (0,75,78); собор (15,-5) → (30,-10).
-     * Старые v6/v7-миры несовместимы и пересоздаются.
+     *
+     * <p><b>v9</b>: PR 2.7 — ещё ×1.5 (итого ×3 от исходника). Полигон ±100 →
+     * ±150 (~240×240); стены 18×5 → 27×9 (высота×толщина, сечение ×3.6);
+     * башни d=9/h=28 → d=15/h=42; ворота 7×12 → 11×18; горы отодвинуты
+     * z=170..480, x=±600, h=40..130 (пики до y=200, выше облаков);
+     * спавн (0,75,78) → (0,75,118); собор (30,-10) → (45,-15).
+     * Старые v6/v7/v8-миры несовместимы и пересоздаются.
      */
-    public static final String GENERATED_FLAG = "eclipsia_world_generated_v8";
+    public static final String GENERATED_FLAG = "eclipsia_world_generated_v9";
 
     // =========================================================================
     // ГЕОМЕТРИЯ ГОРОДА
@@ -101,11 +107,11 @@ public final class WorldGenerator {
      * </ul>
      */
     public static final int[][] CITY_POLYGON = {
-            { -84,  -80}, { -76,  -96}, { -40, -100}, {   0,  -96}, {  40, -100},
-            {  84,  -90}, {  96,  -70}, { 100,  -30}, {  96,    0}, { 100,   30},
-            {  90,   70}, {  80,   76}, {  60,   80}, {  30,   84}, {   0,   80},
-            { -30,   84}, { -60,   80}, { -80,   76}, { -90,   70},
-            { -96,   30}, {-100,    0}, { -96,  -30}, { -84,  -80},
+            {-126, -120}, {-114, -144}, { -60, -150}, {   0, -144}, {  60, -150},
+            { 126, -135}, { 144, -105}, { 150,  -45}, { 144,    0}, { 150,   45},
+            { 135,  105}, { 120,  114}, {  90,  120}, {  45,  126}, {   0,  120},
+            { -45,  126}, { -90,  120}, {-120,  114}, {-135,  105},
+            {-144,   45}, {-150,    0}, {-144,  -45}, {-126, -120},
     };
 
     // =========================================================================
@@ -113,14 +119,14 @@ public final class WorldGenerator {
     // =========================================================================
 
     /** Центр собора. Принципиально НЕ в (0,0): смещён на восток (см. ТЗ). */
-    public static final int CATHEDRAL_X = 30;
-    public static final int CATHEDRAL_Z = -10;
+    public static final int CATHEDRAL_X = 45;
+    public static final int CATHEDRAL_Z = -15;
 
     /** Координаты ворот: {@code [x, z]}. */
-    public static final int[] SOUTH_GATE = {   0,  75 };
-    public static final int[] NORTH_GATE = {   0, -90 };
-    public static final int[] EAST_GATE  = {  90,   0 };
-    public static final int[] WEST_GATE  = { -80, -10 };
+    public static final int[] SOUTH_GATE = {    0,  113 };
+    public static final int[] NORTH_GATE = {    0, -135 };
+    public static final int[] EAST_GATE  = {  135,    0 };
+    public static final int[] WEST_GATE  = { -120,  -15 };
 
     // =========================================================================
     // ТОЧКА СПАВНА ИГРОКА
@@ -136,7 +142,7 @@ public final class WorldGenerator {
      */
     public static final int SPAWN_X = 0;
     public static final int SPAWN_Y = CITY_FLOOR_Y + 5; // 75
-    public static final int SPAWN_Z = 78;
+    public static final int SPAWN_Z = 118;
 
     // =========================================================================
     // КООРДИНАТЫ ШПИЛЯ (для SpireParticles)
@@ -261,17 +267,17 @@ public final class WorldGenerator {
     private void phase1Landscape(RegionPainter p, Random rng) {
         plugin.getLogger().info("WorldGenerator/phase1: замощение городского полигона…");
 
-        // Bounding box полигона (см. CITY_POLYGON): x ∈ [-100..100], z ∈ [-100..84].
-        int xMin = -100, xMax = 100;
-        int zMin = -100, zMax = 84;
+        // Bounding box полигона (см. CITY_POLYGON): x ∈ [-150..150], z ∈ [-150..126].
+        int xMin = -150, xMax = 150;
+        int zMin = -150, zMax = 126;
 
         int paved = 0;
         for (int x = xMin; x <= xMax; x++) {
             for (int z = zMin; z <= zMax; z++) {
                 if (!isInsideCityPolygon(x, z)) continue;
                 p.place(x, CITY_FLOOR_Y, z, Material.POLISHED_DEEPSLATE);
-                // Чистый воздух над мостовой (на 80 блоков — высота собора PR #3 + запас).
-                for (int dy = 1; dy <= 80; dy++) {
+                // Чистый воздух над мостовой (на 120 блоков — высота собора PR #3 ×3 + запас).
+                for (int dy = 1; dy <= 120; dy++) {
                     p.place(x, CITY_FLOOR_Y + dy, z, Material.AIR);
                 }
                 paved++;

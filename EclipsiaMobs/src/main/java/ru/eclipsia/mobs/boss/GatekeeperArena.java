@@ -53,14 +53,14 @@ public final class GatekeeperArena implements Listener {
     /**
      * Точка появления игрока перед ЮЖНЫМИ воротами Эликия (мир {@code world}).
      *
-     * <p>Южные ворота города стоят на (0, 75) — игрок появляется на (0, 78),
-     * то есть на 3 блока южнее ворот. Через арку он видит улицы города и
-     * силуэт собора (центр (30, -10)). Координаты согласованы с
+     * <p>Южные ворота города стоят на (0, 113) — игрок появляется на (0, 118),
+     * то есть на 5 блоков южнее ворот. Через арку он видит улицы города и
+     * силуэт собора (центр (45, -15)). Координаты согласованы с
      * {@code WorldGenerator.SPAWN_X/Y/Z}.
      */
     public static final double ELIKIUM_SPAWN_X = 0.5;
     public static final double ELIKIUM_SPAWN_Y = 75.0;
-    public static final double ELIKIUM_SPAWN_Z = 78.5;
+    public static final double ELIKIUM_SPAWN_Z = 118.5;
 
     public static final int ARENA_X = 0;
     /** floorY арены в BeachGenerator = GROUND_Y(4) + 8 = 12. Спавним на +1. */
@@ -231,8 +231,8 @@ public final class GatekeeperArena implements Listener {
         Bukkit.getScheduler().runTaskLater(plugin,
                 () -> recentlyTeleported.remove(uuid), 20L * 5L);
 
-        // yaw=180 в Bukkit = −Z (север). Игрок стоит ЮЖНЕЕ города (z=78),
-        // южные ворота — на z=75, собор — на (30, -10). Чтобы он смотрел
+        // yaw=180 в Bukkit = −Z (север). Игрок стоит ЮЖНЕЕ города (z=118),
+        // южные ворота — на z=113, собор — на (45, -15). Чтобы он смотрел
         // строго на ворота / собор, ставим yaw=180.
         Location target = new Location(elikium,
                 ELIKIUM_SPAWN_X, ELIKIUM_SPAWN_Y, ELIKIUM_SPAWN_Z,
