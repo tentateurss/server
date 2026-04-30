@@ -70,10 +70,16 @@ public class ItemManager {
         ItemSlot slot = ItemSlot.fromString(section.getString("slot", "HAND"));
         int baseDamage = section.getInt("base-damage", 0);
         int baseArmor = section.getInt("base-armor", 0);
+        // Базовые блок-параметры. Имеют смысл только для щитов; для прочих
+        // предметов остаются 0 и в лоре не отображаются.
+        int baseBlockChance = section.getInt("base-block-chance", 0);
+        int baseBlockAmount = section.getInt("base-block-amount", 0);
         String requiredClass = section.getString("required-class", "");
         int minLevel = section.getInt("min-level", 1);
-        
-        return new BaseItem(id, name, material, slot, baseDamage, baseArmor, requiredClass, minLevel);
+
+        return new BaseItem(id, name, material, slot,
+                baseDamage, baseArmor, baseBlockChance, baseBlockAmount,
+                requiredClass, minLevel);
     }
     
     /**

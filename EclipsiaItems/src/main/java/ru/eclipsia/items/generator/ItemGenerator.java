@@ -125,6 +125,20 @@ public class ItemGenerator {
             int totalArmor = customItem.getTotalArmor();
             lore.add("§7Броня: §f" + totalArmor);
         }
+
+        // Базовый блок щита. Парсер EquipmentBonusApplier ловит «Шанс блока:»
+        // и «Сила блока:», поэтому достаточно вывести их в лор — стат сам
+        // подцепится в DamageCalculator при равных слотах.
+        if (baseItem.isShield()) {
+            int bbc = baseItem.getBaseBlockChance();
+            int bba = baseItem.getBaseBlockAmount();
+            if (bbc > 0) {
+                lore.add("§7Шанс блока: §f" + bbc + "%");
+            }
+            if (bba > 0) {
+                lore.add("§7Сила блока: §f" + bba + "%");
+            }
+        }
         
         // Бонусы от аффиксов
         int healthBonus = customItem.getHealthBonus();
