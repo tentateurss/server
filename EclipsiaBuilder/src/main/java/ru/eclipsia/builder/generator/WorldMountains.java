@@ -47,20 +47,20 @@ import java.util.Random;
  */
 public final class WorldMountains {
 
-    /** Полоса гор по Z: от z=50 (за пятаком спавна) до z=190 (край города). */
-    private static final int Z_MIN = 50;
-    private static final int Z_MAX = 190;
+    /** Полоса гор по Z: от z=130 (80 блоков южнее стены z≈100) до z=380. */
+    private static final int Z_MIN = 130;
+    private static final int Z_MAX = 380;
 
-    /** По X — от x=-200 до x=200 (хватит, чтобы город был «прижат» к горам). */
-    private static final int X_MIN = -200;
-    private static final int X_MAX =  200;
+    /** По X — от x=-400 до x=400 (видны из любой точки города). */
+    private static final int X_MIN = -400;
+    private static final int X_MAX =  400;
 
     /** Базовый y, на котором сидит вся flatSettings-травa. */
     private static final int Y_BASE = WorldGenerator.CITY_FLOOR_Y; // 70
 
     /** Минимальная и максимальная высота вершин над baseline. */
-    private static final int PEAK_MIN = 18; // y≈88, низкие холмы у подножия
-    private static final int PEAK_MAX = 60; // y≈130, главные пики
+    private static final int PEAK_MIN = 30;  // y≈100, низкие холмы у подножия
+    private static final int PEAK_MAX = 100; // y≈170, главные пики
 
     private final Plugin plugin;
     private final RegionPainter painter;
@@ -70,8 +70,9 @@ public final class WorldMountains {
         this.plugin = plugin;
         this.painter = painter;
         this.noise = new SimplexOctaveGenerator(rng.nextLong(), 4);
-        // scale маленький → крупные «складки», большой → мелкая зернистость.
-        this.noise.setScale(0.012);
+        // scale маленький → крупные складки, большой → мелкая зернистость.
+        // 0.008 под ×2-масштаб даёт хребты «ярких» размеров.
+        this.noise.setScale(0.008);
     }
 
     public void build() {
