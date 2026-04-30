@@ -85,9 +85,16 @@ public final class WorldGenerator {
      * башни d=9/h=28 → d=15/h=42; ворота 7×12 → 11×18; горы отодвинуты
      * z=170..480, x=±600, h=40..130 (пики до y=200, выше облаков);
      * спавн (0,75,78) → (0,75,118); собор (30,-10) → (45,-15).
-     * Старые v6/v7/v8-миры несовместимы и пересоздаются.
+     *
+     * <p><b>v10</b>: PR 3 — собор Эликий построен. Готическое здание
+     * 60×84 на y=70..99 (стены), двускатная крыша до y=120, центральный
+     * шпиль до y=189, флаг и маяк до y=196. На южном фронтоне y≈106 —
+     * «Глаз Эликия» 11×11 (LAPIS+EMERALD+END_ROD), 4 луча END_ROD.
+     * Контрфорсы (6 пар), витражи (10 пролётов), южный портал 9×16.
+     * SpireParticles обновляет координаты на (45.5, 189.5, -14.5).
+     * Старые v6..v9-миры несовместимы и пересоздаются.
      */
-    public static final String GENERATED_FLAG = "eclipsia_world_generated_v9";
+    public static final String GENERATED_FLAG = "eclipsia_world_generated_v10";
 
     // =========================================================================
     // ГЕОМЕТРИЯ ГОРОДА
@@ -150,13 +157,12 @@ public final class WorldGenerator {
 
     /**
      * Координаты «глаза» на вершине шпиля собора — читаются
-     * {@link SpireParticles}. До PR 3 (постройка собора) указывают на
-     * место, где он будет: {@code (CATHEDRAL_X+0.5, CITY_FLOOR_Y+51-1+1.5,
-     * CATHEDRAL_Z+0.5)}. После постройки в PR 3 будут переписаны на
-     * фактическую точку.
+     * {@link SpireParticles}. До постройки собора указывают на ожидаемую
+     * точку (45.5, 189.5, -14.5), после {@code CathedralBuilder.build()}
+     * перезаписываются на фактическую (на случай будущего смещения).
      */
     public static volatile double spireCenterX = CATHEDRAL_X + 0.5;
-    public static volatile double spireCenterY = CITY_FLOOR_Y + 51 + 1.5;
+    public static volatile double spireCenterY = CITY_FLOOR_Y + 119 + 0.5; // y=189.5
     public static volatile double spireCenterZ = CATHEDRAL_Z + 0.5;
 
     // =========================================================================
@@ -325,15 +331,17 @@ public final class WorldGenerator {
 
     private void phase6Structures(RegionPainter p, Random rng) {
         plugin.getLogger().info(
-                "WorldGenerator/phase6: стена + горы (собор — TODO в PR 3).");
+                "WorldGenerator/phase6: стена + горы + собор.");
 
         // PR 2 / часть A: стена-полигон + 4 ворот + башни.
         new ElikiumWall(plugin, p, rng).build();
 
-        // PR 2 / часть B: южные горы (z=50..190, x=±200, h=18..60).
+        // PR 2 / часть B: южные горы (z=170..480, x=±600, h=40..130).
         new WorldMountains(plugin, p, rng).build();
 
-        // PR 3: собор на (15, -5) — пока заглушка, будет в следующем PR.
+        // PR 3: собор на (45, -15) 60×84, h=120. Шпиль с глазом и флагом
+        // обновляет WorldGenerator.spireCenterX/Y/Z для SpireParticles.
+        new CathedralBuilder(plugin, p, rng).build();
     }
 
     // =========================================================================
