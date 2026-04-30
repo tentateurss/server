@@ -66,8 +66,10 @@ public final class WorldGenerator {
      * <p><b>v4</b>: фиксы по Devin Review: камин кузницы, цветы на земле,
      *               деревья через RegionPainter, восточная дорога с
      *               чистой центральной полосой, скаттер-диапазоны.
+     * <p><b>v5</b>: убран лишний Math.max(surface, BASE_GROUND_Y) в декоре —
+     *               в долинах (y&lt;64) декор парил.
      */
-    public static final String GENERATED_FLAG = "eclipsia_world_generated_v4";
+    public static final String GENERATED_FLAG = "eclipsia_world_generated_v5";
 
     // =========================================================================
     // КООРДИНАТЫ И РАЗМЕРЫ
@@ -478,11 +480,10 @@ public final class WorldGenerator {
 
             // Поверхность считаем по реальному ландшафту фазы 1 — иначе декор
             // парит над землёй за пределами городского плато (CITY_FLOOR_Y=70
-            // против BASE_GROUND_Y≈64).
-            int surface = computeHeight(x, z);
-            // Внутри плато (через CITY_PAD_HALF, см. фазу 2) поверхность
-            // выровнена в CITY_FLOOR_Y, так что считаем максимум.
-            int yGround = Math.max(surface, BASE_GROUND_Y);
+            // против BASE_GROUND_Y≈64). computeHeight уже возвращает
+            // корректную высоту для всех точек (в пределах плато — CITY_FLOOR_Y,
+            // снаружи — реальную поверхность фазы 1).
+            int yGround = computeHeight(x, z);
             int yPlace = yGround + 1; // цветок/трава ставится НА поверхность
 
             double r = rng.nextDouble();
