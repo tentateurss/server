@@ -19,12 +19,24 @@ public class PerkTreeManager {
     private final Plugin plugin;
     private final Map<String, PerkNode> nodes;
     private final Map<String, String> classStartNodes;
-    
+
+    // Глобальные настройки дерева из секции settings: в perks.yml.
+    // Дефолты выбраны так, чтобы игрок 1 уровня сразу мог взять одинижный
+    // соседний узел после автовыдачи стартового (иначе дерево выглядит
+    // сломанным — старт светится, но «следующие узлы не загружаются»).
+    private int startLevel = 1;
+    private int pointsPerLevel = 1;
+    private int maxPoints = Integer.MAX_VALUE;
+
     public PerkTreeManager(Plugin plugin) {
         this.plugin = plugin;
         this.nodes = new HashMap<>();
         this.classStartNodes = new HashMap<>();
     }
+
+    public int getStartLevel() { return startLevel; }
+    public int getPointsPerLevel() { return pointsPerLevel; }
+    public int getMaxPoints() { return maxPoints; }
     
     /**
      * Загрузить дерево перков из конфига
@@ -40,7 +52,18 @@ public class PerkTreeManager {
         }
         
         FileConfiguration config = YamlConfiguration.loadConfiguration(perksFile);
-        
+
+        // settings: (points-per-level / start-level / max-points)
+        ConfigurationSection settings = config.getConfigurationSection("settings");
+        if (settings != null) {
+            this.pointsPerLevel = settings.getInt("points-per-level", 1);
+            this.startLevel     = settings.getInt("start-level", 1);
+            this.maxPoints      = settings.getInt("max-points", Integer.MAX_VALUE);
+            if (this.startLevel < 1) this.startLevel = 1;
+            if (this.pointsPerLevel < 0) this.pointsPerLevel = 0;
+            if (this.maxPoints <= 0) this.maxPoints = Integer.MAX_VALUE;
+        }
+
         // Загружаем стартовые позиции классов
         ConfigurationSection startingPositions = config.getConfigurationSection("starting-positions");
         if (startingPositions != null) {

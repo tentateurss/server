@@ -19,6 +19,7 @@ public class EclipsiaMobs extends JavaPlugin {
     private static EclipsiaMobs instance;
     private EclipsiaAPI coreAPI;
     private GatekeeperArena gatekeeperArena;
+    private ru.eclipsia.mobs.listeners.BossArenaListener bossArenaListener;
     
     @Override
     public void onEnable() {
@@ -102,7 +103,10 @@ public class EclipsiaMobs extends JavaPlugin {
         if (SpawnManager.getInstance() != null) {
             SpawnManager.getInstance().shutdown();
         }
-        
+        if (bossArenaListener != null) {
+            bossArenaListener.stop();
+        }
+
         getLogger().info("EclipsiaMobs выключен");
     }
     
@@ -129,6 +133,14 @@ public class EclipsiaMobs extends JavaPlugin {
         gatekeeperArena = new GatekeeperArena(this);
         getServer().getPluginManager().registerEvents(gatekeeperArena, this);
         gatekeeperArena.onEnable();
+
+        // Защита арены: запрет аггра босса на не-игроков, запрет любого
+        // спавна внутри круга арены и подметание забредающих мобов раз
+        // в 0.5с. Без этого iron-golem-босс бил окрестных зомби, а не
+        // игрока, и зрители-мобы скапливались в радиусе арены.
+        bossArenaListener = new ru.eclipsia.mobs.listeners.BossArenaListener(this);
+        getServer().getPluginManager().registerEvents(bossArenaListener, this);
+        bossArenaListener.start();
 
         getLogger().info("✓ Слушатели зарегистрированы");
     }

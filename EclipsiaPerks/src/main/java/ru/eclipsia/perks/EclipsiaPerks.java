@@ -43,7 +43,9 @@ public class EclipsiaPerks extends JavaPlugin {
                 String content = new String(java.nio.file.Files.readAllBytes(f.toPath()),
                         java.nio.charset.StandardCharsets.UTF_8);
                 // Версионная метка генератора в шапке. Если её нет — файл устарел.
-                if (!content.contains("PoE-style, orbital layout")) {
+                // v2: добавили settings.start-level=1, чтобы игрок 1 lvl сразу мог
+                // взять соседа стартового узла. Старые конфиги (без orbital-v2) перетираем.
+                if (!content.contains("version-marker: orbital-v2")) {
                     needWrite = true;
                     getLogger().info("perks.yml устарел — перезаписываю свежим деревом.");
                 }
