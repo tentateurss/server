@@ -135,7 +135,8 @@ public final class WorldSurroundings {
         p.place(axleX, axleY, axleZ, Material.OAK_LOG);
 
         // Несколько редких дубов на лугах между полями и городом.
-        scatterTrees(p, rng, -40, -35, 25, -45, 6, TreeType.TREE);
+        // (z0 < z1, иначе rng.nextInt(z1-z0)=nextInt(-10) даёт фиксированный z.)
+        scatterTrees(p, rng, -40, -45, 25, -35, 6, TreeType.TREE);
 
         // FloatingText.
         FloatingText.createSign(plugin, world,
@@ -159,9 +160,9 @@ public final class WorldSurroundings {
             // Не сажаем на дороге (z=±3).
             if (Math.abs(z) <= 4) continue;
             if (rng.nextDouble() < 0.5) {
-                generateTreeAt(x, z, TreeType.BIRCH);
+                placeTreeAt(p, rng, x, z, TreeType.BIRCH);
             } else {
-                generateTreeAt(x, z, TreeType.TREE);
+                placeTreeAt(p, rng, x, z, TreeType.TREE);
             }
             trees++;
         }
@@ -387,26 +388,67 @@ public final class WorldSurroundings {
     private void scatterTrees(RegionPainter p, Random rng,
                                int x0, int z0, int x1, int z1,
                                int count, TreeType type) {
+        // Нормализуем диапазоны — nextInt(отрицательное) падает/вырождается.
+        int xLo = Math.min(x0, x1), xHi = Math.max(x0, x1);
+        int zLo = Math.min(z0, z1), zHi = Math.max(z0, z1);
+        int xSpan = Math.max(1, xHi - xLo);
+        int zSpan = Math.max(1, zHi - zLo);
         for (int i = 0; i < count; i++) {
-            int x = x0 + rng.nextInt(Math.max(1, x1 - x0));
-            int z = z0 + rng.nextInt(Math.max(1, z1 - z0));
-            generateTreeAt(x, z, type);
+            int x = xLo + rng.nextInt(xSpan);
+            int z = zLo + rng.nextInt(zSpan);
+            placeTreeAt(p, rng, x, z, type);
         }
     }
 
     /**
-     * Сажает дерево {@code type} в (x, z) на FLOOR_Y. Использует
-     * {@link World#generateTree}, что аккуратно ставит листву и ствол.
-     * Выполняется СРАЗУ (не через RegionPainter), потому что generateTree
-     * ходит через WorldEdit-подобный API и не лезет в очередь.
+     * Ставит дерево вручную через {@link RegionPainter}: ствол
+     * 5–6 блоков + крона из листьев.
+     *
+     * <p>Почему не {@link World#generateTree}: на момент фазы 5 весь
+     * ландшафт фазы 1 ещё в очереди {@code RegionPainter}
+     * (фактический {@code flush()} вызывается всего один раз в конце
+     * {@code WorldGenerator.generate}). {@code World.generateTree} работает
+     * с реальными блоками мира, поэтому в несколько раз из
+     * ста деревьев реально прорастало лишь одно–два.
      */
-    private void generateTreeAt(int x, int z, TreeType type) {
-        if (world == null) return;
-        org.bukkit.Location loc = new org.bukkit.Location(world, x, FLOOR_Y, z);
-        try {
-            world.generateTree(loc, type);
-        } catch (Throwable t) {
-            // мирно игнорируем — дерево не критично
+    private void placeTreeAt(RegionPainter p, Random rng, int x, int z, TreeType type) {
+        Material log;
+        Material leaves;
+        if (type == TreeType.BIRCH) {
+            log = Material.BIRCH_LOG;
+            leaves = Material.BIRCH_LEAVES;
+        } else {
+            log = Material.OAK_LOG;
+            leaves = Material.OAK_LEAVES;
         }
+
+        int yBase = FLOOR_Y;
+        int trunkH = 4 + rng.nextInt(2); // 4–5
+
+        // Ствол.
+        for (int dy = 0; dy < trunkH; dy++) {
+            p.place(x, yBase + dy, z, log);
+        }
+
+        // Крона: два ряда 5×5 (без углов) + верхний 3×3.
+        int yCanopy = yBase + trunkH;
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dz = -2; dz <= 2; dz++) {
+                if (dx == 0 && dz == 0) continue;
+                if (Math.abs(dx) == 2 && Math.abs(dz) == 2 && rng.nextBoolean()) continue;
+                p.place(x + dx, yCanopy, z + dz, leaves);
+                p.place(x + dx, yCanopy - 1, z + dz, leaves);
+            }
+        }
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                if (dx == 0 && dz == 0) continue;
+                p.place(x + dx, yCanopy + 1, z + dz, leaves);
+            }
+        }
+        p.place(x, yCanopy + 2, z, leaves);
+        // Верхушка ствола.
+        p.place(x, yCanopy, z, log);
+        p.place(x, yCanopy + 1, z, log);
     }
 }

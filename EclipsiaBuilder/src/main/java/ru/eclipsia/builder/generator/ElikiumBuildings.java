@@ -276,8 +276,10 @@ public final class ElikiumBuildings {
         // Стенд с инструментами (chest + chiseled stone).
         p.place(b[0] + 1, FLOOR_Y + 1, b[3] - 1, Material.CHEST);
         p.place(b[0] + 8, FLOOR_Y + 1, b[3] - 1, Material.SMITHING_TABLE);
-        // Дымоход (POLISHED_BLACKSTONE столбик до крыши).
-        for (int dy = 1; dy <= 6; dy++) {
+        // Дымоход (POLISHED_BLACKSTONE столбик до крыши). Стартуем
+        // c dy=3, чтобы НЕ затереть NETHERRACK (dy=1) и FIRE (dy=2)
+        // самого горна — иначе огонь пропадает.
+        for (int dy = 3; dy <= 6; dy++) {
             p.place(b[0] + 2, FLOOR_Y + dy, b[1] + 2, Material.POLISHED_BLACKSTONE);
         }
         FloatingText.createSign(plugin, world,

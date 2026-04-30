@@ -83,17 +83,21 @@ public final class WorldRoads {
         int midX1 = x1 + 35, midZ1 = z1 - 5;
         int midX2 = x1 + 70, midZ2 = z1 + 5;
 
-        p.path(x1, z1, midX1, midZ1, ROAD_Y, ROAD_HALF_W, () -> Material.GRAVEL);
-        p.path(midX1, midZ1, midX2, midZ2, ROAD_Y, ROAD_HALF_W, () -> Material.GRAVEL);
-        p.path(midX2, midZ2, x2, z2, ROAD_Y, ROAD_HALF_W, () -> Material.GRAVEL);
-
-        // Обочина — COBBLESTONE на 1 блок шире (имитируем).
+        // Обочина — COBBLESTONE+GRAVEL шириной 7 (имитируем рваные края).
+        // Кладём ПЕРВОЙ, чтобы потом узкая центральная полоса
+        // GRAVEL-а её перекрыла, а не наоборот (RegionPainter
+        // обрабатывает операции в порядке постановки в очередь).
         p.path(x1, z1, midX1, midZ1, ROAD_Y, ROAD_HALF_W + 1,
                 () -> rng.nextDouble() < 0.4 ? Material.COBBLESTONE : Material.GRAVEL);
         p.path(midX1, midZ1, midX2, midZ2, ROAD_Y, ROAD_HALF_W + 1,
                 () -> rng.nextDouble() < 0.4 ? Material.COBBLESTONE : Material.GRAVEL);
         p.path(midX2, midZ2, x2, z2, ROAD_Y, ROAD_HALF_W + 1,
                 () -> rng.nextDouble() < 0.4 ? Material.COBBLESTONE : Material.GRAVEL);
+
+        // Полотно — чистый GRAVEL шириной 5 поверх обочины.
+        p.path(x1, z1, midX1, midZ1, ROAD_Y, ROAD_HALF_W, () -> Material.GRAVEL);
+        p.path(midX1, midZ1, midX2, midZ2, ROAD_Y, ROAD_HALF_W, () -> Material.GRAVEL);
+        p.path(midX2, midZ2, x2, z2, ROAD_Y, ROAD_HALF_W, () -> Material.GRAVEL);
 
         placeLanternsAlongX(p, x1, midZ1, midX2, midZ2);
 
