@@ -174,28 +174,44 @@ public final class GatekeeperArena implements Listener {
         // обычно (0,4,0), что для нашего города-плато на y=70 неверно
         // и игрок падал внутрь стен / в стену.
         World elikium = Bukkit.getWorld(ELIKIUM_WORLD);
-        if (elikium == null) elikium = Bukkit.getWorld("lobby");
         if (elikium == null) {
-            player.sendMessage("§cЦелевой мир '" + ELIKIUM_WORLD + "' не загружен.");
+            // Раньше тут был fallback на 'lobby' — это БАГ: попадая в lobby,
+            // игрок мгновенно перехватывался LobbyListener.handleLobbyEntry
+            // (PlayerChangedWorldEvent → handleLobbyEntry → teleportToBeach,
+            // если у профиля нет lastLocation), и его выбрасывало обратно
+            // на Берег. Лучше честно сказать «мир не готов» и не двигать
+            // игрока, чем телепортировать его в неработающий пайплайн.
+            player.sendMessage("§cЦелевой мир '" + ELIKIUM_WORLD + "' ещё не загружен. Подождите и попробуйте снова.");
+            plugin.getLogger().warning("[GatekeeperArena] Bukkit.getWorld('" + ELIKIUM_WORLD
+                    + "') == null при попытке портал-телепорта игрока " + player.getName());
             return;
         }
 
-        Location target;
-        if (ELIKIUM_WORLD.equals(elikium.getName())) {
-            // yaw=0 в Bukkit = +Z (юг). Игрок стоит севернее города (z=-35),
-            // ворота города — на z=-40, центр — на z=0. Чтобы он смотрел
-            // строго на ворота / собор, ставим yaw=0.
-            target = new Location(elikium,
-                    ELIKIUM_SPAWN_X, ELIKIUM_SPAWN_Y, ELIKIUM_SPAWN_Z,
-                    0f, 0f);
-        } else {
-            // Аварийный fallback (lobby) — туда лезем только если world
-            // не успел подняться.
-            target = elikium.getSpawnLocation().clone().add(0.5, 0, 0.5);
-        }
+        // yaw=0 в Bukkit = +Z (юг). Игрок стоит севернее города (z=-35),
+        // ворота города — на z=-40, центр — на z=0. Чтобы он смотрел
+        // строго на ворота / собор, ставим yaw=0.
+        Location target = new Location(elikium,
+                ELIKIUM_SPAWN_X, ELIKIUM_SPAWN_Y, ELIKIUM_SPAWN_Z,
+                0f, 0f);
+
+        plugin.getLogger().info("[GatekeeperArena] Портал-ТП: " + player.getName()
+                + " " + player.getLocation().getWorld().getName()
+                + "(" + (int) player.getLocation().getX() + ","
+                + (int) player.getLocation().getY() + ","
+                + (int) player.getLocation().getZ() + ") -> "
+                + target.getWorld().getName()
+                + "(" + (int) target.getX() + ","
+                + (int) target.getY() + ","
+                + (int) target.getZ() + ")");
+
         player.playSound(player.getLocation(), Sound.BLOCK_PORTAL_TRAVEL, 1f, 0.7f);
-        player.teleport(target);
-        player.sendMessage("§dВы перенесены в §5" + elikium.getName() + "§d.");
+        boolean ok = player.teleport(target);
+        plugin.getLogger().info("[GatekeeperArena] teleport result=" + ok
+                + ", после ТП игрок в " + player.getWorld().getName()
+                + "(" + (int) player.getLocation().getX() + ","
+                + (int) player.getLocation().getY() + ","
+                + (int) player.getLocation().getZ() + ")");
+        player.sendMessage("§dВы перенесены в §5Эликий§d.");
     }
 
     private void spawnBoss(World world, Player trigger) {
