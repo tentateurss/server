@@ -1073,6 +1073,9 @@ async function bootstrap() {
       allocated = new Set(d.allocatedNodes || []);
       availablePoints = d.availablePoints || 0;
       if (d.name) session.name = d.name;
+      // Без этого после F5 все 3 START-узла подсвечивались, потому что
+      // isForeignStart() полагается на playerClass.
+      if (d.playerClass) playerClass = d.playerClass;
       enterTree();
       return;
     } catch (e) {

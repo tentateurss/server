@@ -410,7 +410,8 @@ public final class PerkWebAPI {
             if (allocate) {
                 if (!treeManager.canAllocateNode(nodeId, data.getAllocatedNodes())) {
                     out.addProperty("ok", false);
-                    out.addProperty("error", "Node not connected to allocated tree");
+                    out.addProperty("error", "Узел не примыкает к изученным. "
+                            + "Сначала прокачай соседний узел (от START идти по цепочке).");
                     return out;
                 }
                 if (!data.allocateNode(nodeId, node.getCost())) {

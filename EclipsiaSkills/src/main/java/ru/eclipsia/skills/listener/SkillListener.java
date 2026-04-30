@@ -276,18 +276,17 @@ public class SkillListener implements Listener {
 
         boolean multiShot = supports.stream()
                 .anyMatch(s -> s.getSupportClass() == EclipseItem.SupportClass.MULTI_SHOT);
-        boolean explosion = supports.stream()
-                .anyMatch(s -> s.getSupportClass() == EclipseItem.SupportClass.EXPLOSION);
         String supportCsv = csvSupports(supports);
 
-        // EXPLOSION на стреле — взрывается на месте попадания + ДОПОЛНИТЕЛЬНО
-        // даёт +2 стрелы (по ТЗ user'а: «стрелы взрываются... +2 стрелы»).
-        // MULTI_SHOT — отдельно тоже даёт +2. Если оба активны — суммируется
-        // в 5 стрел. AOE_RADIUS — превращает стрелу в "луч" (см. handleArrowHit
-        // и трейл, который наносит урон по всем мобам по пути).
+        // Поддержки ARROW_SHOT:
+        //  • MULTI_SHOT  — выпускает 3 стрелы веером (вместо 1).
+        //  • EXPLOSION   — стрела взрывается при попадании (количество стрел
+        //                  не меняется, только эффект на хите).
+        //  • AOE_RADIUS  — превращает стрелу в «луч» (трейл наносит урон
+        //                  по всем мобам по пути), стрел тоже одна.
+        // Если стоят и MULTI, и EXPLOSION — 3 стрелы, каждая взрывается.
         int total = 1;
         if (multiShot) total += 2;
-        if (explosion) total += 2;
 
         // Углы веером: 0, ±15, ±30 для 5 стрел (с дублями фильтруем).
         double[][] angles = {
