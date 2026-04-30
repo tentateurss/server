@@ -1,52 +1,59 @@
 package ru.eclipsia.builder.generator;
 
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.util.noise.SimplexNoiseGenerator;
 import ru.eclipsia.builder.util.FloatingText;
 
 import java.util.Random;
 
 /**
- * Процедурная генерация основного мира {@code world} с городом Эликий
- * в центре. Полностью независима от {@link BeachGenerator} (Берег) — оба
- * генератора используют общие низкоуровневые утилиты ({@link RegionPainter},
- * {@link SimplexNoiseGenerator}), но координаты, фазы и ассеты у них разные.
+ * Процедурная генерация города Эликий и базового ландшафта в мире
+ * {@code world}. Полностью независима от {@link BeachGenerator} —
+ * совпадает с ним только по архитектурному паттерну (8 фаз +
+ * {@link RegionPainter} + PDC-маркер + {@link FloatingText}).
  *
- * <p><b>Композиция карты</b> (область 400×400 относительно центра 0,0):
- * <ul>
- *   <li>Центр (CITY_X, CITY_Z) = (0, 0): город Эликий 80×80, окружённый
- *       стенами высотой 10 с четырьмя воротами; в центре — собор
- *       20×20×30.</li>
- *   <li>Север (z = -40..-150): поля, фермы, ветряная мельница, дорога
- *       к starter_zone.</li>
- *   <li>Восток (x = 40..150): лес из берёз и дубов, ручей, дорога
- *       к forest_zone.</li>
- *   <li>Запад (x = -40..-150): холмы, скалы, заброшенная шахта, дорога
- *       к elite_zone.</li>
- *   <li>Юг (z = 40..150): озеро 30×30 с островом, рыбацкая деревня.</li>
- * </ul>
+ * <p><b>Игровой контекст</b>: игрок убивает Хранителя Врат на Береге,
+ * подходит к появившемуся порталу-арке (мир {@code beach}, точка
+ * {@code (0.5, 16, 154.5)}) и телепортируется в этот мир на точку
+ * {@link #SPAWN_X}/{@link #SPAWN_Y}/{@link #SPAWN_Z} = {@code (0, 75, 38)} —
+ * прямо ПЕРЕД южными воротами Эликия. Через арку видны улицы и собор.
  *
- * <p><b>Фазы</b> (выполняются последовательно одной асинхронной заливкой
- * через {@link RegionPainter}):
+ * <p><b>8 фаз генерации</b> (порядок строгий — каждая фаза опирается на
+ * предыдущую):
  * <ol>
- *   <li>Ландшафт — три октавы шума, плато под город, реки, озеро.</li>
- *   <li>Город — стены 80×80, 4 ворот, собор-крест 20×20×30
- *       (наполнение в PR 2).</li>
- *   <li>Дороги — три радиальные мощёные дороги из города
- *       (наполнение в PR 3).</li>
- *   <li>Окружение — фермы / лес / холмы / озеро / рыбацкая деревня
- *       (наполнение в PR 3).</li>
- *   <li>Декор и FloatingText — цветы, кустарники, тропинки, надписи
- *       (наполнение в PR 3).</li>
+ *   <li>{@link #phase1Landscape ЛАНДШАФТ} — мостовая под городом
+ *       (POLISHED_DEEPSLATE на y=70 внутри городского полигона). Внешний
+ *       мир остаётся плоским из {@code flatSettings} EclipsiaBuilder
+ *       (bedrock 5 + stone 55 + dirt 9 + grass 1 = ровный y=0..70).</li>
+ *   <li>{@link #phase2Vegetation РАСТИТЕЛЬНОСТЬ} — для города почти
+ *       пусто (несколько горшков); внешние биомы — отдельный PR.</li>
+ *   <li>{@link #phase3Decorations ДЕКОРАЦИИ} — мелкие детали (бочки,
+ *       цветы, дрова); реализация в PR 5.</li>
+ *   <li>{@link #phase4Paths УЛИЦЫ} — изгибающиеся улицы 3-7 блоков
+ *       шириной с фонарями; реализация в PR 4.</li>
+ *   <li>{@link #phase5PointsOfInterest ТОЧКИ ИНТЕРЕСА} — таверна,
+ *       кузница, лавка, гильдия, склад, рынок, колодец, жилые дома;
+ *       реализация в PR 4.</li>
+ *   <li>{@link #phase6Structures КРУПНЫЕ СТРУКТУРЫ} — стена-полигон 22
+ *       вершины с воротами и башнями (PR 2), собор со шпилем-глазом
+ *       (PR 3), южные горы (PR 2).</li>
+ *   <li>{@link #phase7FloatingText НАДПИСИ} — названия ворот, зданий,
+ *       площади, границ карты; реализация в PR 5.</li>
+ *   <li>{@link #phase8Spawnpoint ТОЧКА СПАВНА} — фиксируем
+ *       {@link World#setSpawnLocation} на (0, 75, 38) и помечаем мир
+ *       PDC-маркером {@link #GENERATED_FLAG}.</li>
  * </ol>
  *
- * <p>Идемпотентность: PDC-маркер {@link #GENERATED_FLAG} на мире.
- * Меняется при структурном изменении генератора — в этом случае
- * следующий старт сервера пересоздаст ландшафт и постройки.
+ * <p><b>Идемпотентность</b>: если PDC-маркер уже выставлен, генератор
+ * сразу возвращается. Чтобы заставить мир регенерироваться, надо либо
+ * сбросить маркер ({@link #resetMarker()}), либо удалить папку мира.
+ * Версия маркера привязана к структуре генератора — при крупных правках
+ * (например, +PR 2) {@link #GENERATED_FLAG} инкрементируется и старые
+ * миры пересоздаются автоматически.
  */
 public final class WorldGenerator {
 
@@ -55,111 +62,84 @@ public final class WorldGenerator {
     // =========================================================================
 
     /**
-     * Маркер версии. Сменив строку, вы вынуждаете генератор перерисовать
-     * мир при следующем старте сервера. Например: {@code "..._v1"} →
-     * {@code "..._v2"} после крупных правок городской планировки.
+     * PDC-ключ на мире: «Эликий уже сгенерирован». Версия меняется при
+     * структурных правках, чтобы сервер пересобрал город при апдейте.
      *
-     * <p><b>v1</b>: каркас + ландшафт + плато под город (PR 1).
-     * <p><b>v2</b>: + город Эликий (стены, башни, ворота, собор, шпиль) — PR 2.
-     * <p><b>v3</b>: + здания внутри города, улицы, 3 внешних дороги,
-     *               окружение (поля/лес/шахта/рыбацкая деревня), декор — PR 3.
-     * <p><b>v4</b>: фиксы по Devin Review: камин кузницы, цветы на земле,
-     *               деревья через RegionPainter, восточная дорога с
-     *               чистой центральной полосой, скаттер-диапазоны.
-     * <p><b>v5</b>: убран лишний Math.max(surface, BASE_GROUND_Y) в декоре —
-     *               в долинах (y&lt;64) декор парил.
+     * <p><b>v6</b>: PR 1 — полный rewrite. Скелет 8 фаз, мостовая под
+     * городом (POLISHED_DEEPSLATE), точка спавна перед южными воротами
+     * (0, 75, 38), плоский внешний мир из flatSettings.
      */
-    public static final String GENERATED_FLAG = "eclipsia_world_generated_v5";
+    public static final String GENERATED_FLAG = "eclipsia_world_generated_v6";
 
     // =========================================================================
-    // КООРДИНАТЫ И РАЗМЕРЫ
+    // ГЕОМЕТРИЯ ГОРОДА
     // =========================================================================
 
-    /** Центр города (x, z). */
-    public static final int CITY_X = 0;
-    public static final int CITY_Z = 0;
-
-    /** Размер городских стен (полусторона). 80×80 ⇒ HALF = 40. */
-    public static final int CITY_HALF = 40;
-
-    /** Полусторона плато под город. Чуть больше стен, чтобы было «крыльцо». */
-    public static final int CITY_PAD_HALF = 50;
-
-    /** Высота городского пола (плато). */
+    /** Уровень мостовой города (соответствует {@code flatSettings} мира). */
     public static final int CITY_FLOOR_Y = 70;
 
-    /** Высота стен Эликия в блоках. */
-    public static final int CITY_WALL_HEIGHT = 10;
-
-    /** Полуразмер собора (20×20). */
-    public static final int CATHEDRAL_HALF = 10;
-    /** Высота от пола до конька крыши собора. */
-    public static final int CATHEDRAL_HEIGHT = 30;
-
-    /** Точка появления игрока после портала из Берега — перед северными воротами. */
-    public static final int SPAWN_X = 0;
-    public static final int SPAWN_Y = CITY_FLOOR_Y + 5; // = 75
-    public static final int SPAWN_Z = -35;
-
-    /** Габариты «играбельного» региона процедурной генерации (включительно). */
-    private static final int LAND_X_MIN = -200, LAND_X_MAX = 200;
-    private static final int LAND_Z_MIN = -200, LAND_Z_MAX = 200;
-
-    /** Базовая высота ландшафта вне города. */
-    public static final int BASE_GROUND_Y = 64;
-
-    /** Глубина «воздуха», которую нужно очистить над поверхностью. */
-    private static final int CLEAR_AIR_HEIGHT = 60;
-
-    /** Подповерхностный слой грунта (грязь под травой). */
-    private static final int SUBSOIL_DEPTH = 4;
+    /**
+     * Полигон городской стены — 22 вершины, неправильная форма (НЕ квадрат).
+     * Координаты {@code (x, z)} обходятся по часовой стрелке. Используется:
+     * <ul>
+     *   <li>в фазе 1 — для замощения внутренней площади
+     *       (POLISHED_DEEPSLATE);</li>
+     *   <li>в фазе 6 (PR 2) — для трассировки самой стены и расстановки
+     *       башен через 15-20 блоков по периметру.</li>
+     * </ul>
+     */
+    public static final int[][] CITY_POLYGON = {
+            {-42, -40}, {-38, -48}, {-20, -50}, {  0, -48}, { 20, -50},
+            { 42, -45}, { 48, -35}, { 50, -15}, { 48,   0}, { 50,  15},
+            { 45,  35}, { 40,  38}, { 30,  40}, { 15,  42}, {  0,  40},
+            {-15,  42}, {-30,  40}, {-40,  38}, {-45,  35},
+            {-48,  15}, {-50,   0}, {-48, -15}, {-42, -40},
+    };
 
     // =========================================================================
-    // ОЗЕРО (юг) — параметры из ТЗ.
+    // КООРДИНАТЫ ЗДАНИЙ (для PR 2-5)
     // =========================================================================
 
-    /** Координаты центра озера. */
-    public static final int LAKE_X = 0;
-    public static final int LAKE_Z = 95;
-    /** Полусторона прямоугольника озера 30×30 (с шумовой нерегулярностью). */
-    public static final int LAKE_HALF = 18;
-    /** Глубина озера (от уровня воды). */
-    public static final int LAKE_DEPTH = 4;
-    /** Уровень воды в озере. */
-    public static final int LAKE_WATER_Y = BASE_GROUND_Y - 1;
-    /** Полусторона острова на озере. */
-    public static final int LAKE_ISLAND_HALF = 4;
+    /** Центр собора. Принципиально НЕ в (0,0): смещён на восток (см. ТЗ). */
+    public static final int CATHEDRAL_X = 15;
+    public static final int CATHEDRAL_Z = -5;
+
+    /** Координаты ворот: {@code [x, z]}. */
+    public static final int[] SOUTH_GATE = {  0,  35 };
+    public static final int[] NORTH_GATE = {  0, -45 };
+    public static final int[] EAST_GATE  = { 45,   0 };
+    public static final int[] WEST_GATE  = { -40, -5 };
 
     // =========================================================================
-    // СОСТОЯНИЕ ШПИЛЯ (для SpireParticles)
+    // ТОЧКА СПАВНА ИГРОКА
     // =========================================================================
 
     /**
-     * Координаты центра «глаза» на вершине шпиля собора. Читаются
-     * {@link SpireParticles} при выпуске частиц; перезаписываются
-     * {@link ElikiumCityBuilder} при постройке шпиля.
+     * Точка появления игрока после портала. Игрок стоит ПЕРЕД южными
+     * воротами (z=35): на z=38 он смотрит на арку, за аркой — улицы
+     * города и силуэт собора.
      *
-     * <p>Инициализируются <b>сразу к финальным значениям</b>, выведенным
-     * из констант города (а не {@link Double#NaN}). Иначе после первого
-     * перезапуска сервера {@link #generate(Runnable)} попадает в
-     * ранний return по PDC-маркеру, координаты остаются {@code NaN},
-     * и {@link SpireParticles} прекращает работать.
-     *
-     * <p>Геометрия (см. {@code ElikiumCityBuilder.buildSpire}):
-     * <pre>
-     *   yWallTop  = CITY_FLOOR_Y + 20 (CATHEDRAL_NAVE_H)
-     *   peak      = yWallTop + 5
-     *   spireBase = peak + 1
-     *   platY     = spireBase + 10 (spireH)
-     *   rodY      = platY + 1
-     *   center    = (CITY_X + 0.5, rodY + 1.5, CITY_Z + 0.5)
-     *             = (0.5, 70 + 20 + 5 + 1 + 10 + 1 + 1.5, 0.5)
-     *             = (0.5, 108.5, 0.5)
-     * </pre>
+     * <p>Сюда же телепортирует {@code GatekeeperArena} после убийства
+     * Хранителя — координаты должны совпадать.
      */
-    public static volatile double spireCenterX = CITY_X + 0.5;
-    public static volatile double spireCenterY = CITY_FLOOR_Y + 20 + 5 + 1 + 10 + 1 + 1.5;
-    public static volatile double spireCenterZ = CITY_Z + 0.5;
+    public static final int SPAWN_X = 0;
+    public static final int SPAWN_Y = CITY_FLOOR_Y + 5; // 75
+    public static final int SPAWN_Z = 38;
+
+    // =========================================================================
+    // КООРДИНАТЫ ШПИЛЯ (для SpireParticles)
+    // =========================================================================
+
+    /**
+     * Координаты «глаза» на вершине шпиля собора — читаются
+     * {@link SpireParticles}. До PR 3 (постройка собора) указывают на
+     * место, где он будет: {@code (CATHEDRAL_X+0.5, CITY_FLOOR_Y+51-1+1.5,
+     * CATHEDRAL_Z+0.5)}. После постройки в PR 3 будут переписаны на
+     * фактическую точку.
+     */
+    public static volatile double spireCenterX = CATHEDRAL_X + 0.5;
+    public static volatile double spireCenterY = CITY_FLOOR_Y + 51 + 1.5;
+    public static volatile double spireCenterZ = CATHEDRAL_Z + 0.5;
 
     // =========================================================================
     // СОСТОЯНИЕ
@@ -167,13 +147,6 @@ public final class WorldGenerator {
 
     private final Plugin plugin;
     private final World world;
-
-    /** Шум ландшафта: три октавы (континент, холмы, детали). */
-    private SimplexNoiseGenerator continentNoise;
-    private SimplexNoiseGenerator hillNoise;
-    private SimplexNoiseGenerator detailNoise;
-    /** Шум смещения рек (даёт извилистость). */
-    private SimplexNoiseGenerator riverNoise;
 
     public WorldGenerator(Plugin plugin, World world) {
         this.plugin = plugin;
@@ -191,410 +164,197 @@ public final class WorldGenerator {
         world.getPersistentDataContainer().set(key, PersistentDataType.BYTE, (byte) 1);
     }
 
-    /** Сбросить флаг (для команды force-regen). */
+    /** Сбросить маркер (используется командой принудительной регенерации). */
     public void resetMarker() {
         NamespacedKey key = new NamespacedKey(plugin, GENERATED_FLAG);
         world.getPersistentDataContainer().remove(key);
     }
 
+    // =========================================================================
+    // ГЛАВНАЯ ТОЧКА ВХОДА
+    // =========================================================================
+
     /**
-     * Главная точка входа. Запускает все фазы последовательно через
-     * единый {@link RegionPainter}; {@code onFinish} вызывается, когда
-     * последняя операция применена в мир.
+     * Запустить генерацию всех 8 фаз. {@code onFinish} вызывается, когда
+     * последняя операция RegionPainter применена в мир.
      */
     public void generate(Runnable onFinish) {
         if (isAlreadyGenerated()) {
-            plugin.getLogger().info("WorldGenerator(" + GENERATED_FLAG + "): уже сгенерировано, пропуск.");
+            plugin.getLogger().info("WorldGenerator(" + GENERATED_FLAG
+                    + "): уже сгенерировано, пропуск.");
             world.setSpawnLocation(SPAWN_X, SPAWN_Y, SPAWN_Z);
             if (onFinish != null) onFinish.run();
             return;
         }
 
-        plugin.getLogger().info("WorldGenerator: начинаю генерацию '" + world.getName() + "'…");
+        plugin.getLogger().info("WorldGenerator: начинаю генерацию '"
+                + world.getName() + "' (" + GENERATED_FLAG + ")…");
         long seed = world.getSeed() ^ 0xE11C1A77L; // «ELIKIA77»
-        Random init = new Random(seed);
-        this.continentNoise = new SimplexNoiseGenerator(init.nextLong());
-        this.hillNoise = new SimplexNoiseGenerator(init.nextLong());
-        this.detailNoise = new SimplexNoiseGenerator(init.nextLong());
-        this.riverNoise = new SimplexNoiseGenerator(init.nextLong());
+        Random rng = new Random(seed);
 
         // На случай повторной попытки — стираем все наши FloatingText.
         FloatingText.removeAll(plugin, world);
 
         RegionPainter p = new RegionPainter(plugin, world, seed);
         p.begin();
-        Random rng = p.rng();
 
-        // ===== ФАЗА 1. Ландшафт =====
-        generateTerrain(p, rng);
-        carveLake(p, rng);
+        // ===== Фаза 1: ландшафт (мостовая внутри полигона) =====
+        phase1Landscape(p, rng);
 
-        // ===== ФАЗА 2. Город (стены, ворота, собор) =====
-        generateCity(p, rng);
+        // ===== Фаза 2: растительность (заглушка) =====
+        phase2Vegetation(p, rng);
 
-        // ===== ФАЗА 3. Здания и улицы внутри города =====
-        generateBuildings(p, rng);
+        // ===== Фаза 3: декорации (заглушка) =====
+        phase3Decorations(p, rng);
 
-        // ===== ФАЗА 4. Внешние дороги к зонам =====
-        generateRoads(p, rng);
+        // ===== Фаза 4: улицы (заглушка) =====
+        phase4Paths(p, rng);
 
-        // ===== ФАЗА 5. Окружение (поля/лес/шахта/рыбацкая деревня) =====
-        generateSurroundings(p, rng);
+        // ===== Фаза 5: точки интереса — здания (заглушка) =====
+        phase5PointsOfInterest(p, rng);
 
-        // ===== ФАЗА 6. Декор (цветы, кустарники, тропинки) =====
-        generateDecor(p, rng);
+        // ===== Фаза 6: крупные структуры — стена, ворота, собор (заглушка) =====
+        phase6Structures(p, rng);
 
-        // ===== Финал =====
+        // ===== Фаза 7: FloatingText (заглушка) =====
+        // Запустится после flush() в onFinish — сущности можно спавнить
+        // только когда блоки уже на месте.
+
+        // Финал: применяем все накопленные операции одной асинхронной заливкой.
         p.flush(() -> {
-            spawnFloatingTexts();
-            world.setSpawnLocation(SPAWN_X, SPAWN_Y, SPAWN_Z);
+            phase7FloatingText(rng);
+            phase8Spawnpoint();
             markGenerated();
-            plugin.getLogger().info("WorldGenerator: основной мир готов!");
+            plugin.getLogger().info("WorldGenerator: '" + world.getName()
+                    + "' готов (8 фаз).");
             if (onFinish != null) onFinish.run();
         });
     }
 
     // =========================================================================
-    // ФАЗА 1. ЛАНДШАФТ
+    // ФАЗА 1: ЛАНДШАФТ
     // =========================================================================
 
     /**
-     * Сгенерировать ландшафт основного мира.
+     * Замостить внутреннюю площадь городского полигона блоками
+     * {@link Material#POLISHED_DEEPSLATE} на уровне {@link #CITY_FLOOR_Y}.
      *
-     * <p>Для каждой клетки (x,z) считается высота поверхности по трём
-     * октавам шума, ставится грязь под травой, очищается воздух выше
-     * поверхности и кладётся {@link Material#GRASS_BLOCK} сверху.
+     * <p>Внешний мир (за пределами полигона) НЕ трогается — он плоский
+     * по {@code flatSettings} (bedrock 5 + stone 55 + dirt 9 + grass 1,
+     * поверхность y=70). В PR 2-5 здесь добавятся горы, реки, биомы.
      *
-     * <p>Внутри городского плато (квадрат 100×100 вокруг 0,0) высота
-     * принудительно фиксируется на {@link #CITY_FLOOR_Y} — это
-     * «фундамент» под будущие постройки PR 2/PR 3.
-     *
-     * <p>Реки врезаются в ландшафт «жилами» вдоль линий, заданных
-     * {@link #riverNoise} — мелкая вода (1 блок глубиной), не пересекают
-     * городское плато.
+     * <p>Также очищаем 60 блоков воздуха над мостовой — на случай, если
+     * мир уже был заселён сущностями/деревьями ванильной генерации.
      */
-    private void generateTerrain(RegionPainter p, Random rng) {
-        plugin.getLogger().info("WorldGenerator: рельеф (~"
-                + ((LAND_X_MAX - LAND_X_MIN + 1) * (LAND_Z_MAX - LAND_Z_MIN + 1))
-                + " столбов)");
+    private void phase1Landscape(RegionPainter p, Random rng) {
+        plugin.getLogger().info("WorldGenerator/phase1: замощение городского полигона…");
 
-        for (int x = LAND_X_MIN; x <= LAND_X_MAX; x++) {
-            for (int z = LAND_Z_MIN; z <= LAND_Z_MAX; z++) {
-                // Озеро обработаем отдельной фазой (carveLake) — здесь его
-                // не трогаем, чтобы не дублировать работу.
-                if (isLakeColumn(x, z)) continue;
+        // Bounding box полигона (см. CITY_POLYGON): x ∈ [-50..50], z ∈ [-50..42].
+        int xMin = -50, xMax = 50;
+        int zMin = -50, zMax = 42;
 
-                int surface = computeHeight(x, z);
-                Material surfaceMat = computeSurfaceMaterial(x, z, surface);
-
-                // Подповерхностный слой: грязь / камень.
-                int subsoilTop = surface - 1;
-                int subsoilBottom = Math.max(BASE_GROUND_Y - 8, surface - SUBSOIL_DEPTH);
-                for (int y = subsoilBottom; y <= subsoilTop; y++) {
-                    boolean stoneLayer = y <= surface - 3;
-                    p.place(x, y, z, stoneLayer ? Material.STONE : Material.DIRT);
+        int paved = 0;
+        for (int x = xMin; x <= xMax; x++) {
+            for (int z = zMin; z <= zMax; z++) {
+                if (!isInsideCityPolygon(x, z)) continue;
+                p.place(x, CITY_FLOOR_Y, z, Material.POLISHED_DEEPSLATE);
+                // Чистый воздух над мостовой (на 30 блоков — высота собора + запас).
+                for (int dy = 1; dy <= 30; dy++) {
+                    p.place(x, CITY_FLOOR_Y + dy, z, Material.AIR);
                 }
-
-                // Поверхность.
-                p.place(x, surface, z, surfaceMat);
-
-                // Очистить воздух над поверхностью (на случай старого мира).
-                int clearTop = surface + CLEAR_AIR_HEIGHT;
-                for (int y = surface + 1; y <= clearTop; y++) {
-                    p.place(x, y, z, Material.AIR);
-                }
+                paved++;
             }
         }
+        plugin.getLogger().info("WorldGenerator/phase1: замощено " + paved
+                + " блоков мостовой города.");
     }
 
+    // =========================================================================
+    // ФАЗА 2: РАСТИТЕЛЬНОСТЬ (PR 5 — внешние биомы; внутри города почти пусто)
+    // =========================================================================
+
+    private void phase2Vegetation(RegionPainter p, Random rng) {
+        plugin.getLogger().info("WorldGenerator/phase2: растительность — TODO в PR 5.");
+    }
+
+    // =========================================================================
+    // ФАЗА 3: ДЕКОРАЦИИ (PR 5 — бочки, цветы, дрова, телега, колокол)
+    // =========================================================================
+
+    private void phase3Decorations(RegionPainter p, Random rng) {
+        plugin.getLogger().info("WorldGenerator/phase3: декорации — TODO в PR 5.");
+    }
+
+    // =========================================================================
+    // ФАЗА 4: УЛИЦЫ (PR 4 — изгибающиеся 3-7 блоков, фонари)
+    // =========================================================================
+
+    private void phase4Paths(RegionPainter p, Random rng) {
+        plugin.getLogger().info("WorldGenerator/phase4: улицы и переулки — TODO в PR 4.");
+    }
+
+    // =========================================================================
+    // ФАЗА 5: ТОЧКИ ИНТЕРЕСА — ЗДАНИЯ (PR 4)
+    // =========================================================================
+
+    private void phase5PointsOfInterest(RegionPainter p, Random rng) {
+        plugin.getLogger().info("WorldGenerator/phase5: здания — TODO в PR 4.");
+    }
+
+    // =========================================================================
+    // ФАЗА 6: КРУПНЫЕ СТРУКТУРЫ — СТЕНА, ВОРОТА, СОБОР (PR 2 + PR 3)
+    // =========================================================================
+
+    private void phase6Structures(RegionPainter p, Random rng) {
+        plugin.getLogger().info("WorldGenerator/phase6: стена + собор — TODO в PR 2 (стена) и PR 3 (собор).");
+    }
+
+    // =========================================================================
+    // ФАЗА 7: FLOATING TEXT (PR 5)
+    // =========================================================================
+
+    private void phase7FloatingText(Random rng) {
+        plugin.getLogger().info("WorldGenerator/phase7: FloatingText — TODO в PR 5.");
+    }
+
+    // =========================================================================
+    // ФАЗА 8: ТОЧКА СПАВНА
+    // =========================================================================
+
     /**
-     * Высота поверхности для столба (x,z).
+     * Зафиксировать точку спавна мира на {@link #SPAWN_X}/{@link #SPAWN_Y}/
+     * {@link #SPAWN_Z} = (0, 75, 38) — игрок появится прямо перед южными
+     * воротами Эликия (ворота на z=35, спавн на z=38, лицом на север).
+     */
+    private void phase8Spawnpoint() {
+        Location spawn = new Location(world, SPAWN_X + 0.5, SPAWN_Y, SPAWN_Z + 0.5);
+        world.setSpawnLocation(spawn);
+        plugin.getLogger().info("WorldGenerator/phase8: spawn = ("
+                + SPAWN_X + ", " + SPAWN_Y + ", " + SPAWN_Z + ")");
+    }
+
+    // =========================================================================
+    // УТИЛИТЫ ПОЛИГОНА
+    // =========================================================================
+
+    /**
+     * Точка-в-полигоне (ray casting). Используется для замощения внутренней
+     * площади города и (в PR 2) для трассировки стены.
      *
-     * <p>Формула:
-     * <pre>
-     *   h = continentNoise(0.003) * 12       // континентальные формы
-     *     + hillNoise(0.02)      *  6        // холмы
-     *     + detailNoise(0.08)    *  2        // мелкая рябь
-     * </pre>
-     * Базовая отметка — {@link #BASE_GROUND_Y}; в районе горного запада
-     * (x &lt; -80) добавляется плавный подъём до +25 блоков.
-     *
-     * <p>В пределах городского плато высота фиксируется {@link #CITY_FLOOR_Y}.
+     * <p>Алгоритм классический: пускаем горизонтальный луч в +X из точки
+     * (px, pz) и считаем количество пересечений с рёбрами полигона —
+     * нечётное число пересечений = точка внутри.
      */
-    private int computeHeight(int x, int z) {
-        // Городское плато — абсолютно ровный фундамент под стены и собор.
-        if (isCityPad(x, z)) {
-            return CITY_FLOOR_Y;
+    public static boolean isInsideCityPolygon(int px, int pz) {
+        boolean inside = false;
+        int n = CITY_POLYGON.length;
+        for (int i = 0, j = n - 1; i < n; j = i++) {
+            int xi = CITY_POLYGON[i][0], zi = CITY_POLYGON[i][1];
+            int xj = CITY_POLYGON[j][0], zj = CITY_POLYGON[j][1];
+            boolean intersect = ((zi > pz) != (zj > pz))
+                    && (px < (double) (xj - xi) * (pz - zi) / (zj - zi) + xi);
+            if (intersect) inside = !inside;
         }
-
-        double cont = continentNoise.noise(x * 0.003, z * 0.003);
-        double hill = hillNoise.noise(x * 0.02, z * 0.02);
-        double det = detailNoise.noise(x * 0.08, z * 0.08);
-
-        double h = cont * 12.0 + hill * 6.0 + det * 2.0;
-
-        // Западные горы (x < -80): плавный подъём до +25.
-        if (x < -80) {
-            double climb = Math.min(1.0, (-80 - x) / 70.0);
-            // ridge-noise (1 - |hill|) даёт более «острые» вершины.
-            double ridge = 1.0 - Math.abs(hill);
-            h += climb * 18.0 + climb * ridge * 7.0;
-        }
-
-        int y = BASE_GROUND_Y + (int) Math.round(h);
-
-        // Плавный «съезд» к плато на границе CITY_PAD_HALF..CITY_PAD_HALF+8,
-        // чтобы стены не торчали ступенькой над холмом.
-        int dx = Math.abs(x - CITY_X);
-        int dz = Math.abs(z - CITY_Z);
-        int distToPad = Math.max(dx, dz) - CITY_PAD_HALF;
-        if (distToPad < 8 && distToPad >= 0) {
-            double t = distToPad / 8.0; // 0 — у самого плато, 1 — на дальней границе склейки
-            y = (int) Math.round(CITY_FLOOR_Y * (1 - t) + y * t);
-        }
-
-        return Math.max(BASE_GROUND_Y - 4, y);
-    }
-
-    /**
-     * Материал поверхности. По умолчанию {@link Material#GRASS_BLOCK} —
-     * мир «живой», в отличие от чёрного Берега. Около западных гор
-     * на высоте выше +18 кладём камень, чтобы хребет визуально читался.
-     */
-    private Material computeSurfaceMaterial(int x, int z, int surfaceY) {
-        if (isCityPad(x, z)) {
-            // Плато под город — гладкий камень, чтобы швы между разными
-            // зданиями PR 2/PR 3 ложились без «травы из-под пола».
-            return Material.STONE;
-        }
-        if (surfaceY >= BASE_GROUND_Y + 18) {
-            return Material.STONE;
-        }
-        // Берег озера — песок (гладкий переход вода ↔ суша).
-        if (isLakeShore(x, z)) {
-            return Material.SAND;
-        }
-        return Material.GRASS_BLOCK;
-    }
-
-    /** Внутри городского плато 100×100 (с запасом в +10 от стен)? */
-    private boolean isCityPad(int x, int z) {
-        return Math.abs(x - CITY_X) <= CITY_PAD_HALF
-                && Math.abs(z - CITY_Z) <= CITY_PAD_HALF;
-    }
-
-    /** Берег озера — кольцо +1..+3 от LAKE_HALF. */
-    private boolean isLakeShore(int x, int z) {
-        int dx = x - LAKE_X;
-        int dz = z - LAKE_Z;
-        int dist2 = dx * dx + dz * dz;
-        int rOuter = LAKE_HALF + 3;
-        int rInner = LAKE_HALF;
-        return dist2 <= rOuter * rOuter && dist2 > rInner * rInner;
-    }
-
-    /** Внутри основной чаши озера? (для пропуска в фазе ландшафта) */
-    private boolean isLakeColumn(int x, int z) {
-        int dx = x - LAKE_X;
-        int dz = z - LAKE_Z;
-        return dx * dx + dz * dz <= LAKE_HALF * LAKE_HALF;
-    }
-
-    // =========================================================================
-    // ФАЗА 2. ГОРОД ЭЛИКИЙ (делегируется ElikiumCityBuilder)
-    // =========================================================================
-
-    /**
-     * Сгенерировать город Эликий: стены 80×80, угловые башни, четверо ворот
-     * (с FloatingText-надписями), центральный собор 20×20×30 со шпилем,
-     * платформа на шпиле с SOUL_FIRE / AMETHYST / END_ROD.
-     *
-     * <p>Вся геометрия вынесена в {@link ElikiumCityBuilder} ради читаемости.
-     */
-    private void generateCity(RegionPainter p, Random rng) {
-        new ElikiumCityBuilder(plugin, world).buildAll(p, rng);
-    }
-
-    // =========================================================================
-    // ФАЗА 3. ЗДАНИЯ И УЛИЦЫ (делегируется ElikiumBuildings)
-    // =========================================================================
-
-    /** Внутренние здания Эликия (таверна, кузница, лавка, гильдия, банк, жилые) + улицы. */
-    private void generateBuildings(RegionPainter p, Random rng) {
-        new ElikiumBuildings(plugin, world).buildAll(p, rng);
-    }
-
-    // =========================================================================
-    // ФАЗА 4. ВНЕШНИЕ ДОРОГИ (делегируется WorldRoads)
-    // =========================================================================
-
-    /** Три дороги из города: на север (поля), на восток (лес), на запад (холмы). */
-    private void generateRoads(RegionPainter p, Random rng) {
-        new WorldRoads(plugin, world).buildAll(p, rng);
-    }
-
-    // =========================================================================
-    // ФАЗА 5. ОКРУЖЕНИЕ (делегируется WorldSurroundings)
-    // =========================================================================
-
-    /** Поля+мельница, лес+ручей+охотничий домик, шахта, рыбацкая деревня+ива на острове. */
-    private void generateSurroundings(RegionPainter p, Random rng) {
-        new WorldSurroundings(plugin, world).buildAll(p, rng);
-    }
-
-    // =========================================================================
-    // ФАЗА 6. ДЕКОР (мелочёвка) — цветы, кусты, мшистые камни на лугах
-    // =========================================================================
-
-    /**
-     * Заключительная фаза: разбрасывает цветы / траву / мшистые камни
-     * в радиусе 150 от города. Не трогает плато (там мостовая) и зону у дорог.
-     */
-    private void generateDecor(RegionPainter p, Random rng) {
-        plugin.getLogger().info("WorldGenerator: фаза 6 — декор…");
-
-        Material[] flowers = {
-                Material.DANDELION, Material.POPPY, Material.BLUE_ORCHID,
-                Material.AZURE_BLUET, Material.OXEYE_DAISY, Material.CORNFLOWER,
-        };
-        Material[] grasses = { Material.SHORT_GRASS, Material.FERN, Material.DEAD_BUSH };
-
-        int xMin = -150, xMax = 150, zMin = -150, zMax = 150;
-        int placedFlowers = 0, placedGrass = 0, placedStones = 0;
-        int targetFlowers = 130, targetGrass = 60, targetStones = 18;
-        int safety = 6000;
-        while ((placedFlowers < targetFlowers || placedGrass < targetGrass || placedStones < targetStones)
-                && safety-- > 0) {
-            int x = xMin + rng.nextInt(xMax - xMin);
-            int z = zMin + rng.nextInt(zMax - zMin);
-
-            // Не сажаем внутри городских стен.
-            if (Math.abs(x - CITY_X) <= CITY_HALF && Math.abs(z - CITY_Z) <= CITY_HALF) continue;
-            // Не сажаем в озере.
-            if (isLakeColumn(x, z)) continue;
-            // Не сажаем на главных дорогах (узкие коридоры).
-            if (Math.abs(x - CITY_X) <= 4 && z < -CITY_HALF) continue; // северная
-            if (Math.abs(x - CITY_X) <= 4 && z > CITY_HALF) continue;  // на юг к деревне
-            if (Math.abs(z - CITY_Z) <= 4 && x > CITY_HALF) continue;  // восточная
-            if (Math.abs(z - CITY_Z) <= 4 && x < -CITY_HALF) continue; // западная
-
-            // Поверхность считаем по реальному ландшафту фазы 1 — иначе декор
-            // парит над землёй за пределами городского плато (CITY_FLOOR_Y=70
-            // против BASE_GROUND_Y≈64). computeHeight уже возвращает
-            // корректную высоту для всех точек (в пределах плато — CITY_FLOOR_Y,
-            // снаружи — реальную поверхность фазы 1).
-            int yGround = computeHeight(x, z);
-            int yPlace = yGround + 1; // цветок/трава ставится НА поверхность
-
-            double r = rng.nextDouble();
-            if (r < 0.55 && placedFlowers < targetFlowers) {
-                p.place(x, yPlace, z, flowers[rng.nextInt(flowers.length)]);
-                placedFlowers++;
-            } else if (r < 0.85 && placedGrass < targetGrass) {
-                p.place(x, yPlace, z, grasses[rng.nextInt(grasses.length)]);
-                placedGrass++;
-            } else if (placedStones < targetStones) {
-                // Мшистый камень заменяет верхний блок поверхности.
-                p.place(x, yGround, z, Material.MOSSY_COBBLESTONE);
-                placedStones++;
-            }
-        }
-
-        // DIRT_PATH тропинки от ворот к ближайшим достопримечательностям —
-        // короткие 6-блочные «выходы» в стороны от дороги.
-        int yPath = CITY_FLOOR_Y - 1;
-        // Север → к мельнице (-28, -110): тропинка от точки (-12, -45) к (-22, -55).
-        p.path(-12, -45, -22, -55, yPath, 1, () -> Material.DIRT_PATH);
-        // Восток → к охотничьему домику (130, -10): тропинка от (52, -8) к (110, -12).
-        p.path(52, -8, 110, -12, yPath, 1, () -> Material.DIRT_PATH);
-        // Запад → к шахте (-110, 0): тропинка от (-52, 0) к (-100, 0).
-        p.path(-52, 0, -100, 0, yPath, 1, () -> Material.DIRT_PATH);
-        // Юг → к рыбацкой деревне.
-        p.path(0, 45, 0, 70, yPath, 2, () -> Material.DIRT_PATH);
-    }
-
-    // =========================================================================
-    // ФАЗА 1.5. ОЗЕРО (юг) — врезается отдельной фазой, чтобы не дублировать
-    //                       логику ландшафта в каждом столбе.
-    // =========================================================================
-
-    /**
-     * Сгенерировать южное озеро 30×30 с островом 8×8 в центре.
-     *
-     * <p>Алгоритм:
-     * <ul>
-     *   <li>В круге радиуса {@link #LAKE_HALF}: до глубины
-     *       {@link #LAKE_DEPTH} ставим {@link Material#WATER},
-     *       дно — {@link Material#DIRT};</li>
-     *   <li>В центральном круге радиуса {@link #LAKE_ISLAND_HALF}:
-     *       насыпь {@link Material#GRASS_BLOCK} над водой
-     *       (остров для будущей ивы из PR 3);</li>
-     *   <li>Воздух над водой очищается на {@link #CLEAR_AIR_HEIGHT}.</li>
-     * </ul>
-     */
-    private void carveLake(RegionPainter p, Random rng) {
-        plugin.getLogger().info("WorldGenerator: озеро на юге ("
-                + LAKE_X + "," + LAKE_Z + "), радиус ~" + LAKE_HALF);
-        int lakeBottomY = LAKE_WATER_Y - LAKE_DEPTH;
-
-        for (int dx = -LAKE_HALF; dx <= LAKE_HALF; dx++) {
-            for (int dz = -LAKE_HALF; dz <= LAKE_HALF; dz++) {
-                int dist2 = dx * dx + dz * dz;
-                if (dist2 > LAKE_HALF * LAKE_HALF) continue;
-                int x = LAKE_X + dx;
-                int z = LAKE_Z + dz;
-
-                // Центральный остров.
-                if (dist2 <= LAKE_ISLAND_HALF * LAKE_ISLAND_HALF) {
-                    // Земля под травой.
-                    for (int y = lakeBottomY; y <= LAKE_WATER_Y; y++) {
-                        p.place(x, y, z, Material.DIRT);
-                    }
-                    p.place(x, LAKE_WATER_Y + 1, z, Material.GRASS_BLOCK);
-                    // Очистить воздух выше.
-                    for (int y = LAKE_WATER_Y + 2; y <= LAKE_WATER_Y + CLEAR_AIR_HEIGHT; y++) {
-                        p.place(x, y, z, Material.AIR);
-                    }
-                    continue;
-                }
-
-                // Чаша озера.
-                p.place(x, lakeBottomY - 1, z, Material.STONE);
-                for (int y = lakeBottomY; y <= LAKE_WATER_Y; y++) {
-                    p.place(x, y, z, Material.WATER);
-                }
-                // Воздух над водой.
-                for (int y = LAKE_WATER_Y + 1; y <= LAKE_WATER_Y + CLEAR_AIR_HEIGHT; y++) {
-                    p.place(x, y, z, Material.AIR);
-                }
-            }
-        }
-    }
-
-    // =========================================================================
-    // FloatingText — стартовый набор. Расширится в PR 2 и PR 3.
-    // =========================================================================
-
-    /**
-     * Поставить FloatingText, видимые сразу после первого ТП в мир:
-     * вывеска «Эликий» над северными воротами + таблички у точек интереса
-     * (озеро). Дальнейшие надписи у врат / зданий / достопримечательностей
-     * добавятся в PR 2/PR 3.
-     */
-    private void spawnFloatingTexts() {
-        // Главная вывеска города — над северными воротами, прямо в зоне видимости
-        // игрока, появившегося в SPAWN-точке (0, 75, -35) после портала.
-        // Координаты согласованы с ТЗ: x=0, y=80 (на уровне верха стены),
-        // z=-38 (на 2 блока южнее северной стены, т.е. ровно над аркой ворот).
-        FloatingText.createLocationTitle(plugin, world,
-                CITY_X + 0.5, CITY_FLOOR_Y + CITY_WALL_HEIGHT, CITY_Z - CITY_HALF + 2 + 0.5,
-                "§6§lЭЛИКИЙ",
-                "§7Город Света");
-
-        // Озеро — в PR 1 уже есть как ландшафт, поэтому подпишем его сразу.
-        FloatingText.createLocationTitle(plugin, world,
-                LAKE_X + 0.5, LAKE_WATER_Y + 4, LAKE_Z + 0.5,
-                "§bОзеро Эликия",
-                "§7§oТихая вода у южных ворот");
+        return inside;
     }
 }
