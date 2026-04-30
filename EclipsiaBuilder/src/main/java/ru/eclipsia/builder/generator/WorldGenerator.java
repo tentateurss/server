@@ -60,8 +60,9 @@ public final class WorldGenerator {
      * {@code "..._v2"} после крупных правок городской планировки.
      *
      * <p><b>v1</b>: каркас + ландшафт + плато под город (PR 1).
+     * <p><b>v2</b>: + город Эликий (стены, башни, ворота, собор, шпиль) — PR 2.
      */
-    public static final String GENERATED_FLAG = "eclipsia_world_generated_v1";
+    public static final String GENERATED_FLAG = "eclipsia_world_generated_v2";
 
     // =========================================================================
     // КООРДИНАТЫ И РАЗМЕРЫ
@@ -121,6 +122,22 @@ public final class WorldGenerator {
     public static final int LAKE_WATER_Y = BASE_GROUND_Y - 1;
     /** Полусторона острова на озере. */
     public static final int LAKE_ISLAND_HALF = 4;
+
+    // =========================================================================
+    // СОСТОЯНИЕ ШПИЛЯ (для SpireParticles)
+    // =========================================================================
+
+    /**
+     * Координаты центра «глаза» на вершине шпиля собора. Заполняются
+     * {@link ElikiumCityBuilder} при постройке шпиля; читаются
+     * {@link SpireParticles} при выпуске частиц.
+     *
+     * <p>{@link Double#NaN} означает «шпиль ещё не построен» — в этом
+     * случае {@link SpireParticles} ничего не делает.
+     */
+    public static volatile double spireCenterX = Double.NaN;
+    public static volatile double spireCenterY = Double.NaN;
+    public static volatile double spireCenterZ = Double.NaN;
 
     // =========================================================================
     // СОСТОЯНИЕ
@@ -190,8 +207,8 @@ public final class WorldGenerator {
         generateTerrain(p, rng);
         carveLake(p, rng);
 
-        // ===== ФАЗА 2. Город (стены, ворота, собор) — PR 2 =====
-        // generateCity(p, rng);
+        // ===== ФАЗА 2. Город (стены, ворота, собор) =====
+        generateCity(p, rng);
 
         // ===== ФАЗА 3. Дороги — PR 3 =====
         // generateRoads(p, rng);
@@ -356,6 +373,21 @@ public final class WorldGenerator {
         int dx = x - LAKE_X;
         int dz = z - LAKE_Z;
         return dx * dx + dz * dz <= LAKE_HALF * LAKE_HALF;
+    }
+
+    // =========================================================================
+    // ФАЗА 2. ГОРОД ЭЛИКИЙ (делегируется ElikiumCityBuilder)
+    // =========================================================================
+
+    /**
+     * Сгенерировать город Эликий: стены 80×80, угловые башни, четверо ворот
+     * (с FloatingText-надписями), центральный собор 20×20×30 со шпилем,
+     * платформа на шпиле с SOUL_FIRE / AMETHYST / END_ROD.
+     *
+     * <p>Вся геометрия вынесена в {@link ElikiumCityBuilder} ради читаемости.
+     */
+    private void generateCity(RegionPainter p, Random rng) {
+        new ElikiumCityBuilder(plugin, world).buildAll(p, rng);
     }
 
     // =========================================================================

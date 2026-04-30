@@ -9,6 +9,7 @@ import ru.eclipsia.builder.manager.StructureManager;
 import ru.eclipsia.builder.command.BuildCommand;
 import ru.eclipsia.builder.generator.BeachGenerator;
 import ru.eclipsia.builder.generator.BeachParticles;
+import ru.eclipsia.builder.generator.SpireParticles;
 import ru.eclipsia.builder.generator.WorldGenerator;
 import ru.eclipsia.builder.listener.CampRespawnListener;
 import ru.eclipsia.builder.listener.WaterGuardListener;
@@ -25,6 +26,7 @@ public class EclipsiaBuilder extends JavaPlugin {
     private StructureManager structureManager;
     private WorldBorderListener borderListener;
     private BeachParticles beachParticles;
+    private SpireParticles spireParticles;
     
     @Override
     public void onEnable() {
@@ -82,6 +84,12 @@ public class EclipsiaBuilder extends JavaPlugin {
             // Запускаем атмосферные частицы для мира beach (v3).
             beachParticles = new BeachParticles(this);
             beachParticles.start();
+
+            // Атмосферные частицы шпиля Эликия (PR 2). Шедулер сам ничего
+            // не делает, пока WorldGenerator не выставит координаты шпиля
+            // через статические поля — поэтому стартовать можно сразу.
+            spireParticles = new SpireParticles(this);
+            spireParticles.start();
         }, 40L);
 
         // Регистрируем команды
@@ -96,6 +104,9 @@ public class EclipsiaBuilder extends JavaPlugin {
     public void onDisable() {
         if (beachParticles != null) {
             beachParticles.stop();
+        }
+        if (spireParticles != null) {
+            spireParticles.stop();
         }
         getLogger().info("EclipsiaBuilder выключен");
     }
