@@ -381,6 +381,72 @@ suffixes:
     item-types: [SWORD, AXE, BOW, STAFF, RING, AMULET]
     min-item-level: 15
 
+# Implicit-аффиксы — «врождённые» статы базы.
+# Применяются на любой редкости (даже Normal). Не считаются префиксом/суффиксом
+# и не занимают слот при ролле редкости. Используются для дифференциации баз
+# (амулеты дают резисты, кольца — уклонение и т.п.).
+implicits:
+  # Амулет → +резист огня
+  fire_resist_implicit_amulet:
+    name: "Огнезащита амулета"
+    tier: 1
+    min-value: 5
+    max-value: 8
+    item-types: [AMULET]
+    min-item-level: 1
+  # Амулет → +резист холода
+  cold_resist_implicit_amulet:
+    name: "Морозозащита амулета"
+    tier: 1
+    min-value: 5
+    max-value: 8
+    item-types: [AMULET]
+    min-item-level: 1
+  # Амулет → +резист молнии
+  lightning_resist_implicit_amulet:
+    name: "Грозозащита амулета"
+    tier: 1
+    min-value: 5
+    max-value: 8
+    item-types: [AMULET]
+    min-item-level: 1
+
+  # Кольцо → +уклонение
+  evasion_implicit_ring:
+    name: "Лёгкость кольца"
+    tier: 1
+    min-value: 15
+    max-value: 25
+    item-types: [RING]
+    min-item-level: 1
+
+  # Пояс → +здоровье
+  health_implicit_belt:
+    name: "Прочность пояса"
+    tier: 1
+    min-value: 8
+    max-value: 15
+    item-types: [BELT]
+    min-item-level: 1
+
+  # Ботинки → +скорость бега
+  move_speed_implicit_boots:
+    name: "Поступь сапог"
+    tier: 1
+    min-value: 3
+    max-value: 6
+    item-types: [BOOTS]
+    min-item-level: 1
+
+  # Шлем → +Эгида
+  aegis_implicit_helmet:
+    name: "Аура шлема"
+    tier: 1
+    min-value: 5
+    max-value: 12
+    item-types: [HELMET]
+    min-item-level: 1
+
 # Уникальные предметы (фиксированные аффиксы)
 uniques:
   warriors_blade:

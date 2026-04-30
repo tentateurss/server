@@ -82,4 +82,12 @@ public final class StatKeys {
     // ===== ДВИЖЕНИЕ =====
     /** Скорость бега, % бонуса. */
     public static final String MOVE_SPEED        = "move_speed";
+
+    // ===== ЛУТ =====
+    /**
+     * Magic Find — % переноса шанса дропа Normal в Magic+/Rare/Unique.
+     * Передаётся в {@code RarityManager.getRandomRarity(mobLevel, mf)} при
+     * генерации лута через {@code ItemDropListener}. По умолчанию 0.
+     */
+    public static final String MAGIC_FIND        = "magic_find";
 }
