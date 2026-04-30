@@ -387,9 +387,13 @@ async function loadTree() {
   const r = await fetch('/api/perks/tree');
   tree = await r.json();
   // Centre canvas approximately on the tree midpoint.
-  scale = Math.min(innerWidth, innerHeight - 60) / 1500;
-  ox = innerWidth/2  - 800 * scale;
-  oy = (innerHeight + 56)/2 - 500 * scale;
+  // Holst 2400x1500. Класс игрока определяет, какой хаб ставим в центр.
+  // Если playerClass неизвестен — центрируем на середине холста.
+  const HUBS = {warrior:[500,800], mage:[1200,350], archer:[1900,800]};
+  const target = HUBS[playerClass] || [1200, 750];
+  scale = Math.min(innerWidth / 1400, (innerHeight - 60) / 900);
+  ox = innerWidth / 2  - target[0] * scale;
+  oy = (innerHeight + 56) / 2 - target[1] * scale;
 }
 
 async function refreshPlayer() {
@@ -502,10 +506,11 @@ function draw() {
   ctx.scale(scale, scale);
 
   // ===== zone tints — мягкие радиальные аро́ры классов =====
-  drawZoneRadial( 300, 600, 280, '#d23c3c22');  // warrior — red
-  drawZoneRadial(1300, 600, 280, '#3ad26124');  // archer — green
-  drawZoneRadial( 800, 250, 280, '#3a7ad222');  // mage — blue
-  drawZoneRadial( 800, 700, 200, '#c8a84e1a');  // centre — gold
+  // Подсветки зон совпадают с хабами perks.yml (warrior 500/800, mage 1200/350, archer 1900/800).
+  drawZoneRadial( 500, 800, 360, '#d23c3c26');  // warrior — red
+  drawZoneRadial(1900, 800, 360, '#3ad26128');  // archer  — green
+  drawZoneRadial(1200, 350, 360, '#3a7ad226');  // mage    — blue
+  drawZoneRadial(1200, 750, 200, '#c8a84e1a');  // centre  — gold
 
   // ===== edges =====
   ctx.lineCap = 'round';

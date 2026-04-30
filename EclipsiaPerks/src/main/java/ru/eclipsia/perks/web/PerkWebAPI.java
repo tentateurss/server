@@ -181,8 +181,8 @@ public final class PerkWebAPI {
 
             JsonObject root = new JsonObject();
             JsonObject canvas = new JsonObject();
-            canvas.addProperty("width", 2000);
-            canvas.addProperty("height", 2000);
+            canvas.addProperty("width", 2400);
+            canvas.addProperty("height", 1500);
             root.add("canvas", canvas);
 
             JsonArray nodes = new JsonArray();

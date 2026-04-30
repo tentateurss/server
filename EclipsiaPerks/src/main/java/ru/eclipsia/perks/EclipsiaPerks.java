@@ -33,7 +33,29 @@ public class EclipsiaPerks extends JavaPlugin {
         
         // Сохранение конфигов по умолчанию
         saveDefaultConfig();
-        saveResource("perks.yml", false);
+        // perks.yml: если на диске нет МЕТКИ актуальной версии — перезаписываем.
+        // Так у тестера на сервере всегда стоит свежее дерево, а его кастомы
+        // (если бы они были) могли бы попасть только при ручной правке.
+        try {
+            java.io.File f = new java.io.File(getDataFolder(), "perks.yml");
+            boolean needWrite = !f.exists();
+            if (!needWrite) {
+                String content = new String(java.nio.file.Files.readAllBytes(f.toPath()),
+                        java.nio.charset.StandardCharsets.UTF_8);
+                // Версионная метка генератора в шапке. Если её нет — файл устарел.
+                if (!content.contains("PoE-style, orbital layout")) {
+                    needWrite = true;
+                    getLogger().info("perks.yml устарел — перезаписываю свежим деревом.");
+                }
+            }
+            if (needWrite) {
+                if (f.exists()) f.delete();
+                saveResource("perks.yml", true);
+            }
+        } catch (Exception e) {
+            getLogger().warning("Не удалось проверить perks.yml: " + e.getMessage());
+            saveResource("perks.yml", false);
+        }
         
         // Инициализация менеджеров
         getLogger().info("Инициализация менеджеров...");

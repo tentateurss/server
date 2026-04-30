@@ -1,7 +1,6 @@
 # =============================================================================
-# Eclipsia — Дерево перков (Path of Exile-style)
-# Полотно 2000×2000. Три зоны (warrior/archer/mage), центр, 3 моста.
-# Игрок любого класса может прокачивать узлы других классов через мосты.
+# Eclipsia — Дерево перков (Path of Exile-style, orbital layout)
+# Сгенерировано /tmp/gen_perks.py — НЕ редактировать вручную мелкие узлы.
 # =============================================================================
 
 settings:
@@ -14,348 +13,1067 @@ starting-positions:
     node: "start_warrior"
     name: "Начало Воина"
     description: "Путь силы и мощи"
-  archer:
-    node: "start_archer"
-    name: "Начало Лучника"
-    description: "Путь ловкости и точности"
   mage:
     node: "start_mage"
     name: "Начало Мага"
     description: "Путь интеллекта и магии"
+  archer:
+    node: "start_archer"
+    name: "Начало Лучника"
+    description: "Путь ловкости и точности"
 
-# =============================================================================
-# Узлы дерева
-# Типы: START, SMALL, MEDIUM, NOTABLE, KEYSTONE
-# Стоимость в очках: SMALL/MEDIUM/NOTABLE/KEYSTONE = 1, START = 0 (бесплатно).
-# =============================================================================
 nodes:
 
-  # ===========================================================================
-  # СТАРТОВЫЕ ТОЧКИ (выдаются бесплатно при первом входе)
-  # ===========================================================================
+# canvas: 2400x1500
+
   start_warrior:
     type: START
     name: "§c§lНачало Воина"
-    x: 200
-    y: 600
-    connections: ["w_s_1", "w_s_2", "w_s_3", "w_s_4"]
+    x: 500
+    y: 800
+    connections: ['warrior_in_0', 'warrior_in_1', 'warrior_in_10', 'warrior_in_11', 'warrior_in_2', 'warrior_in_3', 'warrior_in_4', 'warrior_in_5', 'warrior_in_6', 'warrior_in_7', 'warrior_in_8', 'warrior_in_9']
     stats:
       strength: 5
-
-  start_archer:
-    type: START
-    name: "§a§lНачало Лучника"
-    x: 1400
-    y: 600
-    connections: ["a_s_1", "a_s_2", "a_s_3", "a_s_4"]
-    stats:
-      dexterity: 5
 
   start_mage:
     type: START
     name: "§b§lНачало Мага"
-    x: 800
-    y: 100
-    connections: ["m_s_1", "m_s_2", "m_s_3", "m_s_4"]
+    x: 1200
+    y: 350
+    connections: ['mage_in_0', 'mage_in_1', 'mage_in_10', 'mage_in_11', 'mage_in_2', 'mage_in_3', 'mage_in_4', 'mage_in_5', 'mage_in_6', 'mage_in_7', 'mage_in_8', 'mage_in_9']
     stats:
       intelligence: 5
 
-  # ===========================================================================
-  # ЗОНА ВОИНА (x:50..550, y:300..900) — красная
-  # 20 малых, 6 средних, 2 крупных, 2 ключевых
-  # ===========================================================================
+  start_archer:
+    type: START
+    name: "§a§lНачало Лучника"
+    x: 1900
+    y: 800
+    connections: ['archer_in_0', 'archer_in_1', 'archer_in_10', 'archer_in_11', 'archer_in_2', 'archer_in_3', 'archer_in_4', 'archer_in_5', 'archer_in_6', 'archer_in_7', 'archer_in_8', 'archer_in_9']
+    stats:
+      dexterity: 5
 
-  # --- 20 малых (+10 силы) ---
-  w_s_1:    {type: SMALL, name: "§c+10 Силы", x: 240, y: 580, connections: ["start_warrior", "w_s_5", "w_med_1"], stats: {strength: 10}}
-  w_s_2:    {type: SMALL, name: "§c+10 Силы", x: 240, y: 620, connections: ["start_warrior", "w_s_6", "w_med_2"], stats: {strength: 10}}
-  w_s_3:    {type: SMALL, name: "§c+10 Силы", x: 160, y: 580, connections: ["start_warrior", "w_s_7", "w_med_3"], stats: {strength: 10}}
-  w_s_4:    {type: SMALL, name: "§c+10 Силы", x: 160, y: 620, connections: ["start_warrior", "w_s_8", "w_med_4"], stats: {strength: 10}}
-  w_s_5:    {type: SMALL, name: "§c+10 Силы", x: 280, y: 560, connections: ["w_s_1", "w_med_1", "w_s_9"], stats: {strength: 10}}
-  w_s_6:    {type: SMALL, name: "§c+10 Силы", x: 280, y: 640, connections: ["w_s_2", "w_med_2", "w_s_10"], stats: {strength: 10}}
-  w_s_7:    {type: SMALL, name: "§c+10 Силы", x: 120, y: 560, connections: ["w_s_3", "w_med_3", "w_s_11"], stats: {strength: 10}}
-  w_s_8:    {type: SMALL, name: "§c+10 Силы", x: 120, y: 640, connections: ["w_s_4", "w_med_4", "w_s_12"], stats: {strength: 10}}
-  w_s_9:    {type: SMALL, name: "§c+10 Силы", x: 320, y: 540, connections: ["w_s_5", "w_med_5", "w_not_1"], stats: {strength: 10}}
-  w_s_10:   {type: SMALL, name: "§c+10 Силы", x: 320, y: 660, connections: ["w_s_6", "w_med_6", "w_not_2"], stats: {strength: 10}}
-  w_s_11:   {type: SMALL, name: "§c+10 Силы", x: 80,  y: 540, connections: ["w_s_7", "w_med_5"], stats: {strength: 10}}
-  w_s_12:   {type: SMALL, name: "§c+10 Силы", x: 80,  y: 660, connections: ["w_s_8", "w_med_6"], stats: {strength: 10}}
-  w_s_13:   {type: SMALL, name: "§c+10 Силы", x: 200, y: 520, connections: ["start_warrior", "w_med_5"], stats: {strength: 10}}
-  w_s_14:   {type: SMALL, name: "§c+10 Силы", x: 200, y: 680, connections: ["start_warrior", "w_med_6"], stats: {strength: 10}}
-  w_s_15:   {type: SMALL, name: "§c+10 Силы", x: 200, y: 460, connections: ["w_s_13", "w_not_1", "w_keystone_berserk"], stats: {strength: 10}}
-  w_s_16:   {type: SMALL, name: "§c+10 Силы", x: 200, y: 740, connections: ["w_s_14", "w_not_2", "w_keystone_blood_magic"], stats: {strength: 10}}
-  w_s_17:   {type: SMALL, name: "§c+10 Силы", x: 380, y: 580, connections: ["w_s_9", "w_not_1"], stats: {strength: 10}}
-  w_s_18:   {type: SMALL, name: "§c+10 Силы", x: 380, y: 620, connections: ["w_s_10", "w_not_2"], stats: {strength: 10}}
-  w_s_19:   {type: SMALL, name: "§c+10 Силы", x: 280, y: 480, connections: ["w_s_15", "w_not_1"], stats: {strength: 10}}
-  w_s_20:   {type: SMALL, name: "§c+10 Силы", x: 280, y: 720, connections: ["w_s_16", "w_not_2"], stats: {strength: 10}}
+  archer_in_0:
+    type: SMALL
+    name: "§a+5 Ловкости"
+    x: 1900
+    y: 720
+    connections: ['archer_in_1', 'archer_in_11', 'archer_med_0', 'archer_out_0', 'start_archer']
+    stats:
+      dexterity: 5
 
-  # --- 6 средних ---
-  w_med_1:
-    type: MEDIUM
-    name: "§cМощный удар"
-    x: 280
-    y: 600
-    connections: ["w_s_1", "w_s_5", "w_med_2"]
-    stats: {strength: 15, damage: 5}
-  w_med_2:
-    type: MEDIUM
-    name: "§cЖелезная кожа"
-    x: 280
-    y: 620
-    connections: ["w_s_2", "w_s_6", "w_med_1"]
-    stats: {strength: 15, armor: 10}
-  w_med_3:
-    type: MEDIUM
-    name: "§cТяжёлая броня"
-    x: 120
-    y: 600
-    connections: ["w_s_3", "w_s_7", "w_med_4"]
-    stats: {strength: 15, armor: 15}
-  w_med_4:
-    type: MEDIUM
-    name: "§cРегенерация"
-    x: 120
-    y: 620
-    connections: ["w_s_4", "w_s_8", "w_med_3"]
-    stats: {strength: 10, health: 30}
-  w_med_5:
-    type: MEDIUM
-    name: "§cКрепкий хват"
-    x: 200
-    y: 540
-    connections: ["w_s_9", "w_s_11", "w_s_13"]
-    stats: {strength: 15, damage: 5}
-  w_med_6:
-    type: MEDIUM
-    name: "§cЯрость предков"
-    x: 200
-    y: 660
-    connections: ["w_s_10", "w_s_12", "w_s_14"]
-    stats: {strength: 15, damage: 8}
+  archer_in_1:
+    type: SMALL
+    name: "§a+5 Лов, +2 уклон"
+    x: 1940
+    y: 731
+    connections: ['archer_in_0', 'archer_in_2', 'archer_med_0', 'archer_out_1', 'start_archer']
+    stats:
+      dexterity: 5
+      evasion: 2
 
-  # --- 2 крупных ---
-  w_not_1:
-    type: NOTABLE
-    name: "§c§lБерсеркер"
-    x: 360
-    y: 540
-    connections: ["w_s_9", "w_s_15", "w_s_17", "w_s_19", "w_keystone_berserk"]
-    stats: {strength: 25, damage: 15, health: 50}
-  w_not_2:
-    type: NOTABLE
-    name: "§c§lНесокрушимость"
-    x: 360
-    y: 660
-    connections: ["w_s_10", "w_s_16", "w_s_18", "w_s_20", "w_keystone_blood_magic"]
-    stats: {armor: 30, strength: 20}
+  archer_in_10:
+    type: SMALL
+    name: "§a+5 Лов, +2 уклон"
+    x: 1831
+    y: 760
+    connections: ['archer_in_11', 'archer_in_9', 'archer_med_3', 'archer_out_10', 'start_archer']
+    stats:
+      dexterity: 5
+      evasion: 2
 
-  # --- 2 ключевых ---
-  w_keystone_berserk:
+  archer_in_11:
+    type: SMALL
+    name: "§a+5 Лов, +1 криту"
+    x: 1860
+    y: 731
+    connections: ['archer_in_0', 'archer_in_10', 'archer_out_11', 'start_archer']
+    stats:
+      crit_chance: 1
+      dexterity: 5
+
+  archer_in_2:
+    type: SMALL
+    name: "§a+5 Лов, +1 криту"
+    x: 1969
+    y: 760
+    connections: ['archer_in_1', 'archer_in_3', 'archer_out_2', 'start_archer']
+    stats:
+      crit_chance: 1
+      dexterity: 5
+
+  archer_in_3:
+    type: SMALL
+    name: "§a+5 Ловкости"
+    x: 1980
+    y: 800
+    connections: ['archer_in_2', 'archer_in_4', 'archer_med_1', 'archer_out_3', 'start_archer']
+    stats:
+      dexterity: 5
+
+  archer_in_4:
+    type: SMALL
+    name: "§a+5 Лов, +2 уклон"
+    x: 1969
+    y: 840
+    connections: ['archer_in_3', 'archer_in_5', 'archer_med_1', 'archer_out_4', 'start_archer']
+    stats:
+      dexterity: 5
+      evasion: 2
+
+  archer_in_5:
+    type: SMALL
+    name: "§a+5 Лов, +1 криту"
+    x: 1940
+    y: 869
+    connections: ['archer_in_4', 'archer_in_6', 'archer_out_5', 'start_archer']
+    stats:
+      crit_chance: 1
+      dexterity: 5
+
+  archer_in_6:
+    type: SMALL
+    name: "§a+5 Ловкости"
+    x: 1900
+    y: 880
+    connections: ['archer_in_5', 'archer_in_7', 'archer_med_2', 'archer_out_6', 'start_archer']
+    stats:
+      dexterity: 5
+
+  archer_in_7:
+    type: SMALL
+    name: "§a+5 Лов, +2 уклон"
+    x: 1860
+    y: 869
+    connections: ['archer_in_6', 'archer_in_8', 'archer_med_2', 'archer_out_7', 'start_archer']
+    stats:
+      dexterity: 5
+      evasion: 2
+
+  archer_in_8:
+    type: SMALL
+    name: "§a+5 Лов, +1 криту"
+    x: 1831
+    y: 840
+    connections: ['archer_in_7', 'archer_in_9', 'archer_out_8', 'start_archer']
+    stats:
+      crit_chance: 1
+      dexterity: 5
+
+  archer_in_9:
+    type: SMALL
+    name: "§a+5 Ловкости"
+    x: 1820
+    y: 800
+    connections: ['archer_in_10', 'archer_in_8', 'archer_med_3', 'archer_out_9', 'start_archer']
+    stats:
+      dexterity: 5
+
+  archer_key_0:
     type: KEYSTONE
-    name: "§4§lБерсерк"
-    x: 350
-    y: 500
-    connections: ["w_not_1", "w_s_15"]
-    stats: {damage: 40, armor: -100}
-  w_keystone_blood_magic:
+    name: "§2§l§oОдин выстрел"
+    x: 2126
+    y: 574
+    connections: ['archer_not_0', 'archer_out_2', 'archer_out_3']
+    stats:
+      attack_speed: -50
+      crit_chance: 30
+      dexterity: 30
+
+  archer_key_1:
     type: KEYSTONE
-    name: "§4§lКровавая магия"
-    x: 250
-    y: 650
-    connections: ["w_not_2", "w_s_16"]
-    stats: {strength: 20, mana: -100}
+    name: "§2§l§oТеневой танец"
+    x: 1674
+    y: 1026
+    connections: ['archer_not_1', 'archer_out_8', 'archer_out_9']
+    stats:
+      dexterity: 25
+      evasion: 40
+      health: -50
 
-  # ===========================================================================
-  # ЗОНА ЛУЧНИКА (x:1050..1550, y:300..900) — зелёная
-  # ===========================================================================
+  archer_med_0:
+    type: MEDIUM
+    name: "§a§lМеткий стрелок"
+    x: 1900
+    y: 680
+    connections: ['archer_in_0', 'archer_in_1', 'archer_not_0', 'archer_out_0', 'archer_out_1']
+    stats:
+      crit_chance: 10
+      dexterity: 12
 
-  # --- 20 малых (+10 ловкости) ---
-  a_s_1:    {type: SMALL, name: "§a+10 Ловкости", x: 1360, y: 580, connections: ["start_archer", "a_s_5", "a_med_1"], stats: {dexterity: 10}}
-  a_s_2:    {type: SMALL, name: "§a+10 Ловкости", x: 1360, y: 620, connections: ["start_archer", "a_s_6", "a_med_2"], stats: {dexterity: 10}}
-  a_s_3:    {type: SMALL, name: "§a+10 Ловкости", x: 1440, y: 580, connections: ["start_archer", "a_s_7", "a_med_3"], stats: {dexterity: 10}}
-  a_s_4:    {type: SMALL, name: "§a+10 Ловкости", x: 1440, y: 620, connections: ["start_archer", "a_s_8", "a_med_4"], stats: {dexterity: 10}}
-  a_s_5:    {type: SMALL, name: "§a+10 Ловкости", x: 1320, y: 560, connections: ["a_s_1", "a_med_1", "a_s_9"], stats: {dexterity: 10}}
-  a_s_6:    {type: SMALL, name: "§a+10 Ловкости", x: 1320, y: 640, connections: ["a_s_2", "a_med_2", "a_s_10"], stats: {dexterity: 10}}
-  a_s_7:    {type: SMALL, name: "§a+10 Ловкости", x: 1480, y: 560, connections: ["a_s_3", "a_med_3", "a_s_11"], stats: {dexterity: 10}}
-  a_s_8:    {type: SMALL, name: "§a+10 Ловкости", x: 1480, y: 640, connections: ["a_s_4", "a_med_4", "a_s_12"], stats: {dexterity: 10}}
-  a_s_9:    {type: SMALL, name: "§a+10 Ловкости", x: 1280, y: 540, connections: ["a_s_5", "a_med_5", "a_not_1"], stats: {dexterity: 10}}
-  a_s_10:   {type: SMALL, name: "§a+10 Ловкости", x: 1280, y: 660, connections: ["a_s_6", "a_med_6", "a_not_2"], stats: {dexterity: 10}}
-  a_s_11:   {type: SMALL, name: "§a+10 Ловкости", x: 1520, y: 540, connections: ["a_s_7", "a_med_5"], stats: {dexterity: 10}}
-  a_s_12:   {type: SMALL, name: "§a+10 Ловкости", x: 1520, y: 660, connections: ["a_s_8", "a_med_6"], stats: {dexterity: 10}}
-  a_s_13:   {type: SMALL, name: "§a+10 Ловкости", x: 1400, y: 520, connections: ["start_archer", "a_med_5"], stats: {dexterity: 10}}
-  a_s_14:   {type: SMALL, name: "§a+10 Ловкости", x: 1400, y: 680, connections: ["start_archer", "a_med_6"], stats: {dexterity: 10}}
-  a_s_15:   {type: SMALL, name: "§a+10 Ловкости", x: 1300, y: 480, connections: ["a_s_9", "a_not_1", "a_keystone_sniper"], stats: {dexterity: 10}}
-  a_s_16:   {type: SMALL, name: "§a+10 Ловкости", x: 1300, y: 720, connections: ["a_s_10", "a_not_2", "a_keystone_iron_reflexes"], stats: {dexterity: 10}}
-  a_s_17:   {type: SMALL, name: "§a+10 Ловкости", x: 1220, y: 580, connections: ["a_s_9", "a_not_1"], stats: {dexterity: 10}}
-  a_s_18:   {type: SMALL, name: "§a+10 Ловкости", x: 1220, y: 620, connections: ["a_s_10", "a_not_2"], stats: {dexterity: 10}}
-  a_s_19:   {type: SMALL, name: "§a+10 Ловкости", x: 1260, y: 510, connections: ["a_s_15", "a_keystone_sniper"], stats: {dexterity: 10}}
-  a_s_20:   {type: SMALL, name: "§a+10 Ловкости", x: 1340, y: 690, connections: ["a_s_16", "a_keystone_iron_reflexes"], stats: {dexterity: 10}}
+  archer_med_1:
+    type: MEDIUM
+    name: "§a§lУклонение"
+    x: 2020
+    y: 800
+    connections: ['archer_in_3', 'archer_in_4', 'archer_out_3', 'archer_out_4']
+    stats:
+      dexterity: 10
+      evasion: 8
 
-  # --- 6 средних ---
-  a_med_1: {type: MEDIUM, name: "§aМеткий стрелок", x: 1320, y: 600, connections: ["a_s_1", "a_s_5", "a_med_2"], stats: {dexterity: 15, crit_chance: 10}}
-  a_med_2: {type: MEDIUM, name: "§aУклонение",     x: 1320, y: 620, connections: ["a_s_2", "a_s_6", "a_med_1"], stats: {dexterity: 15, dodge: 5}}
-  a_med_3: {type: MEDIUM, name: "§aБыстрые пальцы", x: 1480, y: 600, connections: ["a_s_3", "a_s_7", "a_med_4"], stats: {dexterity: 15, crit_chance: 5}}
-  a_med_4: {type: MEDIUM, name: "§aТеневой шаг",    x: 1480, y: 620, connections: ["a_s_4", "a_s_8", "a_med_3"], stats: {dexterity: 10, dodge: 8}}
-  a_med_5: {type: MEDIUM, name: "§aОрлиный глаз",   x: 1400, y: 540, connections: ["a_s_9", "a_s_11", "a_s_13"], stats: {dexterity: 15, crit_damage: 20}}
-  a_med_6: {type: MEDIUM, name: "§aШквал стрел",    x: 1400, y: 660, connections: ["a_s_10", "a_s_12", "a_s_14"], stats: {dexterity: 15, damage: 5}}
+  archer_med_2:
+    type: MEDIUM
+    name: "§a§lБыстрая рука"
+    x: 1900
+    y: 920
+    connections: ['archer_in_6', 'archer_in_7', 'archer_not_1', 'archer_out_6', 'archer_out_7']
+    stats:
+      attack_speed: 8
+      dexterity: 10
 
-  # --- 2 крупных ---
-  a_not_1:
+  archer_med_3:
+    type: MEDIUM
+    name: "§a§lТеневой шаг"
+    x: 1780
+    y: 800
+    connections: ['archer_in_10', 'archer_in_9', 'archer_out_10', 'archer_out_9']
+    stats:
+      dexterity: 8
+      move_speed: 10
+
+  archer_not_0:
     type: NOTABLE
-    name: "§a§lСнайпер"
+    name: "§a§l§oСнайпер"
+    x: 1900
+    y: 570
+    connections: ['archer_key_0', 'archer_med_0', 'archer_out_0', 'archer_out_1', 'archer_out_11']
+    stats:
+      crit_chance: 20
+      crit_damage: 50
+      dexterity: 25
+
+  archer_not_1:
+    type: NOTABLE
+    name: "§a§l§oНеуловимый"
+    x: 1900
+    y: 1030
+    connections: ['archer_key_1', 'archer_med_2', 'archer_out_5', 'archer_out_6', 'archer_out_7']
+    stats:
+      dexterity: 20
+      evasion: 25
+      move_speed: 8
+
+  archer_out_0:
+    type: SMALL
+    name: "§a+5 Лов, +2 уклон"
+    x: 1900
+    y: 640
+    connections: ['archer_in_0', 'archer_med_0', 'archer_not_0', 'archer_out_1', 'archer_out_11']
+    stats:
+      dexterity: 5
+      evasion: 2
+
+  archer_out_1:
+    type: SMALL
+    name: "§a+5 Лов, +1 криту"
+    x: 1980
+    y: 661
+    connections: ['archer_in_1', 'archer_med_0', 'archer_not_0', 'archer_out_0', 'archer_out_2']
+    stats:
+      crit_chance: 1
+      dexterity: 5
+
+  archer_out_10:
+    type: SMALL
+    name: "§a+5 Лов, +1 криту"
+    x: 1761
+    y: 720
+    connections: ['archer_in_10', 'archer_med_3', 'archer_out_11', 'archer_out_9', 'bridge_mage_archer_2']
+    stats:
+      crit_chance: 1
+      dexterity: 5
+
+  archer_out_11:
+    type: SMALL
+    name: "§a+5 Ловкости"
+    x: 1820
+    y: 661
+    connections: ['archer_in_11', 'archer_not_0', 'archer_out_0', 'archer_out_10']
+    stats:
+      dexterity: 5
+
+  archer_out_2:
+    type: SMALL
+    name: "§a+5 Ловкости"
+    x: 2039
+    y: 720
+    connections: ['archer_in_2', 'archer_key_0', 'archer_out_1', 'archer_out_3']
+    stats:
+      dexterity: 5
+
+  archer_out_3:
+    type: SMALL
+    name: "§a+5 Лов, +2 уклон"
+    x: 2060
+    y: 800
+    connections: ['archer_in_3', 'archer_key_0', 'archer_med_1', 'archer_out_2', 'archer_out_4']
+    stats:
+      dexterity: 5
+      evasion: 2
+
+  archer_out_4:
+    type: SMALL
+    name: "§a+5 Лов, +1 криту"
+    x: 2039
+    y: 880
+    connections: ['archer_in_4', 'archer_med_1', 'archer_out_3', 'archer_out_5']
+    stats:
+      crit_chance: 1
+      dexterity: 5
+
+  archer_out_5:
+    type: SMALL
+    name: "§a+5 Ловкости"
+    x: 1980
+    y: 939
+    connections: ['archer_in_5', 'archer_not_1', 'archer_out_4', 'archer_out_6']
+    stats:
+      dexterity: 5
+
+  archer_out_6:
+    type: SMALL
+    name: "§a+5 Лов, +2 уклон"
+    x: 1900
+    y: 960
+    connections: ['archer_in_6', 'archer_med_2', 'archer_not_1', 'archer_out_5', 'archer_out_7']
+    stats:
+      dexterity: 5
+      evasion: 2
+
+  archer_out_7:
+    type: SMALL
+    name: "§a+5 Лов, +1 криту"
+    x: 1820
+    y: 939
+    connections: ['archer_in_7', 'archer_med_2', 'archer_not_1', 'archer_out_6', 'archer_out_8']
+    stats:
+      crit_chance: 1
+      dexterity: 5
+
+  archer_out_8:
+    type: SMALL
+    name: "§a+5 Ловкости"
+    x: 1761
+    y: 880
+    connections: ['archer_in_8', 'archer_key_1', 'archer_out_7', 'archer_out_9']
+    stats:
+      dexterity: 5
+
+  archer_out_9:
+    type: SMALL
+    name: "§a+5 Лов, +2 уклон"
+    x: 1740
+    y: 800
+    connections: ['archer_in_9', 'archer_key_1', 'archer_med_3', 'archer_out_10', 'archer_out_8', 'bridge_warrior_archer_2']
+    stats:
+      dexterity: 5
+      evasion: 2
+
+  mage_in_0:
+    type: SMALL
+    name: "§b+5 Интеллекта"
+    x: 1200
+    y: 270
+    connections: ['mage_in_1', 'mage_in_11', 'mage_med_0', 'mage_out_0', 'start_mage']
+    stats:
+      intelligence: 5
+
+  mage_in_1:
+    type: SMALL
+    name: "§b+8 Маны"
     x: 1240
-    y: 540
-    connections: ["a_s_9", "a_s_15", "a_s_17", "a_s_19", "a_keystone_sniper"]
-    stats: {dexterity: 25, crit_chance: 20, crit_damage: 50}
-  a_not_2:
-    type: NOTABLE
-    name: "§a§lНеуловимый"
+    y: 281
+    connections: ['mage_in_0', 'mage_in_2', 'mage_med_0', 'mage_out_1', 'start_mage']
+    stats:
+      mana: 8
+
+  mage_in_10:
+    type: SMALL
+    name: "§b+8 Маны"
+    x: 1131
+    y: 310
+    connections: ['mage_in_11', 'mage_in_9', 'mage_med_3', 'mage_out_10', 'start_mage']
+    stats:
+      mana: 8
+
+  mage_in_11:
+    type: SMALL
+    name: "§b+5 Инт, +3 рег.маны"
+    x: 1160
+    y: 281
+    connections: ['mage_in_0', 'mage_in_10', 'mage_out_11', 'start_mage']
+    stats:
+      intelligence: 5
+      mana_regen: 3
+
+  mage_in_2:
+    type: SMALL
+    name: "§b+5 Инт, +3 рег.маны"
+    x: 1269
+    y: 310
+    connections: ['mage_in_1', 'mage_in_3', 'mage_out_2', 'start_mage']
+    stats:
+      intelligence: 5
+      mana_regen: 3
+
+  mage_in_3:
+    type: SMALL
+    name: "§b+5 Интеллекта"
+    x: 1280
+    y: 350
+    connections: ['mage_in_2', 'mage_in_4', 'mage_med_1', 'mage_out_3', 'start_mage']
+    stats:
+      intelligence: 5
+
+  mage_in_4:
+    type: SMALL
+    name: "§b+8 Маны"
+    x: 1269
+    y: 390
+    connections: ['mage_in_3', 'mage_in_5', 'mage_med_1', 'mage_out_4', 'start_mage']
+    stats:
+      mana: 8
+
+  mage_in_5:
+    type: SMALL
+    name: "§b+5 Инт, +3 рег.маны"
     x: 1240
-    y: 660
-    connections: ["a_s_10", "a_s_16", "a_s_18", "a_s_20", "a_keystone_iron_reflexes"]
-    stats: {dexterity: 15, dodge: 20}
+    y: 419
+    connections: ['mage_in_4', 'mage_in_6', 'mage_out_5', 'start_mage']
+    stats:
+      intelligence: 5
+      mana_regen: 3
 
-  # --- 2 ключевых ---
-  a_keystone_sniper:
+  mage_in_6:
+    type: SMALL
+    name: "§b+5 Интеллекта"
+    x: 1200
+    y: 430
+    connections: ['mage_in_5', 'mage_in_7', 'mage_med_2', 'mage_out_6', 'start_mage']
+    stats:
+      intelligence: 5
+
+  mage_in_7:
+    type: SMALL
+    name: "§b+8 Маны"
+    x: 1160
+    y: 419
+    connections: ['mage_in_6', 'mage_in_8', 'mage_med_2', 'mage_out_7', 'start_mage']
+    stats:
+      mana: 8
+
+  mage_in_8:
+    type: SMALL
+    name: "§b+5 Инт, +3 рег.маны"
+    x: 1131
+    y: 390
+    connections: ['mage_in_7', 'mage_in_9', 'mage_out_8', 'start_mage']
+    stats:
+      intelligence: 5
+      mana_regen: 3
+
+  mage_in_9:
+    type: SMALL
+    name: "§b+5 Интеллекта"
+    x: 1120
+    y: 350
+    connections: ['mage_in_10', 'mage_in_8', 'mage_med_3', 'mage_out_9', 'start_mage']
+    stats:
+      intelligence: 5
+
+  mage_key_0:
     type: KEYSTONE
-    name: "§2§lСнайпер"
-    x: 1250
-    y: 500
-    connections: ["a_not_1", "a_s_15", "a_s_19"]
-    stats: {damage: 50, attack_speed: -30}
-  a_keystone_iron_reflexes:
+    name: "§9§l§oЭлдрич"
+    x: 1426
+    y: 124
+    connections: ['mage_not_0', 'mage_out_2', 'mage_out_3']
+    stats:
+      health: -50
+      intelligence: 30
+      spell_damage: 80
+
+  mage_key_1:
     type: KEYSTONE
-    name: "§2§lЖелезные рефлексы"
-    x: 1350
-    y: 650
-    connections: ["a_not_2", "a_s_16", "a_s_20"]
-    stats: {armor: 50, dodge: -100}
+    name: "§9§l§oВечный поток"
+    x: 974
+    y: 576
+    connections: ['mage_not_1', 'mage_out_8', 'mage_out_9']
+    stats:
+      intelligence: 25
+      mana_regen: 30
+      physical_damage: -30
 
-  # ===========================================================================
-  # ЗОНА МАГА (x:550..1100, y:0..500) — синяя
-  # ===========================================================================
+  mage_med_0:
+    type: MEDIUM
+    name: "§b§lЯсность ума"
+    x: 1200
+    y: 230
+    connections: ['mage_in_0', 'mage_in_1', 'mage_not_0', 'mage_out_0', 'mage_out_1']
+    stats:
+      intelligence: 12
+      mana: 25
 
-  # --- 20 малых (+10 интеллекта) ---
-  m_s_1:    {type: SMALL, name: "§b+10 Интеллекта", x: 760, y: 140, connections: ["start_mage", "m_s_5", "m_med_1"], stats: {intelligence: 10}}
-  m_s_2:    {type: SMALL, name: "§b+10 Интеллекта", x: 840, y: 140, connections: ["start_mage", "m_s_6", "m_med_2"], stats: {intelligence: 10}}
-  m_s_3:    {type: SMALL, name: "§b+10 Интеллекта", x: 760, y: 60,  connections: ["start_mage", "m_s_7", "m_med_3"], stats: {intelligence: 10}}
-  m_s_4:    {type: SMALL, name: "§b+10 Интеллекта", x: 840, y: 60,  connections: ["start_mage", "m_s_8", "m_med_4"], stats: {intelligence: 10}}
-  m_s_5:    {type: SMALL, name: "§b+10 Интеллекта", x: 720, y: 180, connections: ["m_s_1", "m_med_1", "m_s_9"], stats: {intelligence: 10}}
-  m_s_6:    {type: SMALL, name: "§b+10 Интеллекта", x: 880, y: 180, connections: ["m_s_2", "m_med_2", "m_s_10"], stats: {intelligence: 10}}
-  m_s_7:    {type: SMALL, name: "§b+10 Интеллекта", x: 720, y: 40,  connections: ["m_s_3", "m_med_3", "m_s_11"], stats: {intelligence: 10}}
-  m_s_8:    {type: SMALL, name: "§b+10 Интеллекта", x: 880, y: 40,  connections: ["m_s_4", "m_med_4", "m_s_12"], stats: {intelligence: 10}}
-  m_s_9:    {type: SMALL, name: "§b+10 Интеллекта", x: 680, y: 220, connections: ["m_s_5", "m_med_5", "m_not_1"], stats: {intelligence: 10}}
-  m_s_10:   {type: SMALL, name: "§b+10 Интеллекта", x: 920, y: 220, connections: ["m_s_6", "m_med_6", "m_not_2"], stats: {intelligence: 10}}
-  m_s_11:   {type: SMALL, name: "§b+10 Интеллекта", x: 660, y: 80,  connections: ["m_s_7", "m_med_5"], stats: {intelligence: 10}}
-  m_s_12:   {type: SMALL, name: "§b+10 Интеллекта", x: 940, y: 80,  connections: ["m_s_8", "m_med_6"], stats: {intelligence: 10}}
-  m_s_13:   {type: SMALL, name: "§b+10 Интеллекта", x: 800, y: 200, connections: ["m_s_1", "m_s_2", "m_med_5", "m_med_6"], stats: {intelligence: 10}}
-  m_s_14:   {type: SMALL, name: "§b+10 Интеллекта", x: 800, y: 260, connections: ["m_s_13", "m_not_1", "m_not_2"], stats: {intelligence: 10}}
-  m_s_15:   {type: SMALL, name: "§b+10 Интеллекта", x: 720, y: 280, connections: ["m_s_9", "m_not_1", "m_keystone_arcane_flow"], stats: {intelligence: 10}}
-  m_s_16:   {type: SMALL, name: "§b+10 Интеллекта", x: 880, y: 280, connections: ["m_s_10", "m_not_2"], stats: {intelligence: 10}}
-  m_s_17:   {type: SMALL, name: "§b+10 Интеллекта", x: 760, y: 110, connections: ["m_s_1", "m_s_3", "m_keystone_elemental_shield"], stats: {intelligence: 10}}
-  m_s_18:   {type: SMALL, name: "§b+10 Интеллекта", x: 840, y: 110, connections: ["m_s_2", "m_s_4"], stats: {intelligence: 10}}
-  m_s_19:   {type: SMALL, name: "§b+10 Интеллекта", x: 600, y: 200, connections: ["m_s_9", "m_med_5"], stats: {intelligence: 10}}
-  m_s_20:   {type: SMALL, name: "§b+10 Интеллекта", x: 1000, y: 200, connections: ["m_s_10", "m_med_6"], stats: {intelligence: 10}}
+  mage_med_1:
+    type: MEDIUM
+    name: "§b§lМагический поток"
+    x: 1320
+    y: 350
+    connections: ['mage_in_3', 'mage_in_4', 'mage_out_3', 'mage_out_4']
+    stats:
+      intelligence: 10
+      spell_damage: 10
 
-  # --- 6 средних ---
-  m_med_1: {type: MEDIUM, name: "§bМагическая сила", x: 760, y: 180, connections: ["m_s_1", "m_s_5", "m_med_5"], stats: {intelligence: 15, spell_damage: 10}}
-  m_med_2: {type: MEDIUM, name: "§bМагический щит", x: 840, y: 180, connections: ["m_s_2", "m_s_6", "m_med_6"], stats: {intelligence: 15, mana: 50}}
-  m_med_3: {type: MEDIUM, name: "§bПоток маны",     x: 760, y: 30,  connections: ["m_s_3", "m_s_7"], stats: {intelligence: 10, mana: 30}}
-  m_med_4: {type: MEDIUM, name: "§bОгненное сердце",x: 840, y: 30,  connections: ["m_s_4", "m_s_8"], stats: {intelligence: 15, spell_damage: 8}}
-  m_med_5: {type: MEDIUM, name: "§bЛедяная хватка", x: 700, y: 220, connections: ["m_s_9", "m_s_11", "m_s_13", "m_med_1"], stats: {intelligence: 15, spell_damage: 5}}
-  m_med_6: {type: MEDIUM, name: "§bГроза",          x: 900, y: 220, connections: ["m_s_10", "m_s_12", "m_s_13", "m_med_2"], stats: {intelligence: 15, spell_damage: 5}}
+  mage_med_2:
+    type: MEDIUM
+    name: "§b§lПоток энергии"
+    x: 1200
+    y: 470
+    connections: ['mage_in_6', 'mage_in_7', 'mage_not_1', 'mage_out_6', 'mage_out_7']
+    stats:
+      intelligence: 10
+      mana_regen: 8
 
-  # --- 2 крупных ---
-  m_not_1:
+  mage_med_3:
+    type: MEDIUM
+    name: "§b§lАркана"
+    x: 1080
+    y: 350
+    connections: ['mage_in_10', 'mage_in_9', 'mage_out_10', 'mage_out_9']
+    stats:
+      fire_damage: 8
+      intelligence: 12
+
+  mage_not_0:
     type: NOTABLE
-    name: "§b§lАрхимаг"
-    x: 700
-    y: 280
-    connections: ["m_s_9", "m_s_14", "m_s_15", "m_keystone_arcane_flow"]
-    stats: {intelligence: 25, spell_damage: 20, mana: 100}
-  m_not_2:
-    type: NOTABLE
-    name: "§b§lХранитель"
-    x: 900
-    y: 280
-    connections: ["m_s_10", "m_s_14", "m_s_16"]
-    stats: {intelligence: 20, mana: 30}
+    name: "§b§l§oАрхимаг"
+    x: 1200
+    y: 120
+    connections: ['mage_key_0', 'mage_med_0', 'mage_out_0', 'mage_out_1', 'mage_out_11']
+    stats:
+      intelligence: 25
+      mana: 30
+      spell_damage: 25
 
-  # --- 2 ключевых ---
-  m_keystone_elemental_shield:
+  mage_not_1:
+    type: NOTABLE
+    name: "§b§l§oМистик"
+    x: 1200
+    y: 580
+    connections: ['mage_key_1', 'mage_med_2', 'mage_out_5', 'mage_out_6', 'mage_out_7']
+    stats:
+      fire_damage: 15
+      intelligence: 20
+      mana_regen: 15
+
+  mage_out_0:
+    type: SMALL
+    name: "§b+8 Маны"
+    x: 1200
+    y: 190
+    connections: ['mage_in_0', 'mage_med_0', 'mage_not_0', 'mage_out_1', 'mage_out_11']
+    stats:
+      mana: 8
+
+  mage_out_1:
+    type: SMALL
+    name: "§b+5 Инт, +3 рег.маны"
+    x: 1280
+    y: 211
+    connections: ['mage_in_1', 'mage_med_0', 'mage_not_0', 'mage_out_0', 'mage_out_2']
+    stats:
+      intelligence: 5
+      mana_regen: 3
+
+  mage_out_10:
+    type: SMALL
+    name: "§b+5 Инт, +3 рег.маны"
+    x: 1061
+    y: 270
+    connections: ['mage_in_10', 'mage_med_3', 'mage_out_11', 'mage_out_9']
+    stats:
+      intelligence: 5
+      mana_regen: 3
+
+  mage_out_11:
+    type: SMALL
+    name: "§b+5 Интеллекта"
+    x: 1120
+    y: 211
+    connections: ['mage_in_11', 'mage_not_0', 'mage_out_0', 'mage_out_10']
+    stats:
+      intelligence: 5
+
+  mage_out_2:
+    type: SMALL
+    name: "§b+5 Интеллекта"
+    x: 1339
+    y: 270
+    connections: ['mage_in_2', 'mage_key_0', 'mage_out_1', 'mage_out_3']
+    stats:
+      intelligence: 5
+
+  mage_out_3:
+    type: SMALL
+    name: "§b+8 Маны"
+    x: 1360
+    y: 350
+    connections: ['mage_in_3', 'mage_key_0', 'mage_med_1', 'mage_out_2', 'mage_out_4']
+    stats:
+      mana: 8
+
+  mage_out_4:
+    type: SMALL
+    name: "§b+5 Инт, +3 рег.маны"
+    x: 1339
+    y: 430
+    connections: ['bridge_mage_archer_0', 'mage_in_4', 'mage_med_1', 'mage_out_3', 'mage_out_5']
+    stats:
+      intelligence: 5
+      mana_regen: 3
+
+  mage_out_5:
+    type: SMALL
+    name: "§b+5 Интеллекта"
+    x: 1280
+    y: 489
+    connections: ['mage_in_5', 'mage_not_1', 'mage_out_4', 'mage_out_6']
+    stats:
+      intelligence: 5
+
+  mage_out_6:
+    type: SMALL
+    name: "§b+8 Маны"
+    x: 1200
+    y: 510
+    connections: ['mage_in_6', 'mage_med_2', 'mage_not_1', 'mage_out_5', 'mage_out_7']
+    stats:
+      mana: 8
+
+  mage_out_7:
+    type: SMALL
+    name: "§b+5 Инт, +3 рег.маны"
+    x: 1120
+    y: 489
+    connections: ['mage_in_7', 'mage_med_2', 'mage_not_1', 'mage_out_6', 'mage_out_8']
+    stats:
+      intelligence: 5
+      mana_regen: 3
+
+  mage_out_8:
+    type: SMALL
+    name: "§b+5 Интеллекта"
+    x: 1061
+    y: 430
+    connections: ['bridge_warrior_mage_2', 'mage_in_8', 'mage_key_1', 'mage_out_7', 'mage_out_9']
+    stats:
+      intelligence: 5
+
+  mage_out_9:
+    type: SMALL
+    name: "§b+8 Маны"
+    x: 1040
+    y: 350
+    connections: ['mage_in_9', 'mage_key_1', 'mage_med_3', 'mage_out_10', 'mage_out_8']
+    stats:
+      mana: 8
+
+  warrior_in_0:
+    type: SMALL
+    name: "§c+5 Силы"
+    x: 500
+    y: 720
+    connections: ['start_warrior', 'warrior_in_1', 'warrior_in_11', 'warrior_med_0', 'warrior_out_0']
+    stats:
+      strength: 5
+
+  warrior_in_1:
+    type: SMALL
+    name: "§c+8 HP"
+    x: 540
+    y: 731
+    connections: ['start_warrior', 'warrior_in_0', 'warrior_in_2', 'warrior_med_0', 'warrior_out_1']
+    stats:
+      health: 8
+
+  warrior_in_10:
+    type: SMALL
+    name: "§c+8 HP"
+    x: 431
+    y: 760
+    connections: ['start_warrior', 'warrior_in_11', 'warrior_in_9', 'warrior_med_3', 'warrior_out_10']
+    stats:
+      health: 8
+
+  warrior_in_11:
+    type: SMALL
+    name: "§c+5 Силы, +3 HP"
+    x: 460
+    y: 731
+    connections: ['start_warrior', 'warrior_in_0', 'warrior_in_10', 'warrior_out_11']
+    stats:
+      health: 3
+      strength: 5
+
+  warrior_in_2:
+    type: SMALL
+    name: "§c+5 Силы, +3 HP"
+    x: 569
+    y: 760
+    connections: ['start_warrior', 'warrior_in_1', 'warrior_in_3', 'warrior_out_2']
+    stats:
+      health: 3
+      strength: 5
+
+  warrior_in_3:
+    type: SMALL
+    name: "§c+5 Силы"
+    x: 580
+    y: 800
+    connections: ['start_warrior', 'warrior_in_2', 'warrior_in_4', 'warrior_med_1', 'warrior_out_3']
+    stats:
+      strength: 5
+
+  warrior_in_4:
+    type: SMALL
+    name: "§c+8 HP"
+    x: 569
+    y: 840
+    connections: ['start_warrior', 'warrior_in_3', 'warrior_in_5', 'warrior_med_1', 'warrior_out_4']
+    stats:
+      health: 8
+
+  warrior_in_5:
+    type: SMALL
+    name: "§c+5 Силы, +3 HP"
+    x: 540
+    y: 869
+    connections: ['start_warrior', 'warrior_in_4', 'warrior_in_6', 'warrior_out_5']
+    stats:
+      health: 3
+      strength: 5
+
+  warrior_in_6:
+    type: SMALL
+    name: "§c+5 Силы"
+    x: 500
+    y: 880
+    connections: ['start_warrior', 'warrior_in_5', 'warrior_in_7', 'warrior_med_2', 'warrior_out_6']
+    stats:
+      strength: 5
+
+  warrior_in_7:
+    type: SMALL
+    name: "§c+8 HP"
+    x: 460
+    y: 869
+    connections: ['start_warrior', 'warrior_in_6', 'warrior_in_8', 'warrior_med_2', 'warrior_out_7']
+    stats:
+      health: 8
+
+  warrior_in_8:
+    type: SMALL
+    name: "§c+5 Силы, +3 HP"
+    x: 431
+    y: 840
+    connections: ['start_warrior', 'warrior_in_7', 'warrior_in_9', 'warrior_out_8']
+    stats:
+      health: 3
+      strength: 5
+
+  warrior_in_9:
+    type: SMALL
+    name: "§c+5 Силы"
+    x: 420
+    y: 800
+    connections: ['start_warrior', 'warrior_in_10', 'warrior_in_8', 'warrior_med_3', 'warrior_out_9']
+    stats:
+      strength: 5
+
+  warrior_key_0:
     type: KEYSTONE
-    name: "§9§lСтихийный щит"
-    x: 750
-    y: 100
-    connections: ["m_s_17", "m_s_1", "m_s_3"]
-    stats: {fire_resist: 30, cold_resist: 30, lightning_resist: 30, armor: -30}
-  m_keystone_arcane_flow:
+    name: "§4§l§oКровавая ярость"
+    x: 726
+    y: 574
+    connections: ['warrior_not_0', 'warrior_out_2', 'warrior_out_3']
+    stats:
+      armour: -50
+      physical_damage: 50
+      strength: 30
+
+  warrior_key_1:
     type: KEYSTONE
-    name: "§9§lМагический поток"
-    x: 650
-    y: 150
-    connections: ["m_s_15", "m_not_1"]
-    stats: {mana_regen: 50, health: -30}
+    name: "§4§l§oНепоколебимый"
+    x: 274
+    y: 1026
+    connections: ['warrior_not_1', 'warrior_out_8', 'warrior_out_9']
+    stats:
+      health: 100
+      move_speed: -20
+      strength: 20
 
-  # ===========================================================================
-  # ЦЕНТР (x:500..1100, y:500..900) — кросс-классы
-  # 5 средних, 3 крупных, 1 ключевой
-  # ===========================================================================
-  c_med_1: {type: MEDIUM, name: "§eСтойкость",       x: 600, y: 700, connections: ["b_wm_5", "c_not_1"],  stats: {strength: 10, intelligence: 10}}
-  c_med_2: {type: MEDIUM, name: "§eРавновесие",      x: 700, y: 600, connections: ["b_wa_2", "c_not_1", "c_not_3"], stats: {strength: 10, dexterity: 10}}
-  c_med_3: {type: MEDIUM, name: "§eГармония",        x: 900, y: 600, connections: ["b_wa_4", "c_not_2", "c_not_3"], stats: {dexterity: 10, intelligence: 10}}
-  c_med_4: {type: MEDIUM, name: "§eВыносливость",    x: 800, y: 750, connections: ["c_not_1", "c_not_2", "c_keystone_storm_heart"], stats: {health: 50}}
-  c_med_5: {type: MEDIUM, name: "§eСосредоточение",  x: 800, y: 500, connections: ["b_am_5", "c_not_3", "c_keystone_storm_heart"], stats: {mana: 50, mana_regen: 5}}
+  warrior_med_0:
+    type: MEDIUM
+    name: "§c§lЖелезная кожа"
+    x: 500
+    y: 680
+    connections: ['warrior_in_0', 'warrior_in_1', 'warrior_not_0', 'warrior_out_0', 'warrior_out_1']
+    stats:
+      armour: 5
+      health: 15
+      strength: 12
 
-  c_not_1:
+  warrior_med_1:
+    type: MEDIUM
+    name: "§c§lМощный удар"
+    x: 620
+    y: 800
+    connections: ['warrior_in_3', 'warrior_in_4', 'warrior_out_3', 'warrior_out_4']
+    stats:
+      physical_damage: 8
+      strength: 12
+
+  warrior_med_2:
+    type: MEDIUM
+    name: "§c§lНапор"
+    x: 500
+    y: 920
+    connections: ['warrior_in_6', 'warrior_in_7', 'warrior_not_1', 'warrior_out_6', 'warrior_out_7']
+    stats:
+      attack_speed: 5
+      strength: 10
+
+  warrior_med_3:
+    type: MEDIUM
+    name: "§c§lКаменное тело"
+    x: 380
+    y: 800
+    connections: ['warrior_in_10', 'warrior_in_9', 'warrior_out_10', 'warrior_out_9']
+    stats:
+      health: 25
+      strength: 8
+
+  warrior_not_0:
     type: NOTABLE
-    name: "§e§lТитан"
-    x: 700
-    y: 700
-    connections: ["c_med_1", "c_med_2", "c_med_4", "c_keystone_storm_heart"]
-    stats: {strength: 15, health: 50, armor: 10}
-  c_not_2:
+    name: "§c§l§oБерсерк"
+    x: 500
+    y: 570
+    connections: ['warrior_key_0', 'warrior_med_0', 'warrior_out_0', 'warrior_out_1', 'warrior_out_11']
+    stats:
+      attack_speed: 10
+      physical_damage: 20
+      strength: 25
+
+  warrior_not_1:
     type: NOTABLE
-    name: "§e§lФеникс"
-    x: 900
-    y: 700
-    connections: ["c_med_3", "c_med_4", "c_keystone_storm_heart"]
-    stats: {dexterity: 15, health: 30, mana: 30}
-  c_not_3:
-    type: NOTABLE
-    name: "§e§lОракул"
-    x: 800
-    y: 600
-    connections: ["c_med_2", "c_med_3", "c_med_5", "c_keystone_storm_heart"]
-    stats: {intelligence: 15, mana: 50, spell_damage: 10}
+    name: "§c§l§oБастион"
+    x: 500
+    y: 1030
+    connections: ['warrior_key_1', 'warrior_med_2', 'warrior_out_5', 'warrior_out_6', 'warrior_out_7']
+    stats:
+      armour: 15
+      health: 50
+      strength: 20
 
-  c_keystone_storm_heart:
-    type: KEYSTONE
-    name: "§6§lСердце бури"
-    x: 800
-    y: 650
-    connections: ["c_med_4", "c_med_5", "c_not_1", "c_not_2", "c_not_3"]
-    stats: {fire_damage: 25, cold_damage: 25, lightning_damage: 25, damage: -50}
+  warrior_out_0:
+    type: SMALL
+    name: "§c+8 HP"
+    x: 500
+    y: 640
+    connections: ['warrior_in_0', 'warrior_med_0', 'warrior_not_0', 'warrior_out_1', 'warrior_out_11']
+    stats:
+      health: 8
 
-  # ===========================================================================
-  # МОСТЫ МЕЖДУ ЗОНАМИ (по 5 малых узлов в цепочке)
-  # ===========================================================================
+  warrior_out_1:
+    type: SMALL
+    name: "§c+5 Силы, +3 HP"
+    x: 580
+    y: 661
+    connections: ['warrior_in_1', 'warrior_med_0', 'warrior_not_0', 'warrior_out_0', 'warrior_out_2']
+    stats:
+      health: 3
+      strength: 5
 
-  # --- Мост Воин ↔ Лучник (горизонтальный, y=450) ---
-  b_wa_1: {type: SMALL, name: "§7Закалённое тело", x: 500,  y: 450, connections: ["w_keystone_berserk", "b_wa_2"], stats: {strength: 5, dexterity: 5}}
-  b_wa_2: {type: SMALL, name: "§7Закалённое тело", x: 700,  y: 450, connections: ["b_wa_1", "b_wa_3", "c_med_2"], stats: {strength: 5, dexterity: 5}}
-  b_wa_3: {type: SMALL, name: "§7Закалённое тело", x: 800,  y: 450, connections: ["b_wa_2", "b_wa_4"], stats: {strength: 5, dexterity: 5}}
-  b_wa_4: {type: SMALL, name: "§7Закалённое тело", x: 900,  y: 450, connections: ["b_wa_3", "b_wa_5", "c_med_3"], stats: {strength: 5, dexterity: 5}}
-  b_wa_5: {type: SMALL, name: "§7Закалённое тело", x: 1100, y: 450, connections: ["b_wa_4", "a_keystone_sniper"], stats: {strength: 5, dexterity: 5}}
+  warrior_out_10:
+    type: SMALL
+    name: "§c+5 Силы, +3 HP"
+    x: 361
+    y: 720
+    connections: ['warrior_in_10', 'warrior_med_3', 'warrior_out_11', 'warrior_out_9']
+    stats:
+      health: 3
+      strength: 5
 
-  # --- Мост Воин ↔ Маг (вертикальный, x=500) ---
-  b_wm_1: {type: SMALL, name: "§7Дисциплина", x: 500, y: 500, connections: ["w_keystone_berserk", "b_wm_2"], stats: {strength: 5, intelligence: 5}}
-  b_wm_2: {type: SMALL, name: "§7Дисциплина", x: 500, y: 550, connections: ["b_wm_1", "b_wm_3"], stats: {strength: 5, intelligence: 5}}
-  b_wm_3: {type: SMALL, name: "§7Дисциплина", x: 500, y: 600, connections: ["b_wm_2", "b_wm_4"], stats: {strength: 5, intelligence: 5}}
-  b_wm_4: {type: SMALL, name: "§7Дисциплина", x: 500, y: 650, connections: ["b_wm_3", "b_wm_5"], stats: {strength: 5, intelligence: 5}}
-  b_wm_5: {type: SMALL, name: "§7Дисциплина", x: 500, y: 700, connections: ["b_wm_4", "c_med_1"], stats: {strength: 5, intelligence: 5}}
+  warrior_out_11:
+    type: SMALL
+    name: "§c+5 Силы"
+    x: 420
+    y: 661
+    connections: ['warrior_in_11', 'warrior_not_0', 'warrior_out_0', 'warrior_out_10']
+    stats:
+      strength: 5
 
-  # --- Мост Лучник ↔ Маг (вертикальный, x=1100) ---
-  b_am_1: {type: SMALL, name: "§7Точность", x: 1100, y: 500, connections: ["a_keystone_sniper", "b_am_2"], stats: {dexterity: 5, intelligence: 5}}
-  b_am_2: {type: SMALL, name: "§7Точность", x: 1100, y: 550, connections: ["b_am_1", "b_am_3"], stats: {dexterity: 5, intelligence: 5}}
-  b_am_3: {type: SMALL, name: "§7Точность", x: 1100, y: 600, connections: ["b_am_2", "b_am_4"], stats: {dexterity: 5, intelligence: 5}}
-  b_am_4: {type: SMALL, name: "§7Точность", x: 1100, y: 650, connections: ["b_am_3", "b_am_5"], stats: {dexterity: 5, intelligence: 5}}
-  b_am_5: {type: SMALL, name: "§7Точность", x: 1100, y: 700, connections: ["b_am_4", "c_med_5"], stats: {dexterity: 5, intelligence: 5}}
+  warrior_out_2:
+    type: SMALL
+    name: "§c+5 Силы"
+    x: 639
+    y: 720
+    connections: ['bridge_warrior_mage_0', 'warrior_in_2', 'warrior_key_0', 'warrior_out_1', 'warrior_out_3']
+    stats:
+      strength: 5
+
+  warrior_out_3:
+    type: SMALL
+    name: "§c+8 HP"
+    x: 660
+    y: 800
+    connections: ['bridge_warrior_archer_0', 'warrior_in_3', 'warrior_key_0', 'warrior_med_1', 'warrior_out_2', 'warrior_out_4']
+    stats:
+      health: 8
+
+  warrior_out_4:
+    type: SMALL
+    name: "§c+5 Силы, +3 HP"
+    x: 639
+    y: 880
+    connections: ['warrior_in_4', 'warrior_med_1', 'warrior_out_3', 'warrior_out_5']
+    stats:
+      health: 3
+      strength: 5
+
+  warrior_out_5:
+    type: SMALL
+    name: "§c+5 Силы"
+    x: 580
+    y: 939
+    connections: ['warrior_in_5', 'warrior_not_1', 'warrior_out_4', 'warrior_out_6']
+    stats:
+      strength: 5
+
+  warrior_out_6:
+    type: SMALL
+    name: "§c+8 HP"
+    x: 500
+    y: 960
+    connections: ['warrior_in_6', 'warrior_med_2', 'warrior_not_1', 'warrior_out_5', 'warrior_out_7']
+    stats:
+      health: 8
+
+  warrior_out_7:
+    type: SMALL
+    name: "§c+5 Силы, +3 HP"
+    x: 420
+    y: 939
+    connections: ['warrior_in_7', 'warrior_med_2', 'warrior_not_1', 'warrior_out_6', 'warrior_out_8']
+    stats:
+      health: 3
+      strength: 5
+
+  warrior_out_8:
+    type: SMALL
+    name: "§c+5 Силы"
+    x: 361
+    y: 880
+    connections: ['warrior_in_8', 'warrior_key_1', 'warrior_out_7', 'warrior_out_9']
+    stats:
+      strength: 5
+
+  warrior_out_9:
+    type: SMALL
+    name: "§c+8 HP"
+    x: 340
+    y: 800
+    connections: ['warrior_in_9', 'warrior_key_1', 'warrior_med_3', 'warrior_out_10', 'warrior_out_8']
+    stats:
+      health: 8
+
+  bridge_warrior_mage_0:
+    type: SMALL
+    name: "§7§oПроход"
+    x: 710
+    y: 665
+    connections: ['bridge_warrior_mage_1', 'warrior_out_2']
+    stats:
+      health: 5
+      mana: 5
+
+  bridge_warrior_mage_1:
+    type: SMALL
+    name: "§7§oПроход"
+    x: 850
+    y: 575
+    connections: ['bridge_warrior_mage_0', 'bridge_warrior_mage_2']
+    stats:
+      health: 5
+      mana: 5
+
+  bridge_warrior_mage_2:
+    type: SMALL
+    name: "§7§oПроход"
+    x: 990
+    y: 485
+    connections: ['bridge_warrior_mage_1', 'mage_out_8']
+    stats:
+      health: 5
+      mana: 5
+
+  bridge_mage_archer_0:
+    type: SMALL
+    name: "§7§oПроход"
+    x: 1410
+    y: 485
+    connections: ['bridge_mage_archer_1', 'mage_out_4']
+    stats:
+      health: 5
+      mana: 5
+
+  bridge_mage_archer_1:
+    type: SMALL
+    name: "§7§oПроход"
+    x: 1550
+    y: 575
+    connections: ['bridge_mage_archer_0', 'bridge_mage_archer_2']
+    stats:
+      health: 5
+      mana: 5
+
+  bridge_mage_archer_2:
+    type: SMALL
+    name: "§7§oПроход"
+    x: 1690
+    y: 665
+    connections: ['archer_out_10', 'bridge_mage_archer_1']
+    stats:
+      health: 5
+      mana: 5
+
+  bridge_warrior_archer_0:
+    type: SMALL
+    name: "§7§oПроход"
+    x: 920
+    y: 800
+    connections: ['bridge_warrior_archer_1', 'warrior_out_3']
+    stats:
+      health: 5
+      mana: 5
+
+  bridge_warrior_archer_1:
+    type: SMALL
+    name: "§7§oПроход"
+    x: 1200
+    y: 800
+    connections: ['bridge_warrior_archer_0', 'bridge_warrior_archer_2']
+    stats:
+      health: 5
+      mana: 5
+
+  bridge_warrior_archer_2:
+    type: SMALL
+    name: "§7§oПроход"
+    x: 1480
+    y: 800
+    connections: ['archer_out_9', 'bridge_warrior_archer_1']
+    stats:
+      health: 5
+      mana: 5
+
+
