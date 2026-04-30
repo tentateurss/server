@@ -45,7 +45,9 @@ public final class SpireParticles {
                 double cx = WorldGenerator.spireCenterX;
                 double cy = WorldGenerator.spireCenterY;
                 double cz = WorldGenerator.spireCenterZ;
-                if (Double.isNaN(cx)) return;
+                // Координаты предынициализированы константами в
+                // WorldGenerator, поэтому Double.NaN тут не ожидается.
+                if (Double.isNaN(cx) || Double.isNaN(cy) || Double.isNaN(cz)) return;
 
                 Location center = new Location(world, cx, cy, cz);
 
