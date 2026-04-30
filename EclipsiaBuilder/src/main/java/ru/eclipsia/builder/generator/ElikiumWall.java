@@ -59,23 +59,23 @@ import java.util.Random;
 public final class ElikiumWall {
 
     private static final int Y_BASE = WorldGenerator.CITY_FLOOR_Y; // 70
-    private static final int WALL_HEIGHT = 18;       // y=70..87
-    private static final int WALL_TOP_Y = Y_BASE + WALL_HEIGHT - 1; // 87
-    private static final int CRENEL_Y   = Y_BASE + WALL_HEIGHT;     // 88
-    /** Полутолщина стены: общая толщина = 2*HALF + 1 = 5. */
-    private static final int WALL_HALF_THICKNESS = 2;
+    private static final int WALL_HEIGHT = 27;       // y=70..96
+    private static final int WALL_TOP_Y = Y_BASE + WALL_HEIGHT - 1; // 96
+    private static final int CRENEL_Y   = Y_BASE + WALL_HEIGHT;     // 97
+    /** Полутолщина стены: общая толщина = 2*HALF + 1 = 9. */
+    private static final int WALL_HALF_THICKNESS = 4;
 
-    private static final int TOWER_HEIGHT = 28; // y=70..97
-    private static final int TOWER_TOP_Y  = Y_BASE + TOWER_HEIGHT - 1; // 97
-    private static final int TOWER_RADIUS = 4;
+    private static final int TOWER_HEIGHT = 42; // y=70..111
+    private static final int TOWER_TOP_Y  = Y_BASE + TOWER_HEIGHT - 1; // 111
+    private static final int TOWER_RADIUS = 7;
     /** Внутренняя пустота башни. */
-    private static final int TOWER_INNER_R = TOWER_RADIUS - 1; // 3
+    private static final int TOWER_INNER_R = TOWER_RADIUS - 1; // 6
 
-    private static final int GATE_HALF_WIDTH = 3;  // проём 7 = 2*3+1
-    private static final int GATE_HEIGHT     = 12; // y=70..81 — открыто
+    private static final int GATE_HALF_WIDTH = 5;  // проём 11 = 2*5+1
+    private static final int GATE_HEIGHT     = 18; // y=70..87 — открыто
 
-    private static final int TOWER_SPACING_MIN = 30;
-    private static final int TOWER_SPACING_MAX = 40;
+    private static final int TOWER_SPACING_MIN = 45;
+    private static final int TOWER_SPACING_MAX = 60;
 
     private final Plugin plugin;
     private final RegionPainter painter;
@@ -194,17 +194,18 @@ public final class ElikiumWall {
             int x = cx + (perpAxis == 0 ? off : 0);
             int z = cz + (perpAxis == 1 ? off : 0);
 
-            // Фундамент (y=70..71) — COBBLED_DEEPSLATE (два слоя «пятки»).
+            // Фундамент (y=70..72) — COBBLED_DEEPSLATE (три слоя «пятки»).
             painter.place(x, Y_BASE,     z, Material.COBBLED_DEEPSLATE);
             painter.place(x, Y_BASE + 1, z, Material.COBBLED_DEEPSLATE);
-            // Тело стены (y=72..85) — DEEPSLATE_BRICKS с поясом TILES каждые 5 блоков.
-            for (int dy = 2; dy <= WALL_HEIGHT - 2; dy++) {
-                Material mat = (dy % 5 == 0)
+            painter.place(x, Y_BASE + 2, z, Material.COBBLED_DEEPSLATE);
+            // Тело стены — DEEPSLATE_BRICKS с поясом TILES каждые 6 блоков.
+            for (int dy = 3; dy <= WALL_HEIGHT - 2; dy++) {
+                Material mat = (dy % 6 == 0)
                         ? Material.DEEPSLATE_TILES
                         : Material.DEEPSLATE_BRICKS;
                 painter.place(x, Y_BASE + dy, z, mat);
             }
-            // Карниз (y=87) — DEEPSLATE_TILES, под боевой ход.
+            // Карниз — DEEPSLATE_TILES, под боевой ход.
             painter.place(x, WALL_TOP_Y, z, Material.DEEPSLATE_TILES);
         }
 
@@ -215,7 +216,8 @@ public final class ElikiumWall {
         //   DEEPSLATE_BRICK_WALL.
         // «Через клетку» — простая чётность (cx+cz)%2.
         boolean even = ((cx + cz) & 1) == 0;
-        for (int off = -1; off <= 1; off++) {
+        // Средний настил 5 блоков шириной (off=-2..+2) — боевой ход.
+        for (int off = -2; off <= 2; off++) {
             int x = cx + (perpAxis == 0 ? off : 0);
             int z = cz + (perpAxis == 1 ? off : 0);
             painter.place(x, CRENEL_Y, z, Material.CHISELED_DEEPSLATE);
@@ -228,6 +230,9 @@ public final class ElikiumWall {
             int zIn  = cz + (perpAxis == 1 ?  WALL_HALF_THICKNESS : 0);
             painter.place(xOut, CRENEL_Y, zOut, Material.DEEPSLATE_BRICK_WALL);
             painter.place(xIn,  CRENEL_Y, zIn,  Material.DEEPSLATE_BRICK_WALL);
+            // Двухрядный зубец — +1 блок выше для «элитного» вида.
+            painter.place(xOut, CRENEL_Y + 1, zOut, Material.DEEPSLATE_BRICK_WALL);
+            painter.place(xIn,  CRENEL_Y + 1, zIn,  Material.DEEPSLATE_BRICK_WALL);
         }
     }
 
@@ -297,19 +302,19 @@ public final class ElikiumWall {
             pillarOffsetB =  GATE_HALF_WIDTH + 1;
         }
 
-        // Пилоны 3×3×22 по бокам (выше стены на 4 блока).
-        int pillarHeight = WALL_HEIGHT + 4;
+        // Пилоны 5×5 по бокам (выше стены на 6 блоков).
+        int pillarHeight = WALL_HEIGHT + 6;
         for (int side : new int[]{pillarOffsetA, pillarOffsetB}) {
-            for (int t = -1; t <= 1; t++) { // толщина 3
+            for (int t = -2; t <= 2; t++) { // толщина 5
                 int px = gx + (horizontalGate ? side : t);
                 int pz = gz + (horizontalGate ? t    : side);
                 for (int dy = 0; dy < pillarHeight; dy++) {
                     Material mat;
-                    if (dy == 0 || dy == 1) {
+                    if (dy <= 2) {
                         mat = Material.COBBLED_DEEPSLATE;
                     } else if (dy >= WALL_HEIGHT - 1) {
                         mat = Material.DEEPSLATE_TILES;
-                    } else if (dy % 5 == 0) {
+                    } else if (dy % 6 == 0) {
                         mat = Material.DEEPSLATE_TILES;
                     } else {
                         mat = Material.DEEPSLATE_BRICKS;
@@ -367,12 +372,14 @@ public final class ElikiumWall {
             }
         }
 
-        // Бойницы на двух ярусах (y=78, y=88) — 4 стороны.
-        for (int slitY : new int[]{Y_BASE + 8, Y_BASE + 18}) {
-            painter.place(cx + rOuter, slitY, cz, Material.AIR);
-            painter.place(cx - rOuter, slitY, cz, Material.AIR);
-            painter.place(cx, slitY, cz + rOuter, Material.AIR);
-            painter.place(cx, slitY, cz - rOuter, Material.AIR);
+        // Бойницы на трёх ярусах — 4 стороны × 2 слоя по высоте.
+        for (int slitY : new int[]{Y_BASE + 12, Y_BASE + 24, Y_BASE + 34}) {
+            for (int dy = 0; dy <= 1; dy++) {
+                painter.place(cx + rOuter, slitY + dy, cz, Material.AIR);
+                painter.place(cx - rOuter, slitY + dy, cz, Material.AIR);
+                painter.place(cx, slitY + dy, cz + rOuter, Material.AIR);
+                painter.place(cx, slitY + dy, cz - rOuter, Material.AIR);
+            }
         }
 
         // Карниз (y=Y_BASE+TOWER_HEIGHT-2): кольцо DEEPSLATE_TILES.
@@ -387,9 +394,9 @@ public final class ElikiumWall {
             }
         }
 
-        // Конус крыши: 4 уровня, радиус убывает 4 → 1.
+        // Конус крыши: 7 уровней, радиус убывает 7 → 1.
         int roofBaseY = Y_BASE + TOWER_HEIGHT - 1;
-        for (int level = 0; level < 4; level++) {
+        for (int level = 0; level < 7; level++) {
             int rAt = rOuter - level;
             if (rAt < 1) rAt = 1;
             int r2 = rAt * rAt;
@@ -404,10 +411,11 @@ public final class ElikiumWall {
             }
         }
 
-        // Маяк на пике: LANTERN + END_ROD.
-        int peakY = roofBaseY + 4;
+        // Маяк на пике: LANTERN + 3×END_ROD (больше высоты под ×3-масштаб).
+        int peakY = roofBaseY + 7;
         painter.place(cx, peakY,     cz, Material.LANTERN);
         painter.place(cx, peakY + 1, cz, Material.END_ROD);
         painter.place(cx, peakY + 2, cz, Material.END_ROD);
+        painter.place(cx, peakY + 3, cz, Material.END_ROD);
     }
 }
