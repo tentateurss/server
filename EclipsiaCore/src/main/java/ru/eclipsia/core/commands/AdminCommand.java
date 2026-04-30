@@ -245,6 +245,27 @@ public class AdminCommand implements CommandExecutor {
         // Закрыть открытое окно (например, EquipmentGUI с курсором в руках).
         target.closeInventory();
 
+        // Сначала чистим AttributeModifier'ы от StatsBonusApplier — иначе
+        // если игрок до ресета натыкал /teststats max, его HP/attack_damage
+        // останутся «прокачанными», и переход на свежий профиль будет
+        // выглядеть как «ресет не работает».
+        try {
+            ru.eclipsia.core.stats.StatsBonusApplier.removeAllBonuses(target);
+        } catch (Throwable t) {
+            Bukkit.getLogger().warning("[AdminCommand] removeAllBonuses failed: " + t.getMessage());
+        }
+        // Заодно вычистим PDC, в который StatsBonusApplier пишет evasion и
+        // spell_damage_bonus — они читаются listener'ами при следующих ударах.
+        try {
+            org.bukkit.plugin.Plugin core = Bukkit.getPluginManager().getPlugin("EclipsiaCore");
+            if (core != null) {
+                target.getPersistentDataContainer().remove(
+                        new org.bukkit.NamespacedKey(core, "evasion_chance"));
+                target.getPersistentDataContainer().remove(
+                        new org.bukkit.NamespacedKey(core, "spell_damage_bonus"));
+            }
+        } catch (Throwable ignored) {}
+
         // Сбрасываем здоровье
         target.setHealth(20.0);
         target.setMaxHealth(20.0);
@@ -320,6 +341,27 @@ public class AdminCommand implements CommandExecutor {
         } catch (Exception e) {
             Bukkit.getLogger().warning("[AdminCommand] Не удалось сбросить Хранителя: " + e.getMessage());
         }
+        // v12: Сброс дерева перков. Без этого после /admin resetplayer
+        // web-tree продолжает показывать старые узлы — допустим, archer
+        // c прокачкой воина. EclipsiaPerks — soft-dep, обращаемся через
+        // рефлексию.
+        try {
+            Class<?> perksMain = Class.forName("ru.eclipsia.perks.EclipsiaPerks");
+            Object perksPlugin = perksMain.getMethod("getInstance").invoke(null);
+            if (perksPlugin != null) {
+                Object pm = perksMain.getMethod("getPlayerManager").invoke(perksPlugin);
+                if (pm != null) {
+                    pm.getClass().getMethod("resetTree", java.util.UUID.class)
+                            .invoke(pm, target.getUniqueId());
+                    Bukkit.getLogger().info("[AdminCommand] perkTree сброшен для " + target.getName());
+                }
+            }
+        } catch (ClassNotFoundException ignored) {
+            // EclipsiaPerks не установлен.
+        } catch (Exception e) {
+            Bukkit.getLogger().warning("[AdminCommand] Не удалось сбросить perkTree: " + e.getMessage());
+        }
+
         try {
             Class<?> mobsMain = Class.forName("ru.eclipsia.mobs.EclipsiaMobs");
             Object mobsPlugin = mobsMain.getMethod("getInstance").invoke(null);

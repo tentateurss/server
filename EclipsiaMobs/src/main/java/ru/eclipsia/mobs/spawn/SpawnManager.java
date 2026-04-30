@@ -63,6 +63,12 @@ public class SpawnManager {
         instance = new SpawnManager(plugin);
         instance.loadConfig();
         instance.loadZones();
+        // На старте сервера ВСЕГДА вычищаем кастом-мобов с предыдущей сессии,
+        // чтобы новый ростер из mobs.yml встал сразу. Иначе старые
+        // skeleton_archer/zombie_warrior из old config остаются жить
+        // на чанках и блокируют per-zone cap (новые не спавнятся).
+        Bukkit.getScheduler().runTaskLater(plugin,
+                () -> instance.purgeAllCustomMobs(), 60L);
         instance.startSpawning();
     }
 
@@ -279,6 +285,42 @@ public class SpawnManager {
      */
     public LivingEntity spawnMob(String mobId, Location location) {
         return MobManager.getInstance().spawnCustomMob(mobId, location);
+    }
+
+    /**
+     * Удалить ВСЕ кастом-мобы (с PDC-меткой ZONE_ID_KEY) во всех мирах.
+     * Используется после reload mobs.yml, чтобы новый конфиг немедленно
+     * применился — старые мобы старого ростера despawn'ятся, и зоны
+     * перезаспавнят актуальный набор.
+     *
+     * @return количество удалённых мобов
+     */
+    public int purgeAllCustomMobs() {
+        NamespacedKey key = new NamespacedKey(plugin, ZONE_ID_KEY);
+        int removed = 0;
+        for (World w : Bukkit.getWorlds()) {
+            for (Entity e : w.getEntities()) {
+                if (!(e instanceof LivingEntity living)) continue;
+                if (e instanceof org.bukkit.entity.Player) continue;
+                if (e.hasMetadata("eclipsia_boss")) continue;
+                if (living.getPersistentDataContainer().get(key, PersistentDataType.STRING) == null) continue;
+                e.remove();
+                removed++;
+            }
+        }
+        plugin.getLogger().info("purgeAllCustomMobs: удалено " + removed);
+        return removed;
+    }
+
+    /**
+     * Перезагрузить mobs.yml: чистим зоны, удаляем всех живых
+     * кастом-мобов и заново читаем конфиг. Активный spawnTask продолжает
+     * работать со свежим списком zones.
+     */
+    public void reload() {
+        zones.clear();
+        purgeAllCustomMobs();
+        loadZones();
     }
 
     /**

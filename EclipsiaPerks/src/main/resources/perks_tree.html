@@ -289,7 +289,10 @@ const ctx = cv.getContext('2d');
 let tree = null;
 let allocated = new Set();
 let availablePoints = 0;
-let session = null;       // {uuid, name}
+let session = null;       // {uuid, name, playerClass}
+// Класс игрока ('warrior'|'archer'|'mage'|null) — нужен, чтобы скрыть
+// чужие START-узлы. Берётся из /api/perks/auth и /api/perks/player.
+let playerClass = null;
 let scale = 0.7, ox = 0, oy = 0;
 let dragging = false, dragStart = null, dragMoved = false;
 let hover = null;
@@ -326,6 +329,17 @@ const PERCENT_STATS = new Set([
   'lightning_resist','attack_speed','move_speed','dodge'
 ]);
 
+// START-узлы привязаны к классам по id (start_warrior/start_archer/start_mage).
+// Если playerClass известен, START-узлы ДРУГИХ классов скрываем — иначе на
+// дереве сразу горят все 3 точки входа, и игрок думает, что выбрано 3 класса.
+function isForeignStart(n) {
+  if (!n || n.type !== 'START' || !playerClass) return false;
+  const id = (n.id || '').toLowerCase();
+  if (!id.startsWith('start_')) return false;
+  const cls = id.substring('start_'.length);
+  return cls !== playerClass;
+}
+
 // ============================================================================
 // API
 // ============================================================================
@@ -351,6 +365,7 @@ async function doLogin() {
     session = { uuid: d.uuid, name: d.name || nick };
     allocated = new Set(d.allocatedNodes || []);
     availablePoints = d.availablePoints || 0;
+    playerClass = d.playerClass || null;
     localStorage.setItem('eclipsiaSession', JSON.stringify(session));
     enterTree();
   } catch (e) {
@@ -384,6 +399,7 @@ async function refreshPlayer() {
     allocated = new Set(d.allocatedNodes || []);
     availablePoints = d.availablePoints || 0;
     if (d.name) session.name = d.name;
+    if (d.playerClass) playerClass = d.playerClass;
     updateHud();
   } catch (e) {
     toast(e.message, 'err');
@@ -417,18 +433,19 @@ async function dealloc(nodeId) {
 }
 
 async function resetAll() {
-  if (!session || allocated.size === 0) return;
-  if (!confirm('Сбросить ВСЕ изученные узлы (' + allocated.size + ')?')) return;
-  // Сбрасываем по одному на сервере (нет batch endpoint).
-  const ids = [...allocated];
-  // Сбрасываем от листьев к корню — обратный порядок аллокации.
-  for (const id of ids.reverse()) {
-    try { await api('/api/perks/deallocate', 'POST', { uuid: session.uuid, nodeId: id }); }
-    catch (e) { /* ignore — start node etc */ }
-  }
-  await refreshPlayer();
-  draw();
-  toast('Все узлы сброшены', 'ok');
+  if (!session) return;
+  // На клиенте уровень "только стартовый узел" уже считается за пустое
+  // дерево — кнопка не делает ничего.
+  if (allocated.size <= 1) return;
+  if (!confirm('Сбросить ВСЕ изученные узлы и вернуть очки?')) return;
+  try {
+    const d = await api('/api/perks/reset', 'POST', { uuid: session.uuid });
+    allocated = new Set(d.allocatedNodes || []);
+    availablePoints = d.availablePoints || 0;
+    updateHud();
+    draw();
+    toast('Все узлы сброшены', 'ok');
+  } catch (e) { toast(e.message, 'err'); }
 }
 
 // ============================================================================
@@ -496,6 +513,8 @@ function draw() {
     const a = tree.nodes.find(n => n.id === e.from);
     const b = tree.nodes.find(n => n.id === e.to);
     if (!a || !b) continue;
+    // Не рисуем рёбра, ведущие к START-узлам ДРУГИХ классов.
+    if (isForeignStart(a) || isForeignStart(b)) continue;
     const both = allocated.has(a.id) && allocated.has(b.id);
     const reachable = allocated.has(a.id) || allocated.has(b.id);
     if (both) {
@@ -515,6 +534,7 @@ function draw() {
 
   // ===== nodes =====
   for (const n of tree.nodes) {
+    if (isForeignStart(n)) continue;
     drawNode(n);
   }
 
@@ -744,6 +764,7 @@ function nodeAt(ev) {
   if (!tree) return null;
   const w = worldXY(ev);
   for (const n of tree.nodes) {
+    if (isForeignStart(n)) continue;
     const r = (SIZES[n.type] || 12) + 2;
     const dx = n.x - w.x, dy = n.y - w.y;
     if (dx*dx + dy*dy <= r*r) return n;

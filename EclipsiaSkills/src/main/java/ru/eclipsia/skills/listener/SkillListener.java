@@ -311,6 +311,10 @@ public class SkillListener implements Listener {
         arrow.setDamage(0);
         arrow.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
         arrow.setCritical(true);
+        // Чтобы стрела не "отскакивала" от моба и не падала под ноги:
+        // setDamage(0) превращает её в небоевую, и мы вручную удаляем
+        // в handleArrowHit/startArrowBeam через arrow.remove().
+        try { arrow.setBounce(false); } catch (Throwable ignored) {}
 
         arrow.setMetadata("eclipse_shooter",
                 new org.bukkit.metadata.FixedMetadataValue(plugin, player.getUniqueId().toString()));
@@ -470,7 +474,11 @@ public class SkillListener implements Listener {
         }
 
         java.util.Set<EclipseItem.SupportClass> supports = readSupports(arrow);
-        if (supports.isEmpty() || shooter == null) return;
+        if (supports.isEmpty() || shooter == null) {
+            // Удаляем стрелу даже без поддержек — иначе торчит из моба.
+            arrow.remove();
+            return;
+        }
 
         Location loc = arrow.getLocation();
 
@@ -488,6 +496,11 @@ public class SkillListener implements Listener {
 
         // Зелёный "флэш" в точке попадания — индикатор поддержки.
         spawnSkillFx(loc, EclipseItem.SkillClass.ARROW_SHOT, 24);
+
+        // Удаляем стрелу — иначе она физически торчит/падает от моба
+        // и выглядит как "отражение". Удалять надо в любом случае,
+        // даже если попали в блок (без HitEntity).
+        arrow.remove();
     }
 
     /**

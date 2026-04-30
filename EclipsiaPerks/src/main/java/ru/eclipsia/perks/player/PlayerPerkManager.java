@@ -127,4 +127,42 @@ public class PlayerPerkManager {
         int usedPoints = data.getAllocatedCount();
         data.setAvailablePoints(totalPoints - usedPoints);
     }
+
+    /**
+     * Полный сброс дерева игрока:
+     * <ol>
+     *   <li>удаляем все аллоцированные узлы;</li>
+     *   <li>пересчитываем доступные очки по текущему уровню;</li>
+     *   <li>сохраняем в core-storage;</li>
+     *   <li>применяем статы (HP/ATTACK_DAMAGE) — иначе бонусы старого
+     *       дерева продолжают висеть как Bukkit-AttributeModifier.</li>
+     * </ol>
+     *
+     * <p>Стартовый узел текущего класса будет ВНОВЬ выдан автоматически
+     * через {@link ru.eclipsia.perks.listeners.ClassStartNodeListener}
+     * на ближайшем тике (после ресета).
+     */
+    public void resetTree(UUID uuid) {
+        PlayerPerkData data = getPlayerData(uuid);
+        data.resetAll();
+        // Очки восстанавливаются по уровню, без заявок дерева.
+        Player p = org.bukkit.Bukkit.getPlayer(uuid);
+        try {
+            ru.eclipsia.core.data.PlayerData coreData =
+                    ru.eclipsia.core.api.EclipsiaAPI.getInstance().getPlayerData(uuid);
+            int level = coreData != null ? coreData.getLevel() : 1;
+            data.setAvailablePoints(calculateAvailablePoints(level));
+        } catch (Throwable t) {
+            data.setAvailablePoints(0);
+        }
+        savePlayerData(uuid);
+        if (p != null) {
+            try {
+                ru.eclipsia.core.stats.StatsBonusApplier.applyAllBonuses(p);
+            } catch (Throwable t) {
+                plugin.getLogger().warning(
+                        "StatsBonusApplier.applyAllBonuses failed: " + t.getMessage());
+            }
+        }
+    }
 }

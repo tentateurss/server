@@ -87,9 +87,8 @@ mobs:
         max: 15
         chance: 90
     spawn-zones:
-      - beach_mountain_west
-      - beach_mountain_center
-      - beach_mountain_east
+      - beach_forest_center
+      - beach_forest_east
 
   # 5) Щелкун — крупный паук на деревьях, не нападает первым.
   forest_spider:
@@ -108,7 +107,6 @@ mobs:
     spawn-zones:
       - beach_forest_center
       - beach_forest_east
-      - beach_mountain_center
 
   # ===========================================================================
   # ВЫСОКОУРОВНЕВЫЕ МОБЫ — оставлены для зон high-level (НЕ берег).
@@ -247,37 +245,6 @@ spawn-zones:
     min-level: 2
     max-level: 6
     mobs: [zombie_warrior, sand_crawler, forest_spider]
-    spawn-rate: 40
-    max-mobs: 120
-
-  # Горный пояс — стражи и щелкуны на скалах.
-  beach_mountain_west:
-    world: beach
-    center: {x: -60, y: 18, z: 140}
-    radius: 60
-    min-level: 4
-    max-level: 7
-    mobs: [skeleton_archer]
-    spawn-rate: 35
-    max-mobs: 80
-
-  beach_mountain_east:
-    world: beach
-    center: {x: 60, y: 18, z: 140}
-    radius: 60
-    min-level: 4
-    max-level: 7
-    mobs: [skeleton_archer]
-    spawn-rate: 35
-    max-mobs: 80
-
-  beach_mountain_center:
-    world: beach
-    center: {x: 0, y: 18, z: 150}
-    radius: 70
-    min-level: 5
-    max-level: 7
-    mobs: [skeleton_archer, forest_spider]
     spawn-rate: 40
     max-mobs: 120
 
