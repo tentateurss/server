@@ -20,8 +20,9 @@ import org.bukkit.scheduler.BukkitTask;
  * в одной точке (вершина шпиля) и только в мире {@code world}.
  * Подписывается на координаты шпиля через статические поля
  * {@link WorldGenerator#spireCenterX}/{@link WorldGenerator#spireCenterY}/
- * {@link WorldGenerator#spireCenterZ} — их выставляет
- * {@link ElikiumCityBuilder} при постройке шпиля.
+ * {@link WorldGenerator#spireCenterZ} — до PR 3 указывают на место,
+ * где собор будет построен; после PR 3 (фактическая постройка шпиля)
+ * перезаписываются на точные координаты «глаза».
  */
 public final class SpireParticles {
 

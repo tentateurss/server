@@ -166,18 +166,44 @@ public class EclipsiaBuilder extends JavaPlugin {
         //
         // ВАЖНО: на Paper 1.20.4 `WorldType.FLAT` без явных
         // generatorSettings приводит к ошибке "No key layers in MapLike[{}]"
-        // и пустому миру. Поэтому передаём JSON со слоями (bedrock + dirt +
-        // grass = 4 блока земли, поверхность на y=4 в системе FLAT).
-        String flatSettings = "{"
-                + "\"layers\":["
-                + "{\"block\":\"minecraft:bedrock\",\"height\":1},"
-                + "{\"block\":\"minecraft:dirt\",\"height\":2},"
-                + "{\"block\":\"minecraft:grass_block\",\"height\":1}"
-                + "],"
-                + "\"biome\":\"minecraft:plains\","
-                + "\"features\":false,"
-                + "\"lakes\":false"
-                + "}";
+        // и пустому миру. Поэтому передаём JSON со слоями.
+        //
+        // Профили слоёв подобраны под потребителей этих миров:
+        // <ul>
+        //   <li>{@code world} (генератор Эликий) — bedrock(5) + stone(55) +
+        //       dirt(9) + grass_block(1) = 70 блоков. Поверхность y=70 —
+        //       это ровно тот уровень, на который WorldGenerator кладёт
+        //       мостовую города (POLISHED_DEEPSLATE) и строит здания.</li>
+        //   <li>{@code beach} (генератор Берега) — bedrock(1) + dirt(2) +
+        //       grass_block(1) = 4 блока. BeachGenerator строит свой
+        //       рельеф поверх (GROUND_Y=4); толстый профиль ему не нужен
+        //       и поломал бы заранее зашитые координаты арены.</li>
+        //   <li>{@code lobby} — тот же тонкий профиль (4 блока), лобби
+        //       спавнит игроков на y≈5 в маленькой зоне, толстый слой
+        //       избыточен.</li>
+        // </ul>
+        String flatSettings = "world".equals(name)
+                ? "{"
+                  + "\"layers\":["
+                  + "{\"block\":\"minecraft:bedrock\",\"height\":5},"
+                  + "{\"block\":\"minecraft:stone\",\"height\":55},"
+                  + "{\"block\":\"minecraft:dirt\",\"height\":9},"
+                  + "{\"block\":\"minecraft:grass_block\",\"height\":1}"
+                  + "],"
+                  + "\"biome\":\"minecraft:plains\","
+                  + "\"features\":false,"
+                  + "\"lakes\":false"
+                  + "}"
+                : "{"
+                  + "\"layers\":["
+                  + "{\"block\":\"minecraft:bedrock\",\"height\":1},"
+                  + "{\"block\":\"minecraft:dirt\",\"height\":2},"
+                  + "{\"block\":\"minecraft:grass_block\",\"height\":1}"
+                  + "],"
+                  + "\"biome\":\"minecraft:plains\","
+                  + "\"features\":false,"
+                  + "\"lakes\":false"
+                  + "}";
         WorldCreator wc = new WorldCreator(name)
                 .type(WorldType.FLAT)
                 .environment(World.Environment.NORMAL)
