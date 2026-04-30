@@ -39,7 +39,22 @@ import java.util.UUID;
 public final class GatekeeperArena implements Listener {
 
     public static final String ARENA_WORLD = "beach";
-    public static final String ELIKIUM_WORLD = "elikium";
+    /**
+     * После убийства Хранителя игрок переносится в основной мир.
+     * Раньше был отдельный мир {@code "elikium"}, но ассеты Эликия
+     * процедурно генерируются прямо в мире {@code "world"}
+     * ({@code WorldGenerator}); отдельный мир оказался лишним.
+     */
+    public static final String ELIKIUM_WORLD = "world";
+
+    /**
+     * Точка появления игрока перед северными воротами Эликия (мир {@code world}).
+     * Координаты согласованы с {@code WorldGenerator.SPAWN_X/Y/Z}.
+     */
+    public static final double ELIKIUM_SPAWN_X = 0.5;
+    public static final double ELIKIUM_SPAWN_Y = 75.0;
+    public static final double ELIKIUM_SPAWN_Z = -35.5;
+
     public static final int ARENA_X = 0;
     /** floorY арены в BeachGenerator = GROUND_Y(4) + 8 = 12. Спавним на +1. */
     public static final int ARENA_Y = 13;
@@ -153,15 +168,31 @@ public final class GatekeeperArena implements Listener {
         Bukkit.getScheduler().runTaskLater(plugin,
                 () -> recentlyTeleported.remove(uuid), 20L * 5L);
 
-        // v8: fallback — если elikium нет, кидаем в lobby или world.
+        // Точка прибытия — фиксированные координаты перед северными воротами
+        // Эликия (мир "world", PR 1 WorldGenerator). Раньше использовался
+        // getSpawnLocation() запасных миров — но spawn у плоского мира
+        // обычно (0,4,0), что для нашего города-плато на y=70 неверно
+        // и игрок падал внутрь стен / в стену.
         World elikium = Bukkit.getWorld(ELIKIUM_WORLD);
         if (elikium == null) elikium = Bukkit.getWorld("lobby");
-        if (elikium == null) elikium = Bukkit.getWorld("world");
         if (elikium == null) {
-            player.sendMessage("§cНи один целевой мир (elikium/lobby/world) не загружен.");
+            player.sendMessage("§cЦелевой мир '" + ELIKIUM_WORLD + "' не загружен.");
             return;
         }
-        Location target = elikium.getSpawnLocation().clone().add(0.5, 0, 0.5);
+
+        Location target;
+        if (ELIKIUM_WORLD.equals(elikium.getName())) {
+            // yaw=0 в Bukkit = +Z (юг). Игрок стоит севернее города (z=-35),
+            // ворота города — на z=-40, центр — на z=0. Чтобы он смотрел
+            // строго на ворота / собор, ставим yaw=0.
+            target = new Location(elikium,
+                    ELIKIUM_SPAWN_X, ELIKIUM_SPAWN_Y, ELIKIUM_SPAWN_Z,
+                    0f, 0f);
+        } else {
+            // Аварийный fallback (lobby) — туда лезем только если world
+            // не успел подняться.
+            target = elikium.getSpawnLocation().clone().add(0.5, 0, 0.5);
+        }
         player.playSound(player.getLocation(), Sound.BLOCK_PORTAL_TRAVEL, 1f, 0.7f);
         player.teleport(target);
         player.sendMessage("§dВы перенесены в §5" + elikium.getName() + "§d.");
