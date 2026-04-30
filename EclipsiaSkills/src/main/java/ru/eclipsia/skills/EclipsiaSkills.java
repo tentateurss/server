@@ -51,6 +51,11 @@ public class EclipsiaSkills extends JavaPlugin {
         // Регистрируем команды
         getCommand("skills").setExecutor(new SkillsCommand(this));
         getCommand("giveskill").setExecutor(new ru.eclipsia.skills.command.GiveSkillCommand(this));
+        // Тестовые команды для быстрой проверки связей навык↔поддержка.
+        getCommand("giveall").setExecutor(
+                new ru.eclipsia.skills.command.GiveAllCommand(this, false));
+        getCommand("givestarter").setExecutor(
+                new ru.eclipsia.skills.command.GiveAllCommand(this, true));
         
         // Регистрируем слушатели
         Bukkit.getPluginManager().registerEvents(new SkillListener(this), this);

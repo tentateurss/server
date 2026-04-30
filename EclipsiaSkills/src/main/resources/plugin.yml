@@ -13,3 +13,11 @@ commands:
     description: Выдать навык игроку (только для админов)
     usage: /giveskill <игрок> <тип>
     permission: eclipsia.admin
+  giveall:
+    description: Выдать по одному из всех навыков и поддержек (тест связей)
+    usage: /giveall
+    permission: eclipsia.admin
+  givestarter:
+    description: Выдать стартовый навык класса
+    usage: /givestarter [warrior|archer|mage]
+    permission: eclipsia.admin

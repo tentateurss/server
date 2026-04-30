@@ -149,14 +149,30 @@ public class PerkTreeManager {
         if (allocatedNodes.contains(nodeId)) {
             return false;
         }
-        
-        // Проверяем есть ли хотя бы одна связь с уже взятым узлом
+
+        // Проверяем связь в ПРЯМОМ направлении: этот узел ссылается на
+        // уже взятый узел. Этого хватает, если perks.yml держит связи
+        // двунаправленными.
         for (String connection : node.getConnections()) {
             if (allocatedNodes.contains(connection)) {
                 return true;
             }
         }
-        
+
+        // Связь в ОБРАТНОМ направлении: какой-то из взятых узлов ссылается
+        // на этот узел. В perks.yml встречаются однонаправленные связи
+        // (например archer_med_0 указывает на archer_in_*, но archer_in_*
+        // на archer_med_0 не указывает). Без этого фоллбэка пользователь
+        // получал «Узел не примыкает к изученным» при попытке прокачать
+        // соседний с START узел, хотя визуально ребро есть.
+        for (String allocId : allocatedNodes) {
+            PerkNode alloc = getNode(allocId);
+            if (alloc == null) continue;
+            if (alloc.getConnections().contains(nodeId)) {
+                return true;
+            }
+        }
+
         return false;
     }
     

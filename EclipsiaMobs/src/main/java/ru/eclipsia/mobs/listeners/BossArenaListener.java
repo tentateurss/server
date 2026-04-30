@@ -94,11 +94,27 @@ public final class BossArenaListener implements Listener {
     public void onSpawn(CreatureSpawnEvent event) {
         Location loc = event.getLocation();
         if (!isInArena(loc)) return;
-        // Самого босса/миньонов спавн НЕ блокируем.
+
+        // 1) Самого босса/миньонов НЕ блокируем (на случай переспавна с уже
+        //    выставленной метаданной — например после reload плагина).
         Entity e = event.getEntity();
         if (hasMeta(e, "eclipsia_boss") || hasMeta(e, "eclipsia_minion")) return;
-        // CUSTOM = плагинный спавн через World#spawnEntity — у GatekeeperBoss
-        // он используется. Но мы уже проверили eclipsia_boss/minion выше.
+
+        // 2) CUSTOM = плагинный спавн через World#spawnEntity. Метаданные
+        //    eclipsia_boss/eclipsia_minion ставятся в GatekeeperBoss ПОСЛЕ
+        //    spawnEntity, поэтому в момент CreatureSpawnEvent их ещё нет —
+        //    раньше сюда падал и сам босс, ивент отменялся, и в мире
+        //    появлялся призрак (логи писали «заспавнен», но визуально
+        //    босса нет). IronGolem и Zombie с CUSTOM-спавном — это наш
+        //    босс/миньоны, пропускаем.
+        if (event.getSpawnReason() == CreatureSpawnEvent.SpawnReason.CUSTOM) {
+            org.bukkit.entity.EntityType type = e.getType();
+            if (type == org.bukkit.entity.EntityType.IRON_GOLEM
+                    || type == org.bukkit.entity.EntityType.ZOMBIE) {
+                return;
+            }
+        }
+
         event.setCancelled(true);
     }
 

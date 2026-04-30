@@ -317,6 +317,20 @@ public class LobbyListener implements Listener {
 
                 // Выдаем стартовый навык
                 giveStarterSkill(player, className);
+
+                // Уведомляем подписчиков (EclipsiaPerks → автогаз стартового
+                // узла дерева). Без этого после выбора класса в лобби
+                // ClassStartNodeListener не срабатывал, потому что событие
+                // фирилось только из /class в EclipsiaCore.
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    try {
+                        Bukkit.getPluginManager().callEvent(
+                                new ru.eclipsia.core.events.ClassSelectedEvent(player, className));
+                    } catch (Throwable t) {
+                        plugin.getLogger().warning(
+                                "Не удалось зафайрить ClassSelectedEvent: " + t.getMessage());
+                    }
+                }, 4L);
             } else {
                 player.sendMessage("§cОшибка создания персонажа!");
                 plugin.getLogger().warning("Lobby: createProfile вернул false для "
