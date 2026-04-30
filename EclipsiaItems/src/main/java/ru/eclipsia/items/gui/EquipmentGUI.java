@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import ru.eclipsia.items.equipment.EquipmentManager;
@@ -151,6 +152,18 @@ public class EquipmentGUI {
         if (meta != null) {
             meta.setDisplayName("§7" + slot.getDisplayName());
             meta.setLore(Arrays.asList("§8Пусто", "§7Перетащите предмет сюда"));
+            // Пустые плейсхолдеры из лэзер-брони показывать ванильный
+            // "When on Head: +1 Armor" не должны — это визуальный мусор
+            // на фоне русского лора.
+            meta.addItemFlags(
+                    ItemFlag.HIDE_ATTRIBUTES,
+                    ItemFlag.HIDE_UNBREAKABLE,
+                    ItemFlag.HIDE_ENCHANTS,
+                    ItemFlag.HIDE_DYE,
+                    ItemFlag.HIDE_DESTROYS,
+                    ItemFlag.HIDE_PLACED_ON,
+                    ItemFlag.HIDE_POTION_EFFECTS
+            );
             item.setItemMeta(meta);
         }
         

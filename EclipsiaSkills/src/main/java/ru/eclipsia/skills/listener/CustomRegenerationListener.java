@@ -87,8 +87,18 @@ public class CustomRegenerationListener implements Listener {
         var b = profile.toBuilder();
 
         // ===== МАНА =====
+        // maxMana = база класса + экипировка + перки (см. ManaManager).
+        // До фикса экипировка с «Мана:+N» вообще не повышала максимум —
+        // парсер EquipmentBonusApplier клал значение в bonuses["mana"],
+        // но никто это число не применял.
         int curMana = profile.getCurrentMana();
-        int maxMana = profile.getMaxMana();
+        int maxMana = ru.eclipsia.core.stats.ManaManager.getMaxMana(player, profile);
+        if (curMana > maxMana) {
+            // Игрок снял предмет с +mana — клампим текущее значение.
+            curMana = maxMana;
+            b.currentMana(curMana);
+            profileDirty = true;
+        }
         if (curMana < maxMana) {
             double base = maxMana * 0.005;
             int bonus = profile.getStat(StatKeys.MANA_REGEN);

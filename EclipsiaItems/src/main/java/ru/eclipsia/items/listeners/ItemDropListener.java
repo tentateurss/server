@@ -3,6 +3,7 @@ package ru.eclipsia.items.listeners;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.inventory.ItemStack;
@@ -27,7 +28,14 @@ public class ItemDropListener implements Listener {
         this.random = new Random();
     }
     
-    @EventHandler
+    /**
+     * Висим на {@link EventPriority#HIGH}, чтобы добавлять кастомный лут
+     * ПОСЛЕ {@code MobDeathListener#onMobDeath} (LOW) и
+     * {@code BossDeathListener#onEntityDeath} (LOW), которые делают
+     * {@code event.getDrops().clear()}. Иначе порядок зависел от порядка
+     * загрузки плагинов и иногда наш лук с моба моментально вытирался.
+     */
+    @EventHandler(priority = EventPriority.HIGH)
     public void onMobDeath(EntityDeathEvent event) {
         // Проверяем что это не игрок
         if (event.getEntity() instanceof Player) {

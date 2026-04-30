@@ -1,6 +1,7 @@
 package ru.eclipsia.items.generator;
 
 import org.bukkit.Material;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
@@ -174,7 +175,21 @@ public class ItemGenerator {
         lore.add("§cТребуется уровень: §f" + baseItem.getMinLevel());
         
         meta.setLore(lore);
-        
+
+        // Скрываем ванильные "When on Head: +N Armor" / "When in Main Hand:
+        // +N Attack Damage" и прочую служебку — наш лор сам показывает
+        // итоговые числа (Броня/Урон/Аффиксы), а ванильный блок ломал
+        // оформление, накладывая английский текст поверх русского описания.
+        meta.addItemFlags(
+                ItemFlag.HIDE_ATTRIBUTES,
+                ItemFlag.HIDE_UNBREAKABLE,
+                ItemFlag.HIDE_ENCHANTS,
+                ItemFlag.HIDE_DYE,
+                ItemFlag.HIDE_DESTROYS,
+                ItemFlag.HIDE_PLACED_ON,
+                ItemFlag.HIDE_POTION_EFFECTS
+        );
+
         // CustomModelData для ресурс-пака
         if (baseItem.getSlot() == ru.eclipsia.items.item.ItemSlot.AMULET) {
             if (baseItem.getId().equals("simple_amulet")) {
