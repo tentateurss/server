@@ -17,7 +17,9 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.persistence.PersistentDataType;
 import ru.eclipsia.mobs.EclipsiaMobs;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -77,6 +79,10 @@ public final class GatekeeperArena implements Listener {
     private final EclipsiaMobs plugin;
     private final Set<UUID> recentlyTriggered = new HashSet<>();
     private final Set<UUID> recentlyTeleported = new HashSet<>();
+    /** Время последнего показа сообщения «мир не готов» — чтобы при движении
+     *  внутри радиуса портала не спамить чат/лог на каждом блоке. */
+    private final Map<UUID, Long> lastWorldMissingMs = new HashMap<>();
+    private static final long WORLD_MISSING_COOLDOWN_MS = 3000L;
 
     /** Запущен ли уже шедулер частиц портала (один на сервер). */
     private boolean portalParticlesActive = false;
@@ -181,11 +187,18 @@ public final class GatekeeperArena implements Listener {
             //
             // Важно: НЕ добавляем сюда recentlyTeleported — иначе игрок
             // на 5 секунд молча залочен (PlayerMoveEvent ничего не делает),
-            // а ему сказано «попробуйте снова». Пусть retry-движение
-            // (любой следующий MoveEvent) опять попадёт сюда.
-            player.sendMessage("§cЦелевой мир '" + ELIKIUM_WORLD + "' ещё не загружен. Подождите и попробуйте снова.");
-            plugin.getLogger().warning("[GatekeeperArena] Bukkit.getWorld('" + ELIKIUM_WORLD
-                    + "') == null при попытке портал-телепорта игрока " + player.getName());
+            // а ему сказано «попробуйте снова». Используем отдельный
+            // throttle (3 сек) чтобы не спамить чат на каждом MoveEvent.
+            long now = System.currentTimeMillis();
+            Long last = lastWorldMissingMs.get(uuid);
+            if (last == null || now - last > WORLD_MISSING_COOLDOWN_MS) {
+                lastWorldMissingMs.put(uuid, now);
+                player.sendMessage("§cЦелевой мир '" + ELIKIUM_WORLD
+                        + "' ещё не загружен. Подождите и попробуйте снова.");
+                plugin.getLogger().warning("[GatekeeperArena] Bukkit.getWorld('"
+                        + ELIKIUM_WORLD + "') == null при попытке портал-телепорта игрока "
+                        + player.getName());
+            }
             return;
         }
 
