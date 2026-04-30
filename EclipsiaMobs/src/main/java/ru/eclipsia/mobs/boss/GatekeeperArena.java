@@ -14,6 +14,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.persistence.PersistentDataType;
 import ru.eclipsia.mobs.EclipsiaMobs;
 
@@ -104,7 +105,21 @@ public final class GatekeeperArena implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
-        recentlyTriggered.remove(event.getPlayer().getUniqueId());
+        UUID uuid = event.getPlayer().getUniqueId();
+        recentlyTriggered.remove(uuid);
+        // Чистим throttle «мир не готов», чтобы при ре-логине игрок
+        // получил актуальное состояние и не молчал 3 секунды.
+        lastWorldMissingMs.remove(uuid);
+    }
+
+    /** Чистим in-memory state при выходе — иначе map'ы растут на каждый
+     *  уникальный UUID, который хоть раз попадал в портал/триггер. */
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        UUID uuid = event.getPlayer().getUniqueId();
+        recentlyTriggered.remove(uuid);
+        recentlyTeleported.remove(uuid);
+        lastWorldMissingMs.remove(uuid);
     }
 
     /**
@@ -116,6 +131,10 @@ public final class GatekeeperArena implements Listener {
     public void resetPlayerState(java.util.UUID uuid) {
         recentlyTriggered.remove(uuid);
         recentlyTeleported.remove(uuid);
+        // Чистим и map throttle сообщения «мир не готов», иначе после
+        // /admin resetplayer игрок до 3 секунд не увидит сообщения о
+        // незагруженном мире.
+        lastWorldMissingMs.remove(uuid);
     }
 
     @EventHandler
