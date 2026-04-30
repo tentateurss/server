@@ -59,6 +59,16 @@ public class EquipmentBonusApplier {
         } catch (Throwable ignored) {
             // EclipsiaCore может быть не загружен на момент init — это ок.
         }
+
+        // Клампим currentMana ≤ newMaxMana — если игрок снял предмет с +mana
+        // и его текущая мана оказалась выше нового максимума, нужно её срезать.
+        // Сам максимум вычисляется на лету через ManaManager#getMaxMana — в
+        // профиле обновлять не надо, чтобы не терять базовую ману класса.
+        try {
+            ru.eclipsia.core.stats.ManaManager.recompute(player);
+        } catch (Throwable ignored) {
+            // EclipsiaCore может быть не загружен на момент init — это ок.
+        }
     }
     
     /**

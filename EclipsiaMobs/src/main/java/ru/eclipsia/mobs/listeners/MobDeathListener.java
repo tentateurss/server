@@ -54,7 +54,15 @@ public class MobDeathListener implements Listener {
         return null;
     }
 
-    @EventHandler
+    /**
+     * Обрабатываем смерть кастомного моба на {@link EventPriority#LOW},
+     * чтобы наша {@code event.getDrops().clear()} ОТРАБОТАЛА РАНЬШЕ, чем
+     * {@code ItemDropListener} (он висит на HIGH) добавит кастомный лут.
+     * Иначе при загрузке плагинов в произвольном порядке (один и тот же
+     * приоритет NORMAL) получался гонок: дропы ItemDropListener'а порой
+     * стирались нашим clear() — например, лук, выпавший с моба, исчезал.
+     */
+    @EventHandler(priority = EventPriority.LOW)
     public void onMobDeath(EntityDeathEvent event) {
         // Проверяем что это кастомный моб
         if (!MobManager.getInstance().isCustomMob(event.getEntity())) {

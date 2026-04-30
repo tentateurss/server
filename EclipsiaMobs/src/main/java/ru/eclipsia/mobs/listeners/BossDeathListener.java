@@ -3,6 +3,7 @@ package ru.eclipsia.mobs.listeners;
 import org.bukkit.entity.IronGolem;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
 import ru.eclipsia.mobs.EclipsiaMobs;
@@ -15,7 +16,9 @@ import ru.eclipsia.mobs.boss.GatekeeperBoss;
  */
 public class BossDeathListener implements Listener {
     
-    @EventHandler
+    // LOW: см. комментарий в MobDeathListener — clear() должен происходить
+    // ДО ItemDropListener (HIGH), чтобы кастомный лут с босса не стирался.
+    @EventHandler(priority = EventPriority.LOW)
     public void onEntityDeath(EntityDeathEvent event) {
         if (!(event.getEntity() instanceof IronGolem golem)) return;
         

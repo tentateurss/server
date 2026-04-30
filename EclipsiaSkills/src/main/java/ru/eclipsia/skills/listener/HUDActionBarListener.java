@@ -72,9 +72,9 @@ public class HUDActionBarListener implements Listener {
         int hp = (int) Math.round(player.getHealth());
         int hpRegenBonus = StatResolver.total(player, profile, StatKeys.HEALTH_REGEN);
 
-        // Мана
+        // Мана: max = база класса + экипировка + перки (см. ManaManager).
         int curMana = profile.getCurrentMana();
-        int maxMana = profile.getMaxMana();
+        int maxMana = ru.eclipsia.core.stats.ManaManager.getMaxMana(player, profile);
         int manaRegenBonus = StatResolver.total(player, profile, StatKeys.MANA_REGEN);
 
         // Эгида

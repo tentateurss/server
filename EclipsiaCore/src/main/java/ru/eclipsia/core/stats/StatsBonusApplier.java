@@ -69,6 +69,10 @@ public class StatsBonusApplier {
 
         // Пересчитываем максимум Эгиды (intelligence × 2 + экипировка + перки).
         AegisManager.recompute(player);
+
+        // Клампим current mana ≤ max mana — на случай если перки изменили
+        // максимум, или экипировка с +mana снялась раньше.
+        ManaManager.recompute(player);
     }
     
     /**
