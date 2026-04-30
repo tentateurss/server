@@ -48,12 +48,25 @@ public class Affix {
         return minValue + (int) (Math.random() * (maxValue - minValue + 1));
     }
 
-    /** Описание для лора предмета: «§7Префикс §f(стат: §a+12§7)» */
+    /** Описание для лора предмета: «§7T1 §7Острый §8(§7Урон: §a+5§8)». */
     public String getDescription(int value) {
         Mapping m = mapping();
         String sign = value >= 0 ? "+" : "";
         String pct = m.percent ? "%" : "";
-        return "§7" + name + " §8(§7" + m.label + ": §a" + sign + value + pct + "§8)";
+        String tierBadge = (type == AffixType.IMPLICIT) ? "§8[i] " : tierBadge();
+        return tierBadge + "§7" + name + " §8(§7" + m.label + ": §a" + sign + value + pct + "§8)";
+    }
+
+    /** «§7T1»/«§9T2»/«§eT3»/«§6T4» — короткий префикс перед именем. */
+    private String tierBadge() {
+        String color = switch (tier) {
+            case 1 -> "§7";
+            case 2 -> "§9";
+            case 3 -> "§e";
+            case 4 -> "§6";
+            default -> "§7";
+        };
+        return color + "T" + tier + " ";
     }
 
     /** Каноническое имя стата (для StatResolver). */

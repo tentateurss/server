@@ -28,6 +28,12 @@ public final class DamageCalculator {
     /** Жёсткие капы из ТЗ. */
     public static final double DODGE_CAP   = 0.75;
     public static final double ARMOUR_CAP  = 0.90;
+    /**
+     * Базовый кап резистов; используется только как фоллбэк, если у игрока
+     * не задан персональный *_resist_max. Реальный потолок берётся из
+     * {@link StatKeys#FIRE_RESIST_MAX} / COLD_RESIST_MAX / LIGHTNING_RESIST_MAX
+     * (в процентах) и зажат сверху {@link StatKeys#ABSOLUTE_RESIST_CAP_PCT}.
+     */
     public static final double RESIST_CAP  = 0.75;
     public static final double BLOCK_CAP   = 0.75;
     public static final double CRIT_CAP    = 0.95;
@@ -138,7 +144,9 @@ public final class DamageCalculator {
             }
         }
 
-        // 5. РЕЗИСТЫ — только FIRE/COLD/LIGHTNING.
+        // 5. РЕЗИСТЫ — только FIRE/COLD/LIGHTNING. Кап индивидуальный:
+        //    *_resist_max в Map статов (по умолчанию 75 %), но не выше
+        //    абсолютного потолка ABSOLUTE_RESIST_CAP_PCT (90 %).
         if (damage > 0) {
             String resistKey = switch (type) {
                 case FIRE      -> StatKeys.FIRE_RESIST;
@@ -146,9 +154,22 @@ public final class DamageCalculator {
                 case LIGHTNING -> StatKeys.LIGHTNING_RESIST;
                 default        -> null;
             };
+            String capKey = switch (type) {
+                case FIRE      -> StatKeys.FIRE_RESIST_MAX;
+                case COLD      -> StatKeys.COLD_RESIST_MAX;
+                case LIGHTNING -> StatKeys.LIGHTNING_RESIST_MAX;
+                default        -> null;
+            };
             if (resistKey != null) {
                 int resist = defender.getStat(resistKey);
-                double frac = Math.min(resist / 100.0, RESIST_CAP);
+                int capPct = (capKey != null) ? defender.getStat(capKey) : 0;
+                if (capPct <= 0) capPct = StatKeys.DEFAULT_RESIST_CAP_PCT;
+                if (capPct > StatKeys.ABSOLUTE_RESIST_CAP_PCT) {
+                    capPct = StatKeys.ABSOLUTE_RESIST_CAP_PCT;
+                }
+                double cap = capPct / 100.0;
+                double frac = Math.min(resist / 100.0, cap);
+                if (frac < 0) frac = 0;
                 damage *= (1.0 - frac);
             }
         }

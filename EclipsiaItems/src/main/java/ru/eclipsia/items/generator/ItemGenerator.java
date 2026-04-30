@@ -33,59 +33,67 @@ public class ItemGenerator {
     }
     
     /**
-     * Сгенерировать случайный предмет для уровня
+     * Сгенерировать случайный предмет для уровня (без скейлинга редкости).
+     * Для дропа с моба используй {@link #generateItem(int, int, int)}.
      */
     public ItemStack generateItem(int itemLevel) {
-        // Получаем случайный базовый предмет
+        return generateItem(itemLevel, itemLevel, 0);
+    }
+
+    /** Перегрузка с уровнем моба и Magic Find — для лута. */
+    public ItemStack generateItem(int itemLevel, int mobLevel, int magicFindPercent) {
         BaseItem baseItem = itemManager.getRandomItem(itemLevel);
         if (baseItem == null) {
             plugin.getLogger().warning("Не удалось найти базовый предмет для уровня " + itemLevel);
             return null;
         }
-        
-        return generateItem(baseItem, itemLevel, null);
+        return generateItem(baseItem, itemLevel, null, mobLevel, magicFindPercent);
     }
-    
-    /**
-     * Сгенерировать случайный предмет для класса и уровня
-     */
+
+    /** Сгенерировать случайный предмет для класса и уровня. */
     public ItemStack generateItemForClass(String playerClass, int itemLevel) {
-        // Получаем случайный базовый предмет для класса
+        return generateItemForClass(playerClass, itemLevel, itemLevel, 0);
+    }
+
+    public ItemStack generateItemForClass(String playerClass, int itemLevel,
+                                          int mobLevel, int magicFindPercent) {
         BaseItem baseItem = itemManager.getRandomItemForClass(playerClass, itemLevel);
         if (baseItem == null) {
-            plugin.getLogger().warning("Не удалось найти базовый предмет для класса " + playerClass + " и уровня " + itemLevel);
+            plugin.getLogger().warning("Не удалось найти базовый предмет для класса "
+                    + playerClass + " и уровня " + itemLevel);
             return null;
         }
-        
-        return generateItem(baseItem, itemLevel, playerClass);
+        return generateItem(baseItem, itemLevel, playerClass, mobLevel, magicFindPercent);
     }
     
     /**
-     * Сгенерировать предмет из базового
+     * Сгенерировать предмет из базового. {@code mobLevel}/{@code magicFind}
+     * управляют шансом редкости; для бэк-совместимости старая сигнатура
+     * (без mobLevel) использует {@code itemLevel} как уровень моба.
      */
     public ItemStack generateItem(BaseItem baseItem, int itemLevel, String playerClass) {
-        // Определяем редкость
-        ItemRarity rarity = rarityManager.getRandomRarity();
-        
-        // Создаем кастомный предмет
+        return generateItem(baseItem, itemLevel, playerClass, itemLevel, 0);
+    }
+
+    public ItemStack generateItem(BaseItem baseItem, int itemLevel, String playerClass,
+                                  int mobLevel, int magicFindPercent) {
+        ItemRarity rarity = rarityManager.getRandomRarity(mobLevel, magicFindPercent);
         CustomItem customItem = new CustomItem(baseItem, rarity, itemLevel);
-        
-        // Добавляем аффиксы (если не обычный)
-        if (rarity != ItemRarity.NORMAL) {
-            int affixCount = rarityManager.getAffixCount(rarity);
-            List<Affix> affixes = affixManager.getRandomAffixes(
-                baseItem.getItemType(), 
-                itemLevel, 
-                affixCount
-            );
-            
+
+        // Implicits — врождённые статы базы, всегда применяются.
+        for (Affix imp : affixManager.getImplicitsFor(baseItem.getItemType())) {
+            customItem.addAffix(imp, imp.rollValue());
+        }
+
+        // Префиксы/суффиксы — только для Magic/Rare. По бюджету и тиру.
+        if (rarity == ItemRarity.MAGIC || rarity == ItemRarity.RARE) {
+            List<Affix> affixes = affixManager.rollAffixes(
+                    baseItem.getItemType(), itemLevel, rarity);
             for (Affix affix : affixes) {
-                int value = affix.rollValue();
-                customItem.addAffix(affix, value);
+                customItem.addAffix(affix, affix.rollValue());
             }
         }
-        
-        // Конвертируем в ItemStack
+
         return toItemStack(customItem);
     }
     
@@ -125,28 +133,37 @@ public class ItemGenerator {
             int totalArmor = customItem.getTotalArmor();
             lore.add("§7Броня: §f" + totalArmor);
         }
-        
-        // Бонусы от аффиксов
-        int healthBonus = customItem.getHealthBonus();
-        if (healthBonus > 0) {
-            lore.add("§7Здоровье: §f+" + healthBonus);
+
+        // Базовый блок щита. Парсер EquipmentBonusApplier ловит «Шанс блока:»
+        // и «Сила блока:», поэтому достаточно вывести их в лор — стат сам
+        // подцепится в DamageCalculator при равных слотах.
+        if (baseItem.isShield()) {
+            int bbc = baseItem.getBaseBlockChance();
+            int bba = baseItem.getBaseBlockAmount();
+            if (bbc > 0) {
+                lore.add("§7Шанс блока: §f" + bbc + "%");
+            }
+            if (bba > 0) {
+                lore.add("§7Сила блока: §f" + bba + "%");
+            }
         }
         
-        int critBonus = customItem.getCritBonus();
-        if (critBonus > 0) {
-            lore.add("§7Крит. урон: §f+" + critBonus + "%");
+        // Implicit-аффиксы (PoE-style: над разделителем, без шапки).
+        Map<Affix, Integer> implicits = customItem.getImplicits();
+        if (!implicits.isEmpty()) {
+            for (Map.Entry<Affix, Integer> entry : implicits.entrySet()) {
+                lore.add(entry.getKey().getDescription(entry.getValue()));
+            }
+            lore.add("§8" + "─".repeat(20));
         }
-        
-        int speedBonus = customItem.getSpeedBonus();
-        if (speedBonus > 0) {
-            lore.add("§7Скорость атаки: §f+" + speedBonus + "%");
-        }
-        
-        // Аффиксы
-        if (!customItem.getAffixes().isEmpty()) {
-            lore.add("");
+
+        // Explicit-аффиксы (префикс + суффикс).
+        Map<Affix, Integer> explicit = new java.util.LinkedHashMap<>();
+        explicit.putAll(customItem.getPrefixes());
+        explicit.putAll(customItem.getSuffixes());
+        if (!explicit.isEmpty()) {
             lore.add("§6Аффиксы:");
-            for (Map.Entry<Affix, Integer> entry : customItem.getAffixes().entrySet()) {
+            for (Map.Entry<Affix, Integer> entry : explicit.entrySet()) {
                 lore.add(entry.getKey().getDescription(entry.getValue()));
             }
         }

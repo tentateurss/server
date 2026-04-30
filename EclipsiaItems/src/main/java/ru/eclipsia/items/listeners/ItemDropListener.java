@@ -63,9 +63,19 @@ public class ItemDropListener implements Listener {
         int maxItems = plugin.getConfig().getInt("drop.max-items-per-mob", 2);
         int itemCount = 1 + random.nextInt(maxItems);
         
-        // Получаем класс игрока
+        // Получаем класс игрока и его Magic Find
         String playerClass = EclipsiaAPI.getInstance().getPlayerClassName(killer);
-        
+        int magicFind = 0;
+        try {
+            ru.eclipsia.core.data.PlayerProfile profile =
+                    EclipsiaAPI.getInstance().getActiveProfile(killer);
+            if (profile != null) {
+                magicFind = profile.getStat(ru.eclipsia.core.data.StatKeys.MAGIC_FIND);
+            }
+        } catch (Throwable ignored) {
+            // EclipsiaCore может оказаться недоступен на хот-релоаде — пофиг.
+        }
+
         // Генерируем предметы
         for (int i = 0; i < itemCount; i++) {
             // Уровень предмета = уровень моба +/- случайное смещение
@@ -73,13 +83,13 @@ public class ItemDropListener implements Listener {
             int maxOffset = plugin.getConfig().getInt("generation.item-level-range.max-offset", 2);
             int offset = minOffset + random.nextInt(maxOffset - minOffset + 1);
             int itemLevel = Math.max(1, mobLevel + offset);
-            
-            // Генерируем предмет
+
+            // Генерируем предмет с учётом уровня моба и magic find
             ItemStack item;
             if (playerClass != null && !playerClass.isEmpty()) {
-                item = generator.generateItemForClass(playerClass, itemLevel);
+                item = generator.generateItemForClass(playerClass, itemLevel, mobLevel, magicFind);
             } else {
-                item = generator.generateItem(itemLevel);
+                item = generator.generateItem(itemLevel, mobLevel, magicFind);
             }
             
             if (item != null) {

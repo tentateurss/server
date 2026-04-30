@@ -46,10 +46,24 @@ public final class StatKeys {
     public static final String BLOCK_CHANCE  = "block_chance";
     /** Доля поглощённого блоком урона, %. */
     public static final String BLOCK_AMOUNT  = "block_amount";
-    /** Резисты — прямые проценты, кап 75 % (90 % с пассивками). */
+    /** Резисты — прямые проценты, кап задаётся индивидуально через *_resist_max. */
     public static final String FIRE_RESIST       = "fire_resist";
     public static final String COLD_RESIST       = "cold_resist";
     public static final String LIGHTNING_RESIST  = "lightning_resist";
+
+    /**
+     * Кап на конкретный резист в %. Дефолт {@link #DEFAULT_RESIST_CAP_PCT} (75 %).
+     * Перками/уник-итемами поднимается до {@link #ABSOLUTE_RESIST_CAP_PCT} (90 %).
+     * Хранится в том же Map статов: значение 0 трактуется как «дефолт».
+     */
+    public static final String FIRE_RESIST_MAX       = "fire_resist_max";
+    public static final String COLD_RESIST_MAX       = "cold_resist_max";
+    public static final String LIGHTNING_RESIST_MAX  = "lightning_resist_max";
+
+    /** Базовый кап резистов в процентах (если *_resist_max не задан). */
+    public static final int DEFAULT_RESIST_CAP_PCT  = 75;
+    /** Абсолютный потолок: даже с пассивками выше этого не пускаем. */
+    public static final int ABSOLUTE_RESIST_CAP_PCT = 90;
 
     // ===== АТАКА =====
     /** Базовый физ. урон с оружия + бонусы. */
@@ -68,4 +82,12 @@ public final class StatKeys {
     // ===== ДВИЖЕНИЕ =====
     /** Скорость бега, % бонуса. */
     public static final String MOVE_SPEED        = "move_speed";
+
+    // ===== ЛУТ =====
+    /**
+     * Magic Find — % переноса шанса дропа Normal в Magic+/Rare/Unique.
+     * Передаётся в {@code RarityManager.getRandomRarity(mobLevel, mf)} при
+     * генерации лута через {@code ItemDropListener}. По умолчанию 0.
+     */
+    public static final String MAGIC_FIND        = "magic_find";
 }

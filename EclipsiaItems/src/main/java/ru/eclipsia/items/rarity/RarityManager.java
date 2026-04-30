@@ -5,56 +5,93 @@ import org.bukkit.plugin.Plugin;
 import java.util.Random;
 
 /**
- * Менеджер редкости предметов
+ * Менеджер редкости предметов.
+ *
+ * <p>Шансы редкости больше не плоские: с ростом уровня моба сдвиг идёт в
+ * сторону Rare/Unique. Дополнительно учитывается стат игрока {@code magic_find}
+ * (в %), который повышает шанс выпадения Magic+ за счёт Normal.
  */
 public class RarityManager {
-    
+
     private final Plugin plugin;
     private final Random random;
-    
+
     public RarityManager(Plugin plugin) {
         this.plugin = plugin;
         this.random = new Random();
     }
-    
-    /**
-     * Получить случайную редкость на основе шансов из конфига
-     */
+
+    /** Старая сигнатура — теперь зовёт новую с level=1, magicFind=0. */
     public ItemRarity getRandomRarity() {
-        int normalChance = plugin.getConfig().getInt("generation.rarity-chances.normal", 50);
-        int magicChance = plugin.getConfig().getInt("generation.rarity-chances.magic", 30);
-        int rareChance = plugin.getConfig().getInt("generation.rarity-chances.rare", 18);
-        int uniqueChance = plugin.getConfig().getInt("generation.rarity-chances.unique", 2);
-        
-        int total = normalChance + magicChance + rareChance + uniqueChance;
-        int roll = random.nextInt(total);
-        
-        if (roll < normalChance) {
-            return ItemRarity.NORMAL;
-        } else if (roll < normalChance + magicChance) {
-            return ItemRarity.MAGIC;
-        } else if (roll < normalChance + magicChance + rareChance) {
-            return ItemRarity.RARE;
-        } else {
-            return ItemRarity.UNIQUE;
-        }
+        return getRandomRarity(1, 0);
     }
-    
+
     /**
-     * Получить количество аффиксов для редкости
+     * Получить случайную редкость с учётом уровня моба и Magic Find игрока.
+     *
+     * <p>Базовые шансы берутся из {@code config.yml} (низкоуровневый и
+     * высокоуровневый профили), между ними линейная интерполяция по
+     * уровню моба относительно границы {@code level-scaling.cap-level}.
+     * После этого шанс Normal уменьшается на {@code magicFind}%, разница
+     * пропорционально пересыпается в Magic/Rare/Unique.
      */
+    public ItemRarity getRandomRarity(int mobLevel, int magicFindPercent) {
+        // ----- Базовые профили -----
+        int lowNormal = plugin.getConfig().getInt("generation.rarity-chances.normal", 70);
+        int lowMagic  = plugin.getConfig().getInt("generation.rarity-chances.magic",  25);
+        int lowRare   = plugin.getConfig().getInt("generation.rarity-chances.rare",   5);
+        int lowUnique = plugin.getConfig().getInt("generation.rarity-chances.unique", 0);
+
+        int hiNormal  = plugin.getConfig().getInt("generation.rarity-chances-high.normal", 20);
+        int hiMagic   = plugin.getConfig().getInt("generation.rarity-chances-high.magic",  35);
+        int hiRare    = plugin.getConfig().getInt("generation.rarity-chances-high.rare",   35);
+        int hiUnique  = plugin.getConfig().getInt("generation.rarity-chances-high.unique", 10);
+
+        int capLevel  = plugin.getConfig().getInt("generation.level-scaling.cap-level", 50);
+
+        double t = clamp01((double) Math.max(0, mobLevel - 1) / Math.max(1, capLevel - 1));
+        double pNormal = lerp(lowNormal, hiNormal, t);
+        double pMagic  = lerp(lowMagic,  hiMagic,  t);
+        double pRare   = lerp(lowRare,   hiRare,   t);
+        double pUnique = lerp(lowUnique, hiUnique, t);
+
+        // ----- Magic Find: % переноса с Normal в Magic+ -----
+        double mf = Math.max(0, magicFindPercent) / 100.0;
+        double moved = pNormal * mf;
+        pNormal -= moved;
+        // распределяем поровну в magic/rare/unique
+        pMagic  += moved * 0.5;
+        pRare   += moved * 0.4;
+        pUnique += moved * 0.1;
+
+        double total = pNormal + pMagic + pRare + pUnique;
+        if (total <= 0) return ItemRarity.NORMAL;
+
+        double roll = random.nextDouble() * total;
+        if (roll < pNormal)                       return ItemRarity.NORMAL;
+        if (roll < pNormal + pMagic)              return ItemRarity.MAGIC;
+        if (roll < pNormal + pMagic + pRare)      return ItemRarity.RARE;
+        return ItemRarity.UNIQUE;
+    }
+
+    private static double lerp(double a, double b, double t) {
+        return a + (b - a) * t;
+    }
+    private static double clamp01(double v) {
+        return v < 0 ? 0 : Math.min(1, v);
+    }
+
+    /**
+     * @deprecated с переходом на бюджетный ролл количество аффиксов больше
+     *             не используется. Метод оставлен для совместимости.
+     */
+    @Deprecated
     public int getAffixCount(ItemRarity rarity) {
-        if (rarity == ItemRarity.NORMAL) {
-            return 0;
-        } else if (rarity == ItemRarity.MAGIC) {
-            int min = plugin.getConfig().getInt("generation.affixes.magic.min", 1);
-            int max = plugin.getConfig().getInt("generation.affixes.magic.max", 2);
-            return min + random.nextInt(max - min + 1);
-        } else if (rarity == ItemRarity.RARE) {
-            int min = plugin.getConfig().getInt("generation.affixes.rare.min", 3);
-            int max = plugin.getConfig().getInt("generation.affixes.rare.max", 6);
-            return min + random.nextInt(max - min + 1);
-        }
-        return 0; // Уникальные предметы имеют фиксированные аффиксы
+        return switch (rarity) {
+            case NORMAL -> 0;
+            case MAGIC  -> 2;
+            case RARE   -> 5;
+            case UNIQUE -> 0;
+        };
     }
 }

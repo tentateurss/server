@@ -2,14 +2,30 @@
 
 # Настройки генерации предметов
 generation:
-  # Шанс выпадения по редкости (в процентах)
+  # Шансы редкости на низкоуровневых мобах (mob level 1).
+  # Используются как «нижний профиль» для линейной интерполяции
+  # с rarity-chances-high по уровню моба.
   rarity-chances:
-    normal: 50
-    magic: 30
-    rare: 18
-    unique: 2
-  
-  # Количество аффиксов по редкости
+    normal: 70
+    magic: 25
+    rare: 5
+    unique: 0
+
+  # Шансы редкости на мобах уровня cap-level (см. level-scaling).
+  # На промежуточных уровнях значения линейно интерполируются.
+  rarity-chances-high:
+    normal: 20
+    magic: 35
+    rare: 35
+    unique: 10
+
+  # Скейлинг шансов редкости от уровня моба.
+  level-scaling:
+    cap-level: 50
+
+  # Бюджет аффиксов теперь зашит в ItemRarity (Magic 4, Rare 14).
+  # Стоимость: T1=1, T2=2, T3=4, T4=7. Этот блок оставлен для
+  # обратной совместимости с RarityManager.getAffixCount.
   affixes:
     magic:
       min: 1
@@ -17,7 +33,7 @@ generation:
     rare:
       min: 3
       max: 6
-  
+
   # Диапазон уровня предмета относительно уровня моба
   item-level-range:
     min-offset: -2

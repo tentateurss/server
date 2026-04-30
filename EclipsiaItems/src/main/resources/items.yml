@@ -53,12 +53,18 @@ weapons:
     required-class: mage
     min-level: 10
 
-  # Щиты (OFFHAND, итем-тип SHIELD)
+  # Щиты (OFFHAND, итем-тип SHIELD).
+  # base-block-chance — % шанс сработать блоку при ударе.
+  # base-block-amount — % входящего урона, поглощаемого блоком.
+  # Аффикс block_chance_minor сверху добавляет ещё шанс,
+  # block_amount_* — увеличивает поглощение.
   wooden_shield:
     material: SHIELD
     name: "Деревянный щит"
     slot: OFFHAND
     base-armor: 5
+    base-block-chance: 15
+    base-block-amount: 25
     min-level: 1
 
   iron_shield:
@@ -66,6 +72,8 @@ weapons:
     name: "Железный щит"
     slot: OFFHAND
     base-armor: 10
+    base-block-chance: 20
+    base-block-amount: 30
     min-level: 10
 
   magic_shield:
@@ -73,6 +81,8 @@ weapons:
     name: "Магический щит"
     slot: OFFHAND
     base-armor: 8
+    base-block-chance: 18
+    base-block-amount: 28
     min-level: 15
 
 # Броня
