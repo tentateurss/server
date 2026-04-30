@@ -108,24 +108,54 @@ public class PlayerPerkManager {
     }
     
     /**
-     * Рассчитать доступные очки перков для уровня
+     * Рассчитать доступные очки перков для уровня.
+     *
+     * <p>Формула: {@code max(0, (level - startLevel + 1) * pointsPerLevel)},
+     * где {@code startLevel} и {@code pointsPerLevel} читаются из секции
+     * {@code settings} файла {@code perks.yml}. По умолчанию каждый уровень
+     * начиная с 1-го даёт +1 очко — иначе свежий игрок (lvl 1) не может
+     * прокачать ни одного соседа стартового узла.
      */
     public int calculateAvailablePoints(int level) {
-        if (level < 2) {
-            return 0;
-        }
-        // 1 очко за уровень начиная со 2-го
-        return level - 1;
+        ru.eclipsia.perks.tree.PerkTreeManager tm = treeManager();
+        int startLevel = tm != null ? tm.getStartLevel() : 1;
+        int perLevel   = tm != null ? tm.getPointsPerLevel() : 1;
+        int maxPoints  = tm != null ? tm.getMaxPoints() : Integer.MAX_VALUE;
+        if (level < startLevel) return 0;
+        long total = (long) (level - startLevel + 1) * perLevel;
+        if (total > maxPoints) total = maxPoints;
+        return (int) total;
     }
-    
+
+    /** Сумма стоимостей всех взятых узлов (стартовый узел стоит 0). */
+    private int allocatedCost(PlayerPerkData data) {
+        ru.eclipsia.perks.tree.PerkTreeManager tm = treeManager();
+        if (tm == null) return data.getAllocatedCount();
+        int sum = 0;
+        for (String id : data.getAllocatedNodes()) {
+            ru.eclipsia.perks.node.PerkNode node = tm.getNode(id);
+            if (node != null) sum += node.getCost();
+        }
+        return sum;
+    }
+
+    private ru.eclipsia.perks.tree.PerkTreeManager treeManager() {
+        ru.eclipsia.perks.EclipsiaPerks perks = ru.eclipsia.perks.EclipsiaPerks.getInstance();
+        return perks != null ? perks.getTreeManager() : null;
+    }
+
     /**
-     * Обновить очки перков при повышении уровня
+     * Пересчитать доступные очки игрока: {@code заработано(level) − потрачено}.
+     * <p>До фикса метод считал по числу узлов ({@code getAllocatedCount}), из-за
+     * чего стартовый узел (cost = 0) тоже «съедал» очко, и игрок 1 уровня
+     * после автовыдачи стартового узла оставался с 0 (или −1) очков и не мог
+     * прокачать ни один соседний узел.
      */
     public void updatePointsForLevel(UUID uuid, int level) {
         PlayerPerkData data = getPlayerData(uuid);
         int totalPoints = calculateAvailablePoints(level);
-        int usedPoints = data.getAllocatedCount();
-        data.setAvailablePoints(totalPoints - usedPoints);
+        int spent = allocatedCost(data);
+        data.setAvailablePoints(Math.max(0, totalPoints - spent));
     }
 
     /**
