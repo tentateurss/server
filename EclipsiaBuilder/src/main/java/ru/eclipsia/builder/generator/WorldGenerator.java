@@ -61,8 +61,10 @@ public final class WorldGenerator {
      *
      * <p><b>v1</b>: каркас + ландшафт + плато под город (PR 1).
      * <p><b>v2</b>: + город Эликий (стены, башни, ворота, собор, шпиль) — PR 2.
+     * <p><b>v3</b>: + здания внутри города, улицы, 3 внешних дороги,
+     *               окружение (поля/лес/шахта/рыбацкая деревня), декор — PR 3.
      */
-    public static final String GENERATED_FLAG = "eclipsia_world_generated_v2";
+    public static final String GENERATED_FLAG = "eclipsia_world_generated_v3";
 
     // =========================================================================
     // КООРДИНАТЫ И РАЗМЕРЫ
@@ -99,7 +101,7 @@ public final class WorldGenerator {
     private static final int LAND_Z_MIN = -200, LAND_Z_MAX = 200;
 
     /** Базовая высота ландшафта вне города. */
-    private static final int BASE_GROUND_Y = 64;
+    public static final int BASE_GROUND_Y = 64;
 
     /** Глубина «воздуха», которую нужно очистить над поверхностью. */
     private static final int CLEAR_AIR_HEIGHT = 60;
@@ -225,14 +227,17 @@ public final class WorldGenerator {
         // ===== ФАЗА 2. Город (стены, ворота, собор) =====
         generateCity(p, rng);
 
-        // ===== ФАЗА 3. Дороги — PR 3 =====
-        // generateRoads(p, rng);
+        // ===== ФАЗА 3. Здания и улицы внутри города =====
+        generateBuildings(p, rng);
 
-        // ===== ФАЗА 4. Окружение (поля/лес/холмы/деревня) — PR 3 =====
-        // generateSurroundings(p, rng);
+        // ===== ФАЗА 4. Внешние дороги к зонам =====
+        generateRoads(p, rng);
 
-        // ===== ФАЗА 5. Декор — PR 3 =====
-        // generateDecor(p, rng);
+        // ===== ФАЗА 5. Окружение (поля/лес/шахта/рыбацкая деревня) =====
+        generateSurroundings(p, rng);
+
+        // ===== ФАЗА 6. Декор (цветы, кустарники, тропинки) =====
+        generateDecor(p, rng);
 
         // ===== Финал =====
         p.flush(() -> {
@@ -403,6 +408,96 @@ public final class WorldGenerator {
      */
     private void generateCity(RegionPainter p, Random rng) {
         new ElikiumCityBuilder(plugin, world).buildAll(p, rng);
+    }
+
+    // =========================================================================
+    // ФАЗА 3. ЗДАНИЯ И УЛИЦЫ (делегируется ElikiumBuildings)
+    // =========================================================================
+
+    /** Внутренние здания Эликия (таверна, кузница, лавка, гильдия, банк, жилые) + улицы. */
+    private void generateBuildings(RegionPainter p, Random rng) {
+        new ElikiumBuildings(plugin, world).buildAll(p, rng);
+    }
+
+    // =========================================================================
+    // ФАЗА 4. ВНЕШНИЕ ДОРОГИ (делегируется WorldRoads)
+    // =========================================================================
+
+    /** Три дороги из города: на север (поля), на восток (лес), на запад (холмы). */
+    private void generateRoads(RegionPainter p, Random rng) {
+        new WorldRoads(plugin, world).buildAll(p, rng);
+    }
+
+    // =========================================================================
+    // ФАЗА 5. ОКРУЖЕНИЕ (делегируется WorldSurroundings)
+    // =========================================================================
+
+    /** Поля+мельница, лес+ручей+охотничий домик, шахта, рыбацкая деревня+ива на острове. */
+    private void generateSurroundings(RegionPainter p, Random rng) {
+        new WorldSurroundings(plugin, world).buildAll(p, rng);
+    }
+
+    // =========================================================================
+    // ФАЗА 6. ДЕКОР (мелочёвка) — цветы, кусты, мшистые камни на лугах
+    // =========================================================================
+
+    /**
+     * Заключительная фаза: разбрасывает цветы / траву / мшистые камни
+     * в радиусе 150 от города. Не трогает плато (там мостовая) и зону у дорог.
+     */
+    private void generateDecor(RegionPainter p, Random rng) {
+        plugin.getLogger().info("WorldGenerator: фаза 6 — декор…");
+
+        Material[] flowers = {
+                Material.DANDELION, Material.POPPY, Material.BLUE_ORCHID,
+                Material.AZURE_BLUET, Material.OXEYE_DAISY, Material.CORNFLOWER,
+        };
+        Material[] grasses = { Material.SHORT_GRASS, Material.FERN, Material.DEAD_BUSH };
+
+        int xMin = -150, xMax = 150, zMin = -150, zMax = 150;
+        int placedFlowers = 0, placedGrass = 0, placedStones = 0;
+        int targetFlowers = 130, targetGrass = 60, targetStones = 18;
+        int safety = 6000;
+        while ((placedFlowers < targetFlowers || placedGrass < targetGrass || placedStones < targetStones)
+                && safety-- > 0) {
+            int x = xMin + rng.nextInt(xMax - xMin);
+            int z = zMin + rng.nextInt(zMax - zMin);
+
+            // Не сажаем внутри городских стен.
+            if (Math.abs(x - CITY_X) <= CITY_HALF && Math.abs(z - CITY_Z) <= CITY_HALF) continue;
+            // Не сажаем в озере.
+            if (isLakeColumn(x, z)) continue;
+            // Не сажаем на главных дорогах (узкие коридоры).
+            if (Math.abs(x - CITY_X) <= 4 && z < -CITY_HALF) continue; // северная
+            if (Math.abs(x - CITY_X) <= 4 && z > CITY_HALF) continue;  // на юг к деревне
+            if (Math.abs(z - CITY_Z) <= 4 && x > CITY_HALF) continue;  // восточная
+            if (Math.abs(z - CITY_Z) <= 4 && x < -CITY_HALF) continue; // западная
+
+            int yPlace = CITY_FLOOR_Y; // травяной слой ~ FLOOR_Y - 1; цветок на FLOOR_Y
+            double r = rng.nextDouble();
+            if (r < 0.55 && placedFlowers < targetFlowers) {
+                p.place(x, yPlace, z, flowers[rng.nextInt(flowers.length)]);
+                placedFlowers++;
+            } else if (r < 0.85 && placedGrass < targetGrass) {
+                p.place(x, yPlace, z, grasses[rng.nextInt(grasses.length)]);
+                placedGrass++;
+            } else if (placedStones < targetStones) {
+                p.place(x, yPlace - 1, z, Material.MOSSY_COBBLESTONE);
+                placedStones++;
+            }
+        }
+
+        // DIRT_PATH тропинки от ворот к ближайшим достопримечательностям —
+        // короткие 6-блочные «выходы» в стороны от дороги.
+        int yPath = CITY_FLOOR_Y - 1;
+        // Север → к мельнице (-28, -110): тропинка от точки (-12, -45) к (-22, -55).
+        p.path(-12, -45, -22, -55, yPath, 1, () -> Material.DIRT_PATH);
+        // Восток → к охотничьему домику (130, -10): тропинка от (52, -8) к (110, -12).
+        p.path(52, -8, 110, -12, yPath, 1, () -> Material.DIRT_PATH);
+        // Запад → к шахте (-110, 0): тропинка от (-52, 0) к (-100, 0).
+        p.path(-52, 0, -100, 0, yPath, 1, () -> Material.DIRT_PATH);
+        // Юг → к рыбацкой деревне.
+        p.path(0, 45, 0, 70, yPath, 2, () -> Material.DIRT_PATH);
     }
 
     // =========================================================================
