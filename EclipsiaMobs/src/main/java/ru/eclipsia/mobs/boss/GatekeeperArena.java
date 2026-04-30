@@ -14,10 +14,13 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.persistence.PersistentDataType;
 import ru.eclipsia.mobs.EclipsiaMobs;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -77,6 +80,10 @@ public final class GatekeeperArena implements Listener {
     private final EclipsiaMobs plugin;
     private final Set<UUID> recentlyTriggered = new HashSet<>();
     private final Set<UUID> recentlyTeleported = new HashSet<>();
+    /** Время последнего показа сообщения «мир не готов» — чтобы при движении
+     *  внутри радиуса портала не спамить чат/лог на каждом блоке. */
+    private final Map<UUID, Long> lastWorldMissingMs = new HashMap<>();
+    private static final long WORLD_MISSING_COOLDOWN_MS = 3000L;
 
     /** Запущен ли уже шедулер частиц портала (один на сервер). */
     private boolean portalParticlesActive = false;
@@ -98,7 +105,21 @@ public final class GatekeeperArena implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
-        recentlyTriggered.remove(event.getPlayer().getUniqueId());
+        UUID uuid = event.getPlayer().getUniqueId();
+        recentlyTriggered.remove(uuid);
+        // Чистим throttle «мир не готов», чтобы при ре-логине игрок
+        // получил актуальное состояние и не молчал 3 секунды.
+        lastWorldMissingMs.remove(uuid);
+    }
+
+    /** Чистим in-memory state при выходе — иначе map'ы растут на каждый
+     *  уникальный UUID, который хоть раз попадал в портал/триггер. */
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        UUID uuid = event.getPlayer().getUniqueId();
+        recentlyTriggered.remove(uuid);
+        recentlyTeleported.remove(uuid);
+        lastWorldMissingMs.remove(uuid);
     }
 
     /**
@@ -110,6 +131,10 @@ public final class GatekeeperArena implements Listener {
     public void resetPlayerState(java.util.UUID uuid) {
         recentlyTriggered.remove(uuid);
         recentlyTeleported.remove(uuid);
+        // Чистим и map throttle сообщения «мир не готов», иначе после
+        // /admin resetplayer игрок до 3 секунд не увидит сообщения о
+        // незагруженном мире.
+        lastWorldMissingMs.remove(uuid);
     }
 
     @EventHandler
@@ -164,9 +189,6 @@ public final class GatekeeperArena implements Listener {
 
         UUID uuid = player.getUniqueId();
         if (recentlyTeleported.contains(uuid)) return;
-        recentlyTeleported.add(uuid);
-        Bukkit.getScheduler().runTaskLater(plugin,
-                () -> recentlyTeleported.remove(uuid), 20L * 5L);
 
         // Точка прибытия — фиксированные координаты перед северными воротами
         // Эликия (мир "world", PR 1 WorldGenerator). Раньше использовался
@@ -174,28 +196,62 @@ public final class GatekeeperArena implements Listener {
         // обычно (0,4,0), что для нашего города-плато на y=70 неверно
         // и игрок падал внутрь стен / в стену.
         World elikium = Bukkit.getWorld(ELIKIUM_WORLD);
-        if (elikium == null) elikium = Bukkit.getWorld("lobby");
         if (elikium == null) {
-            player.sendMessage("§cЦелевой мир '" + ELIKIUM_WORLD + "' не загружен.");
+            // Раньше тут был fallback на 'lobby' — это БАГ: попадая в lobby,
+            // игрок мгновенно перехватывался LobbyListener.handleLobbyEntry
+            // (PlayerChangedWorldEvent → handleLobbyEntry → teleportToBeach,
+            // если у профиля нет lastLocation), и его выбрасывало обратно
+            // на Берег. Лучше честно сказать «мир не готов» и не двигать
+            // игрока, чем телепортировать его в неработающий пайплайн.
+            //
+            // Важно: НЕ добавляем сюда recentlyTeleported — иначе игрок
+            // на 5 секунд молча залочен (PlayerMoveEvent ничего не делает),
+            // а ему сказано «попробуйте снова». Используем отдельный
+            // throttle (3 сек) чтобы не спамить чат на каждом MoveEvent.
+            long now = System.currentTimeMillis();
+            Long last = lastWorldMissingMs.get(uuid);
+            if (last == null || now - last > WORLD_MISSING_COOLDOWN_MS) {
+                lastWorldMissingMs.put(uuid, now);
+                player.sendMessage("§cЦелевой мир '" + ELIKIUM_WORLD
+                        + "' ещё не загружен. Подождите и попробуйте снова.");
+                plugin.getLogger().warning("[GatekeeperArena] Bukkit.getWorld('"
+                        + ELIKIUM_WORLD + "') == null при попытке портал-телепорта игрока "
+                        + player.getName());
+            }
             return;
         }
 
-        Location target;
-        if (ELIKIUM_WORLD.equals(elikium.getName())) {
-            // yaw=0 в Bukkit = +Z (юг). Игрок стоит севернее города (z=-35),
-            // ворота города — на z=-40, центр — на z=0. Чтобы он смотрел
-            // строго на ворота / собор, ставим yaw=0.
-            target = new Location(elikium,
-                    ELIKIUM_SPAWN_X, ELIKIUM_SPAWN_Y, ELIKIUM_SPAWN_Z,
-                    0f, 0f);
-        } else {
-            // Аварийный fallback (lobby) — туда лезем только если world
-            // не успел подняться.
-            target = elikium.getSpawnLocation().clone().add(0.5, 0, 0.5);
-        }
+        // Cooldown ставим только после успешного резолва мира — чтобы
+        // не блокировать ретрай при «мир ещё не готов».
+        recentlyTeleported.add(uuid);
+        Bukkit.getScheduler().runTaskLater(plugin,
+                () -> recentlyTeleported.remove(uuid), 20L * 5L);
+
+        // yaw=0 в Bukkit = +Z (юг). Игрок стоит севернее города (z=-35),
+        // ворота города — на z=-40, центр — на z=0. Чтобы он смотрел
+        // строго на ворота / собор, ставим yaw=0.
+        Location target = new Location(elikium,
+                ELIKIUM_SPAWN_X, ELIKIUM_SPAWN_Y, ELIKIUM_SPAWN_Z,
+                0f, 0f);
+
+        plugin.getLogger().info("[GatekeeperArena] Портал-ТП: " + player.getName()
+                + " " + player.getLocation().getWorld().getName()
+                + "(" + (int) player.getLocation().getX() + ","
+                + (int) player.getLocation().getY() + ","
+                + (int) player.getLocation().getZ() + ") -> "
+                + target.getWorld().getName()
+                + "(" + (int) target.getX() + ","
+                + (int) target.getY() + ","
+                + (int) target.getZ() + ")");
+
         player.playSound(player.getLocation(), Sound.BLOCK_PORTAL_TRAVEL, 1f, 0.7f);
-        player.teleport(target);
-        player.sendMessage("§dВы перенесены в §5" + elikium.getName() + "§d.");
+        boolean ok = player.teleport(target);
+        plugin.getLogger().info("[GatekeeperArena] teleport result=" + ok
+                + ", после ТП игрок в " + player.getWorld().getName()
+                + "(" + (int) player.getLocation().getX() + ","
+                + (int) player.getLocation().getY() + ","
+                + (int) player.getLocation().getZ() + ")");
+        player.sendMessage("§dВы перенесены в §5Эликий§d.");
     }
 
     private void spawnBoss(World world, Player trigger) {

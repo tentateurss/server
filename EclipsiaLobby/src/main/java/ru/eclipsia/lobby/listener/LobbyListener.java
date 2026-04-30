@@ -411,6 +411,20 @@ public class LobbyListener implements Listener {
             player.sendMessage("§c[Ошибка] Мир '" + worldName + "' не существует. Сообщите админу.");
             return;
         }
+
+        // Лог стека вызовов — чтобы понять, кто/откуда телепортирует игрока
+        // на Берег. Особенно подозрительно, если это происходит уже после
+        // портала Хранителя Врат (мир должен быть 'world', а нас сюда
+        // зачем-то отправили обратно). Берём первые 6 фреймов выше нас.
+        StackTraceElement[] st = Thread.currentThread().getStackTrace();
+        StringBuilder trace = new StringBuilder();
+        for (int i = 2; i < Math.min(st.length, 8); i++) {
+            trace.append("\n        at ").append(st[i]);
+        }
+        plugin.getLogger().info("teleportToBeach: вызов для " + player.getName()
+                + " currentWorld=" + player.getWorld().getName()
+                + trace);
+
         // yaw=180 → лицо на юг (вниз по карте — туда уходит тропа в лес
         // к арене Хранителя Врат). pitch=0 — взгляд горизонтально.
         Location loc = new Location(world, x, y, z, 180f, 0f);
