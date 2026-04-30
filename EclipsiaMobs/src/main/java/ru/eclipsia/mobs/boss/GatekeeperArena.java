@@ -164,9 +164,6 @@ public final class GatekeeperArena implements Listener {
 
         UUID uuid = player.getUniqueId();
         if (recentlyTeleported.contains(uuid)) return;
-        recentlyTeleported.add(uuid);
-        Bukkit.getScheduler().runTaskLater(plugin,
-                () -> recentlyTeleported.remove(uuid), 20L * 5L);
 
         // Точка прибытия — фиксированные координаты перед северными воротами
         // Эликия (мир "world", PR 1 WorldGenerator). Раньше использовался
@@ -181,11 +178,22 @@ public final class GatekeeperArena implements Listener {
             // если у профиля нет lastLocation), и его выбрасывало обратно
             // на Берег. Лучше честно сказать «мир не готов» и не двигать
             // игрока, чем телепортировать его в неработающий пайплайн.
+            //
+            // Важно: НЕ добавляем сюда recentlyTeleported — иначе игрок
+            // на 5 секунд молча залочен (PlayerMoveEvent ничего не делает),
+            // а ему сказано «попробуйте снова». Пусть retry-движение
+            // (любой следующий MoveEvent) опять попадёт сюда.
             player.sendMessage("§cЦелевой мир '" + ELIKIUM_WORLD + "' ещё не загружен. Подождите и попробуйте снова.");
             plugin.getLogger().warning("[GatekeeperArena] Bukkit.getWorld('" + ELIKIUM_WORLD
                     + "') == null при попытке портал-телепорта игрока " + player.getName());
             return;
         }
+
+        // Cooldown ставим только после успешного резолва мира — чтобы
+        // не блокировать ретрай при «мир ещё не готов».
+        recentlyTeleported.add(uuid);
+        Bukkit.getScheduler().runTaskLater(plugin,
+                () -> recentlyTeleported.remove(uuid), 20L * 5L);
 
         // yaw=0 в Bukkit = +Z (юг). Игрок стоит севернее города (z=-35),
         // ворота города — на z=-40, центр — на z=0. Чтобы он смотрел
