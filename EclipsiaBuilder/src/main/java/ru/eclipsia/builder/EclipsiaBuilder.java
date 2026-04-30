@@ -9,6 +9,7 @@ import ru.eclipsia.builder.manager.StructureManager;
 import ru.eclipsia.builder.command.BuildCommand;
 import ru.eclipsia.builder.generator.BeachGenerator;
 import ru.eclipsia.builder.generator.BeachParticles;
+import ru.eclipsia.builder.generator.WorldGenerator;
 import ru.eclipsia.builder.listener.CampRespawnListener;
 import ru.eclipsia.builder.listener.WaterGuardListener;
 import ru.eclipsia.builder.listener.WorldProtectListener;
@@ -65,6 +66,14 @@ public class EclipsiaBuilder extends JavaPlugin {
             // BeachGenerator идемпотентен (PDC-маркер), запускать можно
             // на каждом старте без последствий.
             generateBeachIfPresent();
+
+            // Затем (через 60 тиков ≈ 3 секунды после старта Берега) —
+            // основной мир с городом Эликий. WorldGenerator тоже
+            // идемпотентен через свой PDC-маркер; запускаем после Берега,
+            // чтобы пиковая нагрузка от двух больших заливок RegionPainter
+            // не складывалась в один тик.
+            Bukkit.getScheduler().runTaskLater(this,
+                    this::generateMainWorldIfPresent, 60L);
 
             // Затем — старые «маленькие» структуры (хаб, лагеря в world).
             int built = structureManager.buildAll();
@@ -220,6 +229,38 @@ public class EclipsiaBuilder extends JavaPlugin {
             return false;
         }
         BeachGenerator gen = new BeachGenerator(this, beach);
+        gen.resetMarker();
+        gen.generate(null);
+        return true;
+    }
+
+    /**
+     * Запустить процедурную генерацию основного мира (город Эликий + округа),
+     * если мир {@code world} загружен. {@link WorldGenerator} проверяет
+     * PDC-маркер и пропускает заливку, если мир уже сгенерирован.
+     */
+    private void generateMainWorldIfPresent() {
+        World world = Bukkit.getWorld("world");
+        if (world == null) {
+            getLogger().warning("Мир 'world' не загружен, генерация Эликия пропущена.");
+            return;
+        }
+        WorldGenerator gen = new WorldGenerator(this, world);
+        gen.generate(null);
+    }
+
+    /**
+     * Принудительно перегенерировать основной мир (Эликий). Аналогично
+     * {@link #forceRegenerateBeach()}: сбрасывает PDC-маркер и запускает
+     * заливку, которая ложится поверх старых блоков.
+     */
+    public boolean forceRegenerateWorld() {
+        World world = Bukkit.getWorld("world");
+        if (world == null) {
+            getLogger().warning("Мир 'world' не загружен — нельзя перегенерировать.");
+            return false;
+        }
+        WorldGenerator gen = new WorldGenerator(this, world);
         gen.resetMarker();
         gen.generate(null);
         return true;
