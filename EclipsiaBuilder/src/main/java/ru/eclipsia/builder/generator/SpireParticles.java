@@ -281,10 +281,14 @@ public final class SpireParticles {
                 world.spawnParticle(Particle.REVERSE_PORTAL, center, 32, 6.0, 5.0, 3.0, 0.05,
                         null, true);
 
-                // ===== 15. АУРА ВОКРУГ СОБОРА =====
-                // PR 3.9: пассивный фиолетовый туман в радиусе ~50 блоков
-                // от центра собора. force=true — видно из всего города.
+                // ===== 15. АУРА ВОКРУГ СОБОРА (PR 3.10: пресет 5BCD) =====
+                // - Магия: PORTAL + WITCH с шпилей наверх
+                // - Святой огонь: 4 SOUL_FIRE_FLAME-столба на углах
+                // - Текущая пассивная (PORTAL+SOUL+ENCHANT кольцо вокруг собора)
                 spawnAura(world, ms);
+
+                // ===== 16. ЧАСТИЦЫ ВНУТРИ СОБОРА (PR 3.10: пресет 4E - все 4) =====
+                spawnInteriorParticles(world, ms);
             }
         }.runTaskTimer(plugin, 60L, 3L); // первый запуск через 3 сек, потом каждые 3 тика
     }
@@ -374,6 +378,122 @@ public final class SpireParticles {
                         new Location(world, tx, y, tz), 1,
                         0.0, 0.0, 0.0, 0.0, null, true);
             }
+        }
+
+        // PR 3.10 (5B - магия): PORTAL + WITCH потоки снизу вверх со шпилей
+        // 7 башен (центральная + 2 фасадные + 4 пинакля).
+        final int[][] spireOffsets = {
+                { 0, 0 },               // центральная
+                { +20, +35 }, { -20, +35 },                                // 2 фасадные южные
+                { +30, +0 }, { -30, +0 }, { +0, +35 }, { +0, -35 },        // 4 пинакля по концам креста
+        };
+        double witchAnim = (ms % 4000L) / 4000.0;
+        for (int[] off : spireOffsets) {
+            double sx = cathX + off[0];
+            double sz = cathZ + off[1];
+            // Поток снизу (y=110) вверх (y=170), с лёгким wobble.
+            for (int dy = 0; dy < 15; dy++) {
+                double y = 110.0 + dy * 4.0 + witchAnim * 4.0;
+                double wobble = Math.sin((ms / 200.0) + dy) * 0.7;
+                world.spawnParticle(Particle.SPELL_WITCH,
+                        new Location(world, sx + wobble, y, sz), 1,
+                        0.05, 0.05, 0.05, 0.0, null, true);
+            }
+        }
+
+        // PR 3.10 (5C - святой огонь): 4 SOUL_FIRE_FLAME-столба на углах собора (80 блоков высотой).
+        final int[][] holyColumns = {
+                { +30, +42 }, { +30, -42 }, { -30, +42 }, { -30, -42 },
+        };
+        for (int[] off : holyColumns) {
+            double cx = cathX + off[0];
+            double cz = cathZ + off[1];
+            // Столб от y=72 до y=152 шагом 4.
+            for (int up = 0; up < 80; up += 4) {
+                double y = 72.0 + up;
+                world.spawnParticle(Particle.SOUL_FIRE_FLAME,
+                        new Location(world, cx, y, cz), 1,
+                        0.1, 0.1, 0.1, 0.005, null, true);
+            }
+        }
+    }
+
+    /**
+     * PR 3.10 (4E): частицы ВНУТРИ собора — все 4 типа сразу.
+     *
+     * <ul>
+     *   <li>HAPPY_VILLAGER над алтарём — золотая искра «благословения».</li>
+     *   <li>DRAGON_BREATH над пересечением нефа+трансепта — фиолетовый туман.</li>
+     *   <li>END_ROD по 6 колоннам — восходящий свет от капителей.</li>
+     *   <li>ENCHANTMENT_TABLE в апсиде — магические руны вокруг алтаря.</li>
+     * </ul>
+     *
+     * <p>Все с force=true чтобы было видно гостям из любого расстояния.
+     */
+    private static void spawnInteriorParticles(World world, long ms) {
+        // Алтарь: HAPPY_VILLAGER, золотая искра.
+        // Координаты алтаря: (CX, y=74, CZ-38) ≈ (45, 74, -53)
+        final double altX = WorldGenerator.CATHEDRAL_X + 0.5;
+        final double altZ = WorldGenerator.CATHEDRAL_Z - 38 + 0.5;
+        for (int i = 0; i < 6; i++) {
+            double a = ms * 0.03 + i * Math.PI / 3.0;
+            double rx = altX + Math.cos(a) * 1.5;
+            double rz = altZ + Math.sin(a) * 1.5;
+            double ry = 75.0 + Math.sin(ms * 0.005 + i) * 0.5;
+            world.spawnParticle(Particle.VILLAGER_HAPPY,
+                    new Location(world, rx, ry, rz), 2,
+                    0.1, 0.1, 0.1, 0.0, null, true);
+        }
+        // Спираль VILLAGER_HAPPY от пола до Глаза-навеса над алтарём.
+        for (int up = 0; up < 12; up++) {
+            double t = ms * 0.005 + up * 0.6;
+            double rx = altX + Math.cos(t) * 0.8;
+            double rz = altZ + Math.sin(t) * 0.8;
+            world.spawnParticle(Particle.VILLAGER_HAPPY,
+                    new Location(world, rx, 76.0 + up * 0.6, rz), 1,
+                    0.0, 0.0, 0.0, 0.0, null, true);
+        }
+
+        // Пересечение нефа+трансепта: DRAGON_BREATH туман.
+        // Координаты: (CX, y=82, CZ) = (45, 82, -15).
+        final double crossX = WorldGenerator.CATHEDRAL_X + 0.5;
+        final double crossZ = WorldGenerator.CATHEDRAL_Z + 0.5;
+        for (int i = 0; i < 8; i++) {
+            double a = (ms * 0.001) + i * Math.PI / 4.0;
+            double rx = crossX + Math.cos(a) * 4.0;
+            double rz = crossZ + Math.sin(a) * 4.0;
+            world.spawnParticle(Particle.DRAGON_BREATH,
+                    new Location(world, rx, 82.0, rz), 1,
+                    0.5, 0.2, 0.5, 0.005, null, true);
+        }
+
+        // 6 колонн нефа: END_ROD-струи вверх от капителей (y=78..92).
+        // Координаты: (CX±11, y=78..92, CZ+dz) для dz ∈ {-28, -10, 8, 28}.
+        final int[] columnZs = { -28, -10, 8, 28 };
+        for (int dz : columnZs) {
+            for (int side : new int[] { -1, +1 }) {
+                double colX = WorldGenerator.CATHEDRAL_X + side * 11 + 0.5;
+                double colZ = WorldGenerator.CATHEDRAL_Z + dz + 0.5;
+                // Анимированная струя 14 блоков высотой.
+                for (int up = 0; up < 14; up += 2) {
+                    double y = 79.0 + up + ((ms / 100L) % 2 == 0 ? 0.5 : 0.0);
+                    world.spawnParticle(Particle.END_ROD,
+                            new Location(world, colX, y, colZ), 1,
+                            0.0, 0.0, 0.0, 0.0, null, true);
+                }
+            }
+        }
+
+        // Апсида вокруг алтаря: ENCHANTMENT_TABLE-руны.
+        // Координаты: вокруг алтаря (CX, y=72..78, CZ-38).
+        for (int i = 0; i < 12; i++) {
+            double a = (ms * 0.002) + i * Math.PI / 6.0;
+            double rx = altX + Math.cos(a) * 3.5;
+            double rz = altZ + Math.sin(a) * 3.5;
+            double ry = 73.0 + ((i * 7) % 6) * 0.7;
+            world.spawnParticle(Particle.ENCHANTMENT_TABLE,
+                    new Location(world, rx, ry, rz), 1,
+                    0.3, 0.3, 0.3, 0.05, null, true);
         }
     }
 }

@@ -132,8 +132,39 @@ public final class WorldGenerator {
      * на рёбрах центрального шпиля, карнизы POLISHED_BLACKSTONE_BRICK_STAIRS
      * на y=82 и y=92, trifolium-аркада на восточном и западном
      * торцах трансепта.
+     *
+     * <p><b>v16</b>: PR 3.10 — фидбэк по v15:
+     * <ul>
+     *   <li>Откачена выпирающая «долина» в крыше — заменена на гладкое
+     *       hip-слияние трансептовой и нефовой крыш, без выпуклостей.</li>
+     *   <li>«Pencil-реликварий» (стопка GOLD/QUARTZ/GOLD на алтаре) убран,
+     *       вместо него — низкий алтарный камень + БОЛЬШОЙ ЗОЛОТОЙ КРЕСТ
+     *       5×7 на стене апсиды (GOLD_BLOCK + END_ROD-сияние + 4 SOUL_LANTERN).</li>
+     *   <li>Южные двери удалены — открытая арка с RED_CARPET, выходящим
+     *       на крыльцо.</li>
+     *   <li>Выпирающие наружные детали: 8 каменных гаргулий на углах
+     *       нефа+трансепта (выступают на 2-3 блока с END_ROD-«языком»),
+     *       2 высокие статуи святых у южного портала (POLISHED_BLACKSTONE
+     *       тело + PIGLIN_HEAD голова + END_ROD-нимб), балкон-пюпитр
+     *       на южном фасаде между этажами, 8 реликвариев-витрин на стенах нефа
+     *       (PURPLE_GLASS + GOLD_BLOCK + END_ROD).</li>
+     *   <li>Богатый интерьер: 2 трона епископа+бискупа за алтарём
+     *       (PURPLE_GLAZED_TERRACOTTA + GOLD_BLOCK), подсвечники-сталагмиты
+     *       (POINTED_DRIPSTONE + END_ROD + SOUL_LANTERN) каждые 6 z-точек
+     *       вдоль обеих стен нефа, 4 подвесных PURPLE_BANNER между колоннами,
+     *       2 витражные стенки PURPLE_STAINED_GLASS между нефом и трансептом.</li>
+     *   <li>Частицы ВНУТРИ собора (4E, все 4 типа): VILLAGER_HAPPY над алтарём,
+     *       DRAGON_BREATH над пересечением, END_ROD по 6 колоннам,
+     *       ENCHANTMENT_TABLE в апсиде.</li>
+     *   <li>Аура снаружи (5BCD комбо): SPELL_WITCH потоки со шпилей наверх,
+     *       4 SOUL_FIRE_FLAME-столба на углах собора (80 блоков), плюс
+     *       сохранена пассивная аура (PORTAL+SOUL+ENCHANT в радиусе 50).</li>
+     *   <li>Тёмный готический сад по ВСЕМУ периметру собора —
+     *       PODZOL/COARSE_DIRT база, AZALEA/ROSE_BUSH/LILAC/DARK_OAK_SAPLING
+     *       рандомно, 8 SOUL_LANTERN-фонарей на DARK_OAK_FENCE-столбиках.</li>
+     * </ul>
      */
-    public static final String GENERATED_FLAG = "eclipsia_world_generated_v15";
+    public static final String GENERATED_FLAG = "eclipsia_world_generated_v16";
 
     // =========================================================================
     // ГЕОМЕТРИЯ ГОРОДА
