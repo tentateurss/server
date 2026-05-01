@@ -202,6 +202,10 @@ public final class CathedralBuilder {
         ops += buildWallCandles();           // CANDLE-сконсы вдоль внутренних стен нефа
         ops += buildApseOrgan();             // декоративный орган в апсиде за алтарём
 
+        // PR 3.15 — фикс «дырявой крыши»: закрыть треугольный клин между нефом
+        // и трансептовым гребнем, который зиял на стыке крестовины.
+        ops += buildCrossingRoofFill();
+
         plugin.getLogger().info(
                 "CathedralBuilder: ~" + ops + " блок-операций готовы (стены, "
                 + "башни, шпиль, парящий Глаз).");
@@ -4064,6 +4068,54 @@ public final class CathedralBuilder {
             }
             painter.place(sx, baseY + 13, organZ, Material.SOUL_LANTERN);
             count++;
+        }
+        return count;
+    }
+
+    // =========================================================================
+    // ФАЗА 69 (PR 3.15) — ЗАПОЛНЕНИЕ КЛИНА КРЕСТОВИНЫ (фикс «дырявой крыши»)
+    // =========================================================================
+
+    /**
+     * Закрывает «клин» воздуха между нефовым eave (y=102..103 на x=±15) и
+     * трансептовым гребнем (y=109..110 на x=±16..±30, z=0). Эти зоны после
+     * {@link #buildRoof()} оставались разорваны — нефовый скат не дотягивался
+     * до трансептового хребта, между ними зияла треугольная щель видимая
+     * как изнутри (виден интерьер сквозь крышу), так и снаружи.
+     *
+     * <p>Алгоритм: для каждой клетки (dx,dz) в зоне крестовины
+     * (|dx|≤HALF_NAVE_W, |dz|≤HALF_TRANSEPT_L), кроме башенного 11×11,
+     * вычисляется унифицированная высота — максимум нефового и трансептового
+     * скатов. Если унифицированная выше существующего fat-слоя нефа, столб
+     * добивается каменной готической стенкой вверх до этого уровня.
+     *
+     * <p>Архитектурно — это «фронтон трансептового рукава со стороны
+     * крестовины»: каменная стена закрывает торец трансептового конька.
+     */
+    private long buildCrossingRoofFill() {
+        long count = 0;
+        for (int dx = -HALF_NAVE_W; dx <= HALF_NAVE_W; dx++) {
+            for (int dz = -HALF_TRANSEPT_L; dz <= HALF_TRANSEPT_L; dz++) {
+                int adx = Math.abs(dx), adz = Math.abs(dz);
+                // Зона центральной башни — её тело покрывает крышу собственной
+                // массивной стеной, заполнение там не нужно.
+                if (adx <= CT_HALF && adz <= CT_HALF) continue;
+                int naveH = HALF_NAVE_W - adx;       // 0..15
+                int transH = HALF_TRANSEPT_L - adz;  // 0..7
+                int unifiedH = Math.max(naveH, transH);
+                // Существующая макушка нефа в этой колонке — main + fat
+                // (fat есть везде, кроме самой вершины dx=0).
+                int existingTopH = (naveH == HALF_NAVE_W) ? naveH : naveH + 1;
+                if (unifiedH <= existingTopH) continue; // нефовый fat уже выше унифицированной — пропускаем
+                for (int h = existingTopH + 1; h <= unifiedH; h++) {
+                    int y = WALL_TOP_Y + h;
+                    Material mat = ((dx + dz + h) & 1) == 0
+                            ? Material.DEEPSLATE_BRICKS
+                            : Material.POLISHED_BLACKSTONE_BRICKS;
+                    painter.place(CX + dx, y, CZ + dz, mat);
+                    count++;
+                }
+            }
         }
         return count;
     }
