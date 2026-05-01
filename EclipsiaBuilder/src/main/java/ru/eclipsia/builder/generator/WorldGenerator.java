@@ -215,7 +215,7 @@ public final class WorldGenerator {
      *   <li>Декоративные крокеты END_ROD по конькам нефа и трансепта.</li>
      * </ul>
      */
-    public static final String GENERATED_FLAG = "eclipsia_world_generated_v18";
+    public static final String GENERATED_FLAG = "eclipsia_world_generated_v19";
 
     // =========================================================================
     // ГЕОМЕТРИЯ ГОРОДА
@@ -435,15 +435,17 @@ public final class WorldGenerator {
     // =========================================================================
 
     private void phase4Paths(RegionPainter p, Random rng) {
-        plugin.getLogger().info("WorldGenerator/phase4: улицы и переулки — TODO в PR 4.");
+        // Улицы строятся вместе со зданиями в ElikiumCity (фаза 5).
+        // Здесь явный no-op оставлен для совместимости со схемой 8 фаз.
     }
 
     // =========================================================================
-    // ФАЗА 5: ТОЧКИ ИНТЕРЕСА — ЗДАНИЯ (PR 4)
+    // ФАЗА 5: ТОЧКИ ИНТЕРЕСА — ЗДАНИЯ + УЛИЦЫ + ПЛОЩАДЬ (PR 3.15)
     // =========================================================================
 
     private void phase5PointsOfInterest(RegionPainter p, Random rng) {
-        plugin.getLogger().info("WorldGenerator/phase5: здания — TODO в PR 4.");
+        plugin.getLogger().info("WorldGenerator/phase5: интерьер города (улицы, площадь, дома, фонари).");
+        new ElikiumCity(plugin, p, rng).build();
     }
 
     // =========================================================================
