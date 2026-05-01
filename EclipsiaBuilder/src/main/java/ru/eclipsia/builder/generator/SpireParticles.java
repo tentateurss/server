@@ -9,20 +9,29 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
 /**
- * Атмосферные частицы вокруг «глаза» на шпиле собора Эликий.
+ * Атмосферные частицы вокруг парящего «Глаза Эликия» над собором.
  *
- * <p>Запускается раз в 5 тиков (4 раза в секунду): кольцо
- * {@link Particle#PORTAL} (≈100 шт.), магические руны
- * {@link Particle#ENCHANTMENT_TABLE} (≈50 шт.) и точечные искры
- * {@link Particle#SOUL_FIRE_FLAME} (≈20 шт.).
+ * <p>После переделки в PR 3.5 Глаз парит на y≈201 над центральным
+ * шпилем; вокруг него крутятся фиолетовые частицы, имитируя
+ * магическую ауру:
+ * <ul>
+ *   <li>{@link Particle#DRAGON_BREATH} (≈40 шт., радиус 5) — основа
+ *       фиолетового облака.</li>
+ *   <li>{@link Particle#PORTAL} (≈80 шт., радиус 4) — мерцающие
+ *       тёмно-фиолетовые точки.</li>
+ *   <li>{@link Particle#WITCH} (≈30 шт., радиус 3) — магенто-розовые
+ *       искры (зельеварные руны).</li>
+ *   <li>{@link Particle#ENCHANTMENT_TABLE} (≈40 шт.) — магические
+ *       руны, стекающие к Глазу.</li>
+ *   <li>{@link Particle#END_ROD} (≈10 шт., тонкий ореол) — белые
+ *       искры по верху Глаза.</li>
+ * </ul>
  *
- * <p>По смыслу аналогичен {@link BeachParticles}, но крутится только
- * в одной точке (вершина шпиля) и только в мире {@code world}.
- * Подписывается на координаты шпиля через статические поля
+ * <p>Запускается раз в 5 тиков (4 раза в секунду). Подписывается на
+ * координаты Глаза через статические поля
  * {@link WorldGenerator#spireCenterX}/{@link WorldGenerator#spireCenterY}/
- * {@link WorldGenerator#spireCenterZ} — до PR 3 указывают на место,
- * где собор будет построен; после PR 3 (фактическая постройка шпиля)
- * перезаписываются на точные координаты «глаза».
+ * {@link WorldGenerator#spireCenterZ} — после {@code CathedralBuilder.build()}
+ * они перезаписываются на фактическую точку.
  */
 public final class SpireParticles {
 
@@ -52,12 +61,18 @@ public final class SpireParticles {
 
                 Location center = new Location(world, cx, cy, cz);
 
-                // PORTAL (100 шт., радиус 4, высота 3) — фиолетовое свечение.
-                world.spawnParticle(Particle.PORTAL, center, 100, 4.0, 3.0, 4.0, 0.05);
-                // ENCHANTMENT_TABLE (50 шт.) — магические руны, поднимающиеся к глазу.
-                world.spawnParticle(Particle.ENCHANTMENT_TABLE, center, 50, 3.0, 2.0, 3.0, 0.5);
-                // SOUL_FIRE_FLAME (20 шт.) — фиолетовый огонь в центре.
-                world.spawnParticle(Particle.SOUL_FIRE_FLAME, center, 20, 0.6, 1.0, 0.6, 0.01);
+                // DRAGON_BREATH (40, радиус 5) — основа фиолетового облака.
+                world.spawnParticle(Particle.DRAGON_BREATH, center, 40, 5.0, 2.5, 5.0, 0.01);
+                // PORTAL (80, радиус 4) — мерцающие тёмно-фиолетовые точки.
+                world.spawnParticle(Particle.PORTAL, center, 80, 4.0, 3.0, 4.0, 0.05);
+                // SPELL_WITCH (30, радиус 3) — магенто-розовые зельеварные руны.
+                world.spawnParticle(Particle.SPELL_WITCH, center, 30, 3.0, 2.0, 3.0, 0.0);
+                // REVERSE_PORTAL (20) — частицы, стекающие В Глаз сверху.
+                world.spawnParticle(Particle.REVERSE_PORTAL, center, 20, 2.0, 4.0, 2.0, 0.05);
+                // ENCHANTMENT_TABLE (40) — стекающие руны.
+                world.spawnParticle(Particle.ENCHANTMENT_TABLE, center, 40, 3.0, 2.0, 3.0, 0.5);
+                // END_ROD (10, тонкий ореол) — белые искры по верху.
+                world.spawnParticle(Particle.END_ROD, center, 10, 1.5, 0.5, 1.5, 0.01);
             }
         }.runTaskTimer(plugin, 60L, 5L); // первый запуск через 3 сек, потом каждые 5 тиков
     }

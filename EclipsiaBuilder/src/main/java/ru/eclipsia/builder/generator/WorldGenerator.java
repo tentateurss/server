@@ -92,9 +92,17 @@ public final class WorldGenerator {
      * «Глаз Эликия» 11×11 (LAPIS+EMERALD+END_ROD), 4 луча END_ROD.
      * Контрфорсы (6 пар), витражи (10 пролётов), южный портал 9×16.
      * SpireParticles обновляет координаты на (45.5, 189.5, -14.5).
-     * Старые v6..v9-миры несовместимы и пересоздаются.
+     *
+     * <p><b>v11</b>: PR 3.5 — полная переделка собора в готический
+     * тёмно-фиолетовый стиль. Cruciform plan (неф ±15 × ±42, трансепт
+     * ±30 × ±7), 7 башен (1 центральная 11×11 шпиль y=187 + 2 фасадные
+     * 7×7 шпили y=144 + 4 угловых пинакля 5×5 y=130), стрельчатые арки,
+     * витражи PURPLE_STAINED_GLASS со SHROOMLIGHT-подсветкой, контрфорсы
+     * с пинаклями, парящий «Глаз Эликия» на y=201 (AMETHYST 3×3×3 +
+     * 3 кольца END_ROD). SpireParticles переезжает на Глаз и переходит
+     * на DRAGON_BREATH+WITCH (фиолетовые). Старые v6..v10-миры несовместимы.
      */
-    public static final String GENERATED_FLAG = "eclipsia_world_generated_v10";
+    public static final String GENERATED_FLAG = "eclipsia_world_generated_v11";
 
     // =========================================================================
     // ГЕОМЕТРИЯ ГОРОДА
@@ -162,7 +170,7 @@ public final class WorldGenerator {
      * перезаписываются на фактическую (на случай будущего смещения).
      */
     public static volatile double spireCenterX = CATHEDRAL_X + 0.5;
-    public static volatile double spireCenterY = CITY_FLOOR_Y + 119 + 0.5; // y=189.5
+    public static volatile double spireCenterY = CITY_FLOOR_Y + 131 + 0.5; // y=201.5 (Глаз)
     public static volatile double spireCenterZ = CATHEDRAL_Z + 0.5;
 
     // =========================================================================
