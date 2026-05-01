@@ -102,7 +102,7 @@ public final class WorldGenerator {
      * 3 кольца END_ROD). SpireParticles переезжает на Глаз и переходит
      * на DRAGON_BREATH+WITCH (фиолетовые). Старые v6..v10-миры несовместимы.
      */
-    public static final String GENERATED_FLAG = "eclipsia_world_generated_v12";
+    public static final String GENERATED_FLAG = "eclipsia_world_generated_v13";
 
     // =========================================================================
     // ГЕОМЕТРИЯ ГОРОДА
