@@ -68,10 +68,12 @@ public final class CathedralBuilder {
     private static final int CT_SPIRE_DY   = 50;
     private static final int CT_SPIRE_TOP_Y = CT_BODY_TOP_Y + CT_SPIRE_DY;      // y=187
 
-    /** Парящий Глаз над центральной башней. PR 3.8 (v14): 14→24, Глаз
-     *  на y=211 (был y=201), выше из-за большего ×1.6 миндаля. */
-    private static final int EYE_Y_OFFSET  = 24;
-    private static final int EYE_Y         = CT_SPIRE_TOP_Y + EYE_Y_OFFSET;     // y=211
+    /** Парящий Глаз над центральной башней. PR 3.14 (v20): по просьбе
+     *  пользователя опущен на 18 блоков (24→6) — Глаз сидит почти на пике
+     *  шпиля, y=193 вместо y=211. Так Глаз гораздо «приземлённее» и
+     *  читабельнее как корона собора. */
+    private static final int EYE_Y_OFFSET  = 6;
+    private static final int EYE_Y         = CT_SPIRE_TOP_Y + EYE_Y_OFFSET;     // y=193
 
     /** Две западные (южные) башни-близнецы у фасада. */
     private static final int WT_HALF        = 3;                                // 7×7
@@ -175,7 +177,8 @@ public final class CathedralBuilder {
         // fleche на верху апсиды, козырёк над входом, ниши со статуями святых на
         // южном фасаде, крокеты на коньках.
         ops += buildExteriorApseCross();     // GOLD_BLOCK крест 5×7 снаружи на северной стене (виден с улицы)
-        ops += buildApseFleche();            // декоративный шпиль fleche на верху апсиды
+        // PR 3.14: buildApseFleche() ОТКЛЮЧЁН — пользователь попросил удалить «лишний шпиль».
+        // ops += buildApseFleche();
         ops += buildPorchOverhang();         // выступающая крыша-козырёк над входом (3 блока наружу)
         ops += buildSaintNiches();           // 4 ниши со статуями святых на южном фасаде между порталом и розой
         ops += buildRoofCrockets();          // декоративные крокеты END_ROD по конькам всех крыш
@@ -188,7 +191,16 @@ public final class CathedralBuilder {
         ops += buildLanternInterior();       // hanging chandelier + vault ribs + AMETHYST relief inside lantern
         ops += buildCrossingFloorStar();     // 9×9 mosaic star at crossing centre (replaces removed pulpit END_ROD)
         ops += buildCrossCarpet();           // east-west red carpet across transept (cross of carpets at crossing)
-        ops += buildCrossingHangingLanterns(); // 4 SOUL_LANTERN on long chains in crossing inner corners
+        // PR 3.14: buildCrossingHangingLanterns ОТКЛЮЧЁН — пользователь сказал
+        // что эти подвесы выглядят как «висюльки» и не нужны.
+        // ops += buildCrossingHangingLanterns();
+
+        // PR 3.14 (v20) — фиксы по фидбэку v19 + больше декора:
+        ops += buildEavesCornice();          // элегантный карниз-козырёк по периметру нефа/трансепта
+        ops += buildTriforiumStairs();       // 4 угловые лестницы пол→галерея (заменяют «лестницу в никуда»)
+        ops += buildPewsExtended();          // больше скамей в нефе + скамьи в трансепте
+        ops += buildWallCandles();           // CANDLE-сконсы вдоль внутренних стен нефа
+        ops += buildApseOrgan();             // декоративный орган в апсиде за алтарём
 
         plugin.getLogger().info(
                 "CathedralBuilder: ~" + ops + " блок-операций готовы (стены, "
@@ -371,12 +383,11 @@ public final class CathedralBuilder {
             count++;
         }
         // Пинакль (мини-шпиль) над контрфорсом — 6 блоков, остроконечный.
+        // PR 3.14: END_ROD/LIGHTNING_ROD заменены на каменные капы (без внешнего света).
         int pinTop = Y_BASE + WALL_HEIGHT - 2;
         for (int dy = 1; dy <= 5; dy++) {
             int y = pinTop + dy;
-            // Узкая «башенка» 1×1 + END_ROD на конце.
-            Material mat = (dy == 5) ? Material.END_ROD
-                    : (dy == 4) ? Material.LIGHTNING_ROD
+            Material mat = (dy == 5) ? Material.POLISHED_BLACKSTONE_BRICK_WALL
                     : Material.CHISELED_DEEPSLATE;
             painter.place(bx, y, bz, mat);
             count++;
@@ -636,17 +647,8 @@ public final class CathedralBuilder {
             count++;
         }
 
-        // ===== Декоративные SHROOMLIGHT-«окошки» на скатах =====
-        // Каждые 14 блоков по нефу — мансардные окна.
-        for (int dz : new int[] { -32, -18, 18, 32 }) {
-            for (int side : new int[] { -1, +1 }) {
-                int rise = 6;
-                int y = WALL_TOP_Y + rise;
-                int x = CX + side * (HALF_NAVE_W - rise);
-                painter.place(x, y, CZ + dz, Material.SHROOMLIGHT);
-                count++;
-            }
-        }
+        // PR 3.14: SHROOMLIGHT-«окошки» на скатах удалены — всё освещение
+        // теперь только внутри собора. Снаружи крыша сплошная деревянная.
         return count;
     }
 
@@ -709,12 +711,13 @@ public final class CathedralBuilder {
                 count++;
             }
         }
-        // 4 угловых пинакля на короне.
+        // 4 угловых пинакля на короне (PR 3.14: тёмные каменные шпили,
+        // без END_ROD/LIGHTNING_ROD — никаких внешних ламп).
         for (int sx : new int[] { -CT_HALF - 1, CT_HALF + 1 }) {
             for (int sz : new int[] { -CT_HALF - 1, CT_HALF + 1 }) {
                 for (int dy = 1; dy <= 6; dy++) {
-                    Material mat = (dy == 6) ? Material.END_ROD
-                            : (dy == 5) ? Material.LIGHTNING_ROD
+                    Material mat = (dy == 6) ? Material.POLISHED_BLACKSTONE_BRICK_WALL
+                            : (dy >= 4) ? Material.POLISHED_BLACKSTONE
                             : Material.CHISELED_DEEPSLATE;
                     painter.place(CX + sx, parapetY + dy, CZ + sz, mat);
                     count++;
@@ -865,11 +868,10 @@ public final class CathedralBuilder {
             int tx = CX + c[0];
             int tz = CZ + c[1];
             count += buildOneSideTower(tx, tz, CP_HALF, CP_BODY_DY, CP_SPIRE_DY);
-            // Маяк сверху.
+            // PR 3.14: END_ROD-маяк удалён, оставляем только каменный шпилет.
             int beaconY = WALL_TOP_Y + CP_BODY_DY + CP_SPIRE_DY + 1;
-            painter.place(tx, beaconY, tz, Material.END_ROD);
+            painter.place(tx, beaconY, tz, Material.POLISHED_BLACKSTONE_BRICK_WALL);
             count++;
-            // PR 3.8: вместо квадратного wool-флага — компактный флюгер-спирелет.
             count += buildSpirelet(tx, beaconY, tz);
         }
         return count;
@@ -1482,13 +1484,14 @@ public final class CathedralBuilder {
      */
     private long buildSpirelet(int tx, int topY, int tz) {
         long count = 0;
-        for (int dy = 1; dy <= 3; dy++) {
+        // PR 3.14: LIGHTNING_ROD/END_ROD сверху удалены — тёмные каменные
+        // флюгера без светящих ламп снаружи.
+        for (int dy = 1; dy <= 4; dy++) {
             painter.place(tx, topY + dy, tz, Material.POLISHED_BLACKSTONE_WALL);
             count++;
         }
-        painter.place(tx, topY + 4, tz, Material.LIGHTNING_ROD);
-        painter.place(tx, topY + 5, tz, Material.END_ROD);
-        count += 2;
+        painter.place(tx, topY + 5, tz, Material.POLISHED_BLACKSTONE_BRICK_WALL);
+        count++;
         return count;
     }
 
@@ -2026,19 +2029,19 @@ public final class CathedralBuilder {
      */
     private long buildSpireCrockets() {
         long count = 0;
+        // PR 3.14: END_ROD заменены на POLISHED_BLACKSTONE_BRICK_WALL —
+        // каменные крокеты-шипы на рёбрах шпиля без внешнего света.
         // Шпиль конический от CT_BODY_TOP_Y=137 до CT_SPIRE_TOP_Y=187.
-        // Крокеты на 4 рёбрах (NE/NW/SE/SW диагонали).
         for (int signX : new int[] { -1, +1 }) {
             for (int signZ : new int[] { -1, +1 }) {
                 for (int yOff = 0; yOff <= CT_SPIRE_DY; yOff += 3) {
                     int y = CT_BODY_TOP_Y + yOff;
-                    // Радиус шпиля сужается линейно: r = CT_HALF * (1 - yOff/CT_SPIRE_DY).
                     double t = (double) yOff / CT_SPIRE_DY;
                     int r = (int) Math.max(0, Math.round(CT_HALF * (1.0 - t) - 0.5));
                     if (r < 1) continue;
                     int x = CX + signX * r;
                     int z = CZ + signZ * r;
-                    painter.place(x, y, z, Material.END_ROD);
+                    painter.place(x, y, z, Material.POLISHED_BLACKSTONE_BRICK_WALL);
                     count++;
                 }
             }
@@ -2921,43 +2924,64 @@ public final class CathedralBuilder {
         painter.placeData(CX, galleryY + 1, balconyZFront + 1, lect);
         count += 5;
 
-        // 3. PR 3.12 — 2 ПАРАДНЫЕ ЛЕСТНИЦЫ у южного входа (3 wide).
-        // Лестницы вдоль восточной и западной стен нефа в южной части
-        // (z=+15..+30), 3 блока ширины, поднимаются с пола (y=71) до галереи (y=88).
+        // PR 3.14: 2 ПАРАДНЫЕ ЛЕСТНИЦЫ из PR 3.12 удалены — они заканчивались
+        // в крестовинной зоне (z=0..2), где галереи НЕТ, и выглядели как
+        // «лестница в никуда». Замена — buildTriforiumStairs() с реальным
+        // соединением пола нефа (y=71) с галереей (y=88) в местах, где
+        // галерея ДЕЙСТВИТЕЛЬНО есть.
+
+        return count;
+    }
+
+    // =========================================================================
+    // ФАЗА 63 (PR 3.14) — ЛЕСТНИЦЫ НА ТРИФОРИЙ-ГАЛЕРЕЮ
+    // =========================================================================
+
+    /**
+     * 4 угловые лестницы 1×16 ступеней, соединяющие пол нефа (y=71) с
+     * trifor-галереей (y=88). По 2 лестницы в каждом конце нефа (юг/север),
+     * по обе стороны от центральной оси, прижатые к боковым стенам нефа.
+     *
+     * <p>Геометрия: каждая лестница идёт параллельно стене (вдоль оси Z),
+     * поднимаясь по 1 блоку на шаг. На юге начинается у входа (z=+38),
+     * заканчивается на z=+22 (внутри зоны галереи |dz|>7). На севере —
+     * аналогично у апсиды (z=-38..-22), приходит на апсидный балкон.
+     *
+     * <p>Вместе с заполнением под ступенями и перилами по внешнему краю —
+     * визуально полноценный мраморный лестничный марш.
+     */
+    private long buildTriforiumStairs() {
+        long count = 0;
+        // 4 лестницы: (signX, signZ) = south-west, south-east, north-west, north-east.
         for (int signX : new int[] { -1, +1 }) {
-            int sx = CX + signX * 11; // ±11 (рядом со стеной x=±15, оставив проход)
-            int startZ = CZ + 16;    // z=+16 (начало подъёма от южного входа)
-            for (int step = 0; step < 17; step++) {
-                int y = Y_BASE + 1 + step;
-                int z = startZ - step;
-                BlockData stair = Material.DARK_OAK_STAIRS.createBlockData();
-                if (stair instanceof Stairs) {
-                    ((Stairs) stair).setFacing(BlockFace.SOUTH); // восход — лицом на юг
-                }
-                // 3 блока ширины: sx-signX, sx, sx+signX
-                for (int dx = -1; dx <= 1; dx++) {
-                    int x = sx + signX * dx;
-                    painter.placeData(x, y, z, stair);
+            for (int signZ : new int[] { -1, +1 }) {
+                int sx = CX + signX * (HALF_NAVE_W - 2); // x=±13 (1 блок от внутренней стены)
+                int startZ = CZ + signZ * 38;            // z=±38 (у торца нефа)
+                BlockFace facing = (signZ > 0) ? BlockFace.NORTH : BlockFace.SOUTH;
+                for (int step = 0; step < 17; step++) {
+                    int y = Y_BASE + 1 + step; // y=72..88
+                    int z = startZ - signZ * step;
+                    // Поддерживающий стенной блок — POLISHED_BLACKSTONE_BRICKS под ступенью.
+                    if (step > 0) {
+                        painter.place(sx, y - 1, z, Material.POLISHED_BLACKSTONE_BRICKS);
+                        count++;
+                    }
+                    // Сама ступень.
+                    BlockData stair = Material.POLISHED_BLACKSTONE_BRICK_STAIRS.createBlockData();
+                    if (stair instanceof Stairs) {
+                        ((Stairs) stair).setFacing(facing);
+                    }
+                    painter.placeData(sx, y, z, stair);
                     count++;
-                    // Опора DARK_OAK_PLANKS под ступенькой (для визуальной массы).
-                    if (y > Y_BASE + 1) {
-                        painter.place(x, y - 1, z, Material.DARK_OAK_PLANKS);
+                    // Перила DARK_OAK_FENCE на внутренней стороне (где обрыв в неф).
+                    int railX = sx - signX; // 1 блок ближе к центру нефа
+                    if (step > 0 && step < 16) {
+                        painter.place(railX, y + 1, z, Material.DARK_OAK_FENCE);
                         count++;
                     }
                 }
-                // Перила DARK_OAK_FENCE по краю лестницы.
-                painter.place(sx + signX * 2, y + 1, z, Material.DARK_OAK_FENCE);
-                count++;
-            }
-            // Финальная площадка y=88 на верху лестницы (соединяется с галереей).
-            for (int dx = -1; dx <= 1; dx++) {
-                for (int dz = 0; dz <= 2; dz++) {
-                    painter.place(sx + signX * dx, galleryY, CZ + dz, Material.DARK_OAK_PLANKS);
-                    count++;
-                }
             }
         }
-
         return count;
     }
 
@@ -3323,18 +3347,20 @@ public final class CathedralBuilder {
      */
     private long buildRoofCrockets() {
         long count = 0;
+        // PR 3.14: END_ROD заменены на POLISHED_BLACKSTONE_BRICK_WALL —
+        // тёмные каменные крокеты вместо светящихся стержней.
         // Нефовый конёк: y=118, x=CX, z=-40..+40 каждые 5.
         int naveRidgeY = WALL_TOP_Y + HALF_NAVE_W + 1; // y=118
         for (int dz = -40; dz <= 40; dz += 5) {
             if (Math.abs(dz) <= CT_HALF) continue; // не наезжать на центр. башню
-            painter.place(CX, naveRidgeY + 1, CZ + dz, Material.END_ROD);
+            painter.place(CX, naveRidgeY + 1, CZ + dz, Material.POLISHED_BLACKSTONE_BRICK_WALL);
             count++;
         }
         // Трансептовый конёк: y=110, z=CZ, x=±30..±18 каждые 5.
         int transRidgeY = WALL_TOP_Y + HALF_TRANSEPT_L + 1; // y=110
         for (int signX : new int[] { -1, +1 }) {
             for (int dx = HALF_NAVE_W + 3; dx <= HALF_TRANSEPT_W; dx += 5) {
-                painter.place(CX + signX * dx, transRidgeY + 1, CZ, Material.END_ROD);
+                painter.place(CX + signX * dx, transRidgeY + 1, CZ, Material.POLISHED_BLACKSTONE_BRICK_WALL);
                 count++;
             }
         }
@@ -3424,47 +3450,10 @@ public final class CathedralBuilder {
                 }
             }
 
-            // 2. Archivolt step-trim on OUTER wall layer (visible from the
-            //    transept/nave side looking in). y=82 outside ±2 (dx=±3),
-            //    y=83 outside ±1 (dx=±2), y=84 outside 0 (dx=±1).
-            int[] trimDx = { 3, 2, 1 };
-            for (int step = 0; step < 3; step++) {
-                int dy = 12 + step;
-                int across = trimDx[step];
-                for (int signA : new int[] { -1, +1 }) {
-                    int aa = signA * across;
-                    int wx, wz;
-                    if (alongX) {
-                        wx = CX + aa;
-                        wz = CZ + outerOffsetZ;
-                    } else {
-                        wx = CX + outerOffsetX;
-                        wz = CZ + aa;
-                    }
-                    painter.place(wx, Y_BASE + dy, wz, Material.CHISELED_DEEPSLATE);
-                    count++;
-                }
-            }
-            // INNER wall layer trim — same step-pattern, visible from the
-            //    crossing side. Use POLISHED_BLACKSTONE_BRICKS so player can
-            //    differentiate the two layers visually (depth/shadow effect).
-            for (int step = 0; step < 3; step++) {
-                int dy = 12 + step;
-                int across = trimDx[step];
-                for (int signA : new int[] { -1, +1 }) {
-                    int aa = signA * across;
-                    int wx, wz;
-                    if (alongX) {
-                        wx = CX + aa;
-                        wz = CZ + innerOffsetZ;
-                    } else {
-                        wx = CX + innerOffsetX;
-                        wz = CZ + aa;
-                    }
-                    painter.place(wx, Y_BASE + dy, wz, Material.POLISHED_BLACKSTONE_BRICKS);
-                    count++;
-                }
-            }
+            // PR 3.14: archivolt-trim удалён (создавал визуальную «балку в
+            // проходе» на y=82..84). Стенки арки остаются чистыми — по краям
+            // карведа уже стоят wall-блоки от buildCentralTower; лишний
+            // декор только мешал визуальному прочтению прохода.
 
             // 3. Capitals — springers where straight jamb meets pointed top
             //    (y=82, dx=±4 on BOTH layers).
@@ -3480,14 +3469,14 @@ public final class CathedralBuilder {
                 count += 2;
             }
 
-            // 4. Keystone — GOLD apex on the OUTER face above the pointed top,
-            //    AMETHYST crown, END_ROD halo above. (y=85, 86, 87 at dx=0.)
+            // 4. Keystone — GOLD apex on the OUTER face above the pointed top.
+            // PR 3.14: END_ROD halo удалён (внешний свет). Сверху AMETHYST как
+            // последний акцент.
             int kx = CX + (alongX ? 0 : outerOffsetX);
             int kz = CZ + (alongX ? outerOffsetZ : 0);
             painter.place(kx, Y_BASE + 15, kz, Material.GOLD_BLOCK);
             painter.place(kx, Y_BASE + 16, kz, Material.AMETHYST_BLOCK);
-            painter.place(kx, Y_BASE + 17, kz, Material.END_ROD);
-            count += 3;
+            count += 2;
             // Inner-face mirror keystone — single GOLD_BLOCK on inner layer
             // visible from the crossing.
             int kxi = CX + (alongX ? 0 : innerOffsetX);
@@ -3565,12 +3554,35 @@ public final class CathedralBuilder {
         long count = 0;
         // 1. Hanging crown chandelier.
         int crownY = 110;       // ring height
-        int chainTop = 130;     // top of suspension chains (1 block below lantern ceiling y=137-7=130)
+        int chainTop = 136;     // PR 3.14: extended to y=136 (1 below ceiling y=137) to fix the visible "hole".
         // 4 chain strands from chainTop down to crownY.
         int[][] chainXZ = { { -2, 0 }, { +2, 0 }, { 0, -2 }, { 0, +2 } };
         for (int[] cxcz : chainXZ) {
             for (int y = crownY + 1; y <= chainTop; y++) {
                 painter.place(CX + cxcz[0], y, CZ + cxcz[1], Material.CHAIN);
+                count++;
+            }
+        }
+        // PR 3.14: ceiling rosette/medallion at y=137 — anchors the chains
+        // visually so they no longer dangle into a "hole" in the ceiling.
+        // 5×5 plate centred on (CX, 137, CZ): GOLD_BLOCK ring + CHISELED_DEEPSLATE
+        // corners + central AMETHYST pip.
+        int ceilY = 137;
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dz = -2; dz <= 2; dz++) {
+                int adx = Math.abs(dx), adz = Math.abs(dz);
+                int outer = Math.max(adx, adz);
+                Material mat;
+                if (outer == 0) {
+                    mat = Material.AMETHYST_BLOCK;
+                } else if (outer == 1) {
+                    mat = Material.GOLD_BLOCK;
+                } else if (adx == 2 && adz == 2) {
+                    mat = Material.CHISELED_DEEPSLATE;
+                } else {
+                    mat = Material.POLISHED_BLACKSTONE_BRICKS;
+                }
+                painter.place(CX + dx, ceilY, CZ + dz, mat);
                 count++;
             }
         }
@@ -3820,6 +3832,238 @@ public final class CathedralBuilder {
                 painter.place(hx, Y_BASE + 8, hz, Material.SOUL_LANTERN);
                 count++;
             }
+        }
+        return count;
+    }
+
+    // =========================================================================
+    // ФАЗА 65 (PR 3.14) — КАРНИЗ-КОЗЫРЁК ПО ПЕРИМЕТРУ (Issue #1)
+    // =========================================================================
+
+    /**
+     * Элегантный готический карниз по верхней кромке стен нефа и трансепта
+     * (y=WALL_TOP_Y, y=WALL_TOP_Y+1). Создаёт видимый «вынос» крыши за
+     * стену — то самое «красивый козырёк», о котором просил пользователь
+     * вместо отдельного шпиля-флешь.
+     *
+     * <p>Рисуется одной строкой POLISHED_BLACKSTONE_BRICK_STAIRS (вверх-ногами,
+     * лицом наружу) на y=WALL_TOP_Y и DARK_OAK_SLAB (top type) на
+     * y=WALL_TOP_Y+1, в положении 1 блок ОТ стены наружу — так стропила
+     * деревянной крыши визуально нависают над каменной стеной с тёмной
+     * каменной отделкой снизу.
+     */
+    private long buildEavesCornice() {
+        long count = 0;
+        int corniceY = WALL_TOP_Y;       // y=102
+        int trimY    = WALL_TOP_Y + 1;   // y=103
+        // Контрфорсы нефа (skip-set по dz): x=±16 на dz=-32,-18,+18,+32.
+        java.util.Set<Integer> naveButtressDz = new java.util.HashSet<>();
+        for (int v : new int[] { -32, -18, 18, 32 }) naveButtressDz.add(v);
+        // Контрфорсы трансепта (skip-set по dx на front-стене z=±8): dx=±22.
+        java.util.Set<Integer> transeptButtressDx = new java.util.HashSet<>();
+        for (int v : new int[] { -22, 22 }) transeptButtressDx.add(v);
+
+        // Карниз по длинным стенам нефа (восток/запад), кроме крыльев трансепта.
+        for (int signX : new int[] { -1, +1 }) {
+            int outX = CX + signX * (HALF_NAVE_W + 1); // x=±16
+            BlockFace face = (signX > 0) ? BlockFace.WEST : BlockFace.EAST; // лицом ВНУТРЬ собора
+            for (int dz = -HALF_NAVE_L; dz <= HALF_NAVE_L; dz++) {
+                if (Math.abs(dz) <= HALF_TRANSEPT_L) continue; // у крыла трансепта своя стена
+                if (naveButtressDz.contains(dz)) continue;     // не накрывать пинакли контрфорсов
+                int z = CZ + dz;
+                placeCornice(outX, corniceY, z, face);
+                placeWoodEave(outX, trimY, z);
+                count += 2;
+            }
+        }
+        // Карниз по торцевым стенам трансепта (восток/запад).
+        for (int signX : new int[] { -1, +1 }) {
+            int outX = CX + signX * (HALF_TRANSEPT_W + 1); // x=±31
+            BlockFace face = (signX > 0) ? BlockFace.WEST : BlockFace.EAST;
+            for (int dz = -HALF_TRANSEPT_L; dz <= HALF_TRANSEPT_L; dz++) {
+                int z = CZ + dz;
+                placeCornice(outX, corniceY, z, face);
+                placeWoodEave(outX, trimY, z);
+                count += 2;
+            }
+        }
+        // Карниз по передней (южной) стене трансепта между нефом и торцом.
+        for (int signZ : new int[] { -1, +1 }) {
+            int outZ = CZ + signZ * (HALF_TRANSEPT_L + 1); // z=±8
+            BlockFace face = (signZ > 0) ? BlockFace.NORTH : BlockFace.SOUTH;
+            for (int signX : new int[] { -1, +1 }) {
+                for (int dx = HALF_NAVE_W + 1; dx <= HALF_TRANSEPT_W; dx++) {
+                    int signedDx = signX * dx;
+                    if (transeptButtressDx.contains(signedDx)) continue;
+                    int x = CX + signedDx;
+                    placeCornice(x, corniceY, outZ, face);
+                    placeWoodEave(x, trimY, outZ);
+                    count += 2;
+                }
+            }
+        }
+        return count;
+    }
+
+    private void placeCornice(int x, int y, int z, BlockFace facing) {
+        Stairs s = (Stairs) Material.POLISHED_BLACKSTONE_BRICK_STAIRS.createBlockData();
+        s.setFacing(facing);
+        s.setHalf(Bisected.Half.TOP); // upside-down — slope ВНИЗ-НАРУЖУ
+        painter.placeData(x, y, z, s);
+    }
+
+    private void placeWoodEave(int x, int y, int z) {
+        Slab top = (Slab) Material.DARK_OAK_SLAB.createBlockData();
+        top.setType(Slab.Type.TOP);
+        painter.placeData(x, y, z, top);
+    }
+
+    // =========================================================================
+    // ФАЗА 66 (PR 3.14) — РАСШИРЕННЫЕ СКАМЬИ (Issue #9)
+    // =========================================================================
+
+    /**
+     * Дополняет существующие скамьи buildPews() более плотным ритмом по нефу
+     * + симметричные ряды в боковых рукавах трансепта. Каждый ряд скамьи —
+     * 5-блоковое сидение DARK_OAK_SLAB с торцевой спинкой DARK_OAK_FENCE.
+     */
+    private long buildPewsExtended() {
+        long count = 0;
+        // 4 дополнительных ряда скамей в нефе. Существующие — на
+        // z ∈ {-34,-30,-22,-18,18,22,30,34}. Хор — z=-32..-25, алтарь —
+        // z=-40..-36. Безопасные промежутки: z=-14, -10, 10, 14.
+        int[] newNaveZs = { -14, -10, 10, 14 };
+        for (int dz : newNaveZs) {
+            for (int side : new int[] { -1, +1 }) {
+                int dxStart = (side == -1) ? -7 : 3;
+                int dxEnd   = (side == -1) ? -3 : 7;
+                for (int dx = dxStart; dx <= dxEnd; dx++) {
+                    Slab slab = (Slab) Material.DARK_OAK_SLAB.createBlockData();
+                    slab.setType(Slab.Type.BOTTOM);
+                    painter.placeData(CX + dx, Y_BASE + 1, CZ + dz, slab);
+                    count++;
+                }
+                int backDx = (side == -1) ? -7 : 7;
+                painter.place(CX + backDx, Y_BASE + 2, CZ + dz, Material.DARK_OAK_FENCE);
+                count++;
+            }
+        }
+        // Скамьи в боковых рукавах трансепта.
+        // 4 одиночные скамьи в каждом крыле (запад/восток): по 2 ряда севернее
+        // и южнее крестового ковра (ковёр на z ∈ {-1,0,+1}).
+        // Скамья — короткая (2 блока по z), на фиксированном x, ось z=-3..-2
+        // (севернее ковра) и z=+2..+3 (южнее ковра).
+        for (int signX : new int[] { -1, +1 }) {
+            // 4 X-позиции в каждом крыле: dx0 = ±9, ±13, ±17, ±21
+            for (int idx = 0; idx < 4; idx++) {
+                int dx0 = signX * (9 + idx * 4);
+                if (Math.abs(dx0) > HALF_TRANSEPT_W - 3) continue;
+                int x = CX + dx0;
+                for (int sign : new int[] { -1, +1 }) {
+                    int dz1 = sign * 2;
+                    int dz2 = sign * 3;
+                    Slab slab = (Slab) Material.DARK_OAK_SLAB.createBlockData();
+                    slab.setType(Slab.Type.BOTTOM);
+                    painter.placeData(x, Y_BASE + 1, CZ + dz1, slab);
+                    painter.placeData(x, Y_BASE + 1, CZ + dz2, slab);
+                    count += 2;
+                    // Спинка на самом внешнем z.
+                    painter.place(x, Y_BASE + 2, CZ + dz2, Material.DARK_OAK_FENCE);
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    // =========================================================================
+    // ФАЗА 67 (PR 3.14) — СВЕЧИ-СКОНСЫ НА ВНУТРЕННИХ СТЕНАХ (Issue #9)
+    // =========================================================================
+
+    /**
+     * Свечи (CANDLE) на каменных кронштейнах вдоль внутренней поверхности
+     * боковых стен нефа на высоте ~y=78. Каждые 6 блоков по нефу — пара
+     * сконсов лево/право. Создаёт интимный «литургический» свет на скамьях.
+     */
+    private long buildWallCandles() {
+        long count = 0;
+        int sconceY = Y_BASE + 8;  // y=78
+        for (int dz = -36; dz <= 36; dz += 6) {
+            if (Math.abs(dz) <= HALF_TRANSEPT_L + 1) continue; // не накладывать на крестовинную зону
+            for (int signX : new int[] { -1, +1 }) {
+                int wx = CX + signX * (HALF_NAVE_W - 1); // x=±14, 1 блок внутри стены
+                int wz = CZ + dz;
+                // Кронштейн — POLISHED_BLACKSTONE_BRICK_WALL.
+                painter.place(wx, sconceY, wz, Material.POLISHED_BLACKSTONE_BRICK_WALL);
+                // 3 свечи (CANDLE с lit=true).
+                BlockData candle = Material.CANDLE.createBlockData("[candles=3,lit=true]");
+                painter.placeData(wx, sconceY + 1, wz, candle);
+                count += 2;
+            }
+        }
+        return count;
+    }
+
+    // =========================================================================
+    // ФАЗА 68 (PR 3.14) — ОРГАН В АПСИДЕ (Issue #9)
+    // =========================================================================
+
+    /**
+     * Декоративный готический орган за алтарём в апсиде. 7 «труб» из
+     * COPPER_BLOCK / EXPOSED_COPPER / WAXED_COPPER разной высоты, обрамлённые
+     * DARK_OAK_PLANKS и POLISHED_BLACKSTONE_BRICKS — характерный силуэт,
+     * который читается с южного входа.
+     *
+     * <p>Расположен ПОД триформ-балконом (балкон на y=88, орган высотой до
+     * y=84) на z=-37..-36 (вплотную к северной стене), x=-3..+3.
+     */
+    private long buildApseOrgan() {
+        long count = 0;
+        // Орган стоит за тронами епископа (z=-40), у северной стены апсиды.
+        // Верхушка не должна заходить в зону трифориум-балкона (y=88, z=-39..-36).
+        int organZ = CZ - HALF_NAVE_L + 1; // z=-41 (вплотную к северной стене)
+        int baseY  = Y_BASE + 1;           // y=71 (на полу)
+        // База органа — DARK_OAK_PLANKS пьедестал 7 широкий × 1 глубокий.
+        for (int dx = -3; dx <= 3; dx++) {
+            painter.place(CX + dx, baseY, organZ, Material.DARK_OAK_PLANKS);
+            count++;
+        }
+        // POLISHED_BLACKSTONE_BRICKS-кант базы (на 1 выше).
+        for (int dx = -3; dx <= 3; dx++) {
+            painter.place(CX + dx, baseY + 1, organZ, Material.POLISHED_BLACKSTONE_BRICKS);
+            count++;
+        }
+        // 7 «труб» из меди разной патины, высоты 14,12,10,8,10,12,14 (симметрично).
+        int[] pipeHeights = { 14, 12, 10, 8, 10, 12, 14 };
+        Material[] pipeMats = {
+                Material.COPPER_BLOCK, Material.EXPOSED_COPPER, Material.WEATHERED_COPPER,
+                Material.WAXED_OXIDIZED_COPPER,
+                Material.WEATHERED_COPPER, Material.EXPOSED_COPPER, Material.COPPER_BLOCK
+        };
+        for (int i = 0; i < 7; i++) {
+            int dx = i - 3;
+            for (int dy = 0; dy < pipeHeights[i]; dy++) {
+                painter.place(CX + dx, baseY + 2 + dy, organZ, pipeMats[i]);
+                count++;
+            }
+            // Капитель трубы — CHISELED_DEEPSLATE.
+            painter.place(CX + dx, baseY + 2 + pipeHeights[i], organZ, Material.CHISELED_DEEPSLATE);
+            count++;
+        }
+        // 5 декоративных NOTE_BLOCK перед трубами (визуальная клавиатура).
+        for (int dx = -2; dx <= 2; dx++) {
+            painter.place(CX + dx, baseY + 1, organZ + 1, Material.NOTE_BLOCK);
+            count++;
+        }
+        // 2 SOUL_LANTERN на цепях по бокам органа (на y=85..89).
+        for (int signX : new int[] { -1, +1 }) {
+            int sx = CX + signX * 4;
+            for (int dy = 0; dy < 4; dy++) {
+                painter.place(sx, baseY + 14 + dy, organZ, Material.CHAIN);
+                count++;
+            }
+            painter.place(sx, baseY + 13, organZ, Material.SOUL_LANTERN);
+            count++;
         }
         return count;
     }
