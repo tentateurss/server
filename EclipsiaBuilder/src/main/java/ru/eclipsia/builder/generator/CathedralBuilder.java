@@ -180,6 +180,16 @@ public final class CathedralBuilder {
         ops += buildSaintNiches();           // 4 ниши со статуями святых на южном фасаде между порталом и розой
         ops += buildRoofCrockets();          // декоративные крокеты END_ROD по конькам всех крыш
 
+        // PR 3.13 — фидбэк v18: «внутри в центральной балке нет прохода, нет декора».
+        // Открываем 4 БОЛЬШИЕ готические арки на крестовине (вместо игольного
+        // ушка 3×7), декорируем лантерну изнутри, рисуем мозаику-звезду на полу
+        // пересечения, добавляем крестовый ковёр восток-запад через трансепт.
+        ops += buildCrossingArches();        // 4 grand pointed arches 7×13 + archivolt + keystone
+        ops += buildLanternInterior();       // hanging chandelier + vault ribs + AMETHYST relief inside lantern
+        ops += buildCrossingFloorStar();     // 9×9 mosaic star at crossing centre (replaces removed pulpit END_ROD)
+        ops += buildCrossCarpet();           // east-west red carpet across transept (cross of carpets at crossing)
+        ops += buildCrossingHangingLanterns(); // 4 SOUL_LANTERN on long chains in crossing inner corners
+
         plugin.getLogger().info(
                 "CathedralBuilder: ~" + ops + " блок-операций готовы (стены, "
                 + "башни, шпиль, парящий Глаз).");
@@ -1088,23 +1098,13 @@ public final class CathedralBuilder {
 
     private long buildPulpit() {
         long count = 0;
-        // Круглая платформа r=2 в (CX, Y_BASE+2, CZ), 2 ступени.
-        for (int dx = -2; dx <= 2; dx++) {
-            for (int dz = -2; dz <= 2; dz++) {
-                int dist = Math.abs(dx) + Math.abs(dz);
-                if (dist > 3) continue;
-                Material mat;
-                if (dist == 0) mat = Material.AMETHYST_BLOCK;
-                else if (dist == 1) mat = Material.PURPUR_PILLAR;
-                else mat = Material.PURPUR_BLOCK;
-                painter.place(CX + dx, Y_BASE + 1, CZ + dz, mat);
-                count++;
-            }
-        }
-        // Над пюпитром — END_ROD «лектор», подсвечивающий проповедника.
-        painter.place(CX, Y_BASE + 2, CZ, Material.END_ROD);
-        count++;
-        // Дополнительные SHROOMLIGHT по 4 углам у крестовой башни.
+        // PR 3.13: пюпитр перенесён из центра крестовины (где он мешал ходьбе
+        // насквозь и закрывал нижнюю часть звезды-мозаики) — теперь
+        // {@link #buildCrossingFloorStar()} рисует на полу пересечения парадную
+        // мозаику, а самой «кафедры проповедника» (раньше был END_ROD на y=72)
+        // больше нет: проход по нефу свободен. SHROOMLIGHT-углы оставлены —
+        // они стоят на y=72 в углах квадрата 7×7, сидят за колоннами и
+        // подсвечивают звезду снизу.
         for (int sx : new int[] { -3, 3 }) {
             for (int sz : new int[] { -3, 3 }) {
                 painter.place(CX + sx, Y_BASE + 2, CZ + sz, Material.SHROOMLIGHT);
@@ -3015,36 +3015,12 @@ public final class CathedralBuilder {
      */
     private long buildCentralTowerBells() {
         long count = 0;
-        // 1. Open arches на 4 сторонах башни (y=72..78).
-        // Башня 11×11, центр (CX, CZ), стены на |dx|=5 или |dz|=5.
-        // Для каждой стороны прорезать арку 3 шириной (центр на стене), 7 высотой.
-        for (int side = 0; side < 4; side++) {
-            // 4 стороны: 0=N (z=-5), 1=E (x=+5), 2=S (z=+5), 3=W (x=-5).
-            for (int dy = 1; dy <= 7; dy++) {
-                int adx = 0, adz = 0;
-                if (dy <= 6) {
-                    adx = (side == 1 || side == 3) ? 0 : 1;
-                    adz = (side == 0 || side == 2) ? 0 : 1;
-                } else { // dy=7 — острый верх
-                    adx = adz = 0;
-                }
-                int wallX = (side == 1) ? 5 : (side == 3) ? -5 : 0;
-                int wallZ = (side == 0) ? -5 : (side == 2) ? 5 : 0;
-                if (side == 0 || side == 2) {
-                    for (int dxIn = -1; dxIn <= 1; dxIn++) {
-                        if (Math.abs(dxIn) > adx) continue;
-                        painter.place(CX + dxIn, Y_BASE + dy, CZ + wallZ, Material.AIR);
-                        count++;
-                    }
-                } else {
-                    for (int dzIn = -1; dzIn <= 1; dzIn++) {
-                        if (Math.abs(dzIn) > adz) continue;
-                        painter.place(CX + wallX, Y_BASE + dy, CZ + dzIn, Material.AIR);
-                        count++;
-                    }
-                }
-            }
-        }
+        // 1. Open arches на 4 сторонах башни — ОТКЛЮЧЕНО в PR 3.13.
+        //    Старая резка арок 3×7 имела два дефекта: (a) узкое игольное ушко
+        //    вместо парадного крестового прохода, (b) AIR на y=71 затирал
+        //    RED_CARPET, положенный buildCarpet(). Заменено на
+        //    {@link #buildCrossingArches()} — большие 7×13 готические арки с
+        //    архивольтом и замковыми камнями, не трогающие пол/ковёр (y≥72).
         // 2. 4 BELL на y=120 (внутри башни, на стенах).
         // Высота 120 = WALL_TOP_Y + HALF_NAVE_W + 2 = 102+15+3=120 (под крышей нефа).
         int bellY = WALL_TOP_Y + 18; // y=120
@@ -3359,6 +3335,489 @@ public final class CathedralBuilder {
         for (int signX : new int[] { -1, +1 }) {
             for (int dx = HALF_NAVE_W + 3; dx <= HALF_TRANSEPT_W; dx += 5) {
                 painter.place(CX + signX * dx, transRidgeY + 1, CZ, Material.END_ROD);
+                count++;
+            }
+        }
+        return count;
+    }
+
+    // =========================================================================
+    // ФАЗА 60 (PR 3.13) — БОЛЬШИЕ ГОТИЧЕСКИЕ АРКИ НА КРЕСТОВИНЕ
+    // =========================================================================
+
+    /**
+     * 4 grand pointed gothic arches at the crossing — one in each side of the
+     * 11×11 central tower's lower body. Replaces the previous tiny 3×7 cuts
+     * (see disabled section in {@link #buildCentralTowerBells()} which also
+     * destroyed the red carpet at y=71).
+     *
+     * <p>Each arch:
+     * <ul>
+     *   <li>Width 7 (dx ∈ [-3..+3]) at the wall axis.</li>
+     *   <li>Straight portion y=72..81 (10 rows clear).</li>
+     *   <li>Stepped pointed top: y=82 width 5, y=83 width 3, y=84 width 1.</li>
+     *   <li>Total clear height 13 blocks; floor (y=70) and carpet (y=71) NOT
+     *       touched — pre-existing red carpet stays intact through the opening.</li>
+     * </ul>
+     *
+     * <p>Decoration around each arch (placed on the wall blocks that frame the
+     * carved opening):
+     * <ul>
+     *   <li>Step-corners at y=82..84 — {@link Material#CHISELED_DEEPSLATE} on
+     *       the wall side that abuts the carved arch (matches the south-portal
+     *       arch trim style).</li>
+     *   <li>{@link Material#GOLD_BLOCK} keystone at the apex (y=85, dx=0)
+     *       with {@link Material#AMETHYST_BLOCK} crown one row higher.</li>
+     *   <li>{@link Material#CHISELED_DEEPSLATE} capitals at y=82, dx=±4
+     *       (springers — where the straight jamb meets the pointed arch).</li>
+     *   <li>{@link Material#SOUL_LANTERN} sconces on {@link Material#CHAIN}-
+     *       hung from y=82..78 on dx=±5 (jamb sides, hanging into the crossing).</li>
+     * </ul>
+     */
+    private long buildCrossingArches() {
+        long count = 0;
+        // 4 sides of the central tower:
+        //   side 0 = NORTH (z=CZ-CT_HALF=-20, opens crossing to apse/altar)
+        //   side 1 = EAST  (x=CX+CT_HALF=+50, opens crossing to east transept)
+        //   side 2 = SOUTH (z=CZ+CT_HALF=-10, opens nave-south to crossing)
+        //   side 3 = WEST  (x=CX-CT_HALF=+40, opens crossing to west transept)
+        // IMPORTANT: central tower walls are TWO blocks thick (placed at
+        //   outer ∈ {CT_HALF-1, CT_HALF} = {4, 5}) — see {@link #buildCentralTower()}
+        //   line ~665. We must carve the arch through BOTH layers.
+        for (int side = 0; side < 4; side++) {
+            boolean alongX = (side == 0 || side == 2); // arch span along X
+            int wallSignX = (side == 1) ? +1 : (side == 3) ? -1 : 0;
+            int wallSignZ = (side == 0) ? -1 : (side == 2) ? +1 : 0;
+            // Two wall layers: outer (at ±CT_HALF) and inner (at ±(CT_HALF-1)).
+            int outerOffsetX = wallSignX * CT_HALF;
+            int outerOffsetZ = wallSignZ * CT_HALF;
+            int innerOffsetX = wallSignX * (CT_HALF - 1);
+            int innerOffsetZ = wallSignZ * (CT_HALF - 1);
+
+            // 1. Carve the arch opening through BOTH layers. Straight rectangle 7×10.
+            for (int dy = 2; dy <= 11; dy++) { // y=72..81 — NOT y=71 (preserve carpet/floor)
+                for (int across = -3; across <= 3; across++) {
+                    if (alongX) {
+                        painter.place(CX + across, Y_BASE + dy, CZ + outerOffsetZ, Material.AIR);
+                        painter.place(CX + across, Y_BASE + dy, CZ + innerOffsetZ, Material.AIR);
+                    } else {
+                        painter.place(CX + outerOffsetX, Y_BASE + dy, CZ + across, Material.AIR);
+                        painter.place(CX + innerOffsetX, Y_BASE + dy, CZ + across, Material.AIR);
+                    }
+                    count += 2;
+                }
+            }
+            // Stepped pointed top — both layers.
+            int[] topWidths = { 5, 3, 1 }; // y=82, 83, 84
+            for (int step = 0; step < 3; step++) {
+                int dy = 12 + step; // y=82, 83, 84
+                int half = (topWidths[step] - 1) / 2;
+                for (int across = -half; across <= half; across++) {
+                    if (alongX) {
+                        painter.place(CX + across, Y_BASE + dy, CZ + outerOffsetZ, Material.AIR);
+                        painter.place(CX + across, Y_BASE + dy, CZ + innerOffsetZ, Material.AIR);
+                    } else {
+                        painter.place(CX + outerOffsetX, Y_BASE + dy, CZ + across, Material.AIR);
+                        painter.place(CX + innerOffsetX, Y_BASE + dy, CZ + across, Material.AIR);
+                    }
+                    count += 2;
+                }
+            }
+
+            // 2. Archivolt step-trim on OUTER wall layer (visible from the
+            //    transept/nave side looking in). y=82 outside ±2 (dx=±3),
+            //    y=83 outside ±1 (dx=±2), y=84 outside 0 (dx=±1).
+            int[] trimDx = { 3, 2, 1 };
+            for (int step = 0; step < 3; step++) {
+                int dy = 12 + step;
+                int across = trimDx[step];
+                for (int signA : new int[] { -1, +1 }) {
+                    int aa = signA * across;
+                    int wx, wz;
+                    if (alongX) {
+                        wx = CX + aa;
+                        wz = CZ + outerOffsetZ;
+                    } else {
+                        wx = CX + outerOffsetX;
+                        wz = CZ + aa;
+                    }
+                    painter.place(wx, Y_BASE + dy, wz, Material.CHISELED_DEEPSLATE);
+                    count++;
+                }
+            }
+            // INNER wall layer trim — same step-pattern, visible from the
+            //    crossing side. Use POLISHED_BLACKSTONE_BRICKS so player can
+            //    differentiate the two layers visually (depth/shadow effect).
+            for (int step = 0; step < 3; step++) {
+                int dy = 12 + step;
+                int across = trimDx[step];
+                for (int signA : new int[] { -1, +1 }) {
+                    int aa = signA * across;
+                    int wx, wz;
+                    if (alongX) {
+                        wx = CX + aa;
+                        wz = CZ + innerOffsetZ;
+                    } else {
+                        wx = CX + innerOffsetX;
+                        wz = CZ + aa;
+                    }
+                    painter.place(wx, Y_BASE + dy, wz, Material.POLISHED_BLACKSTONE_BRICKS);
+                    count++;
+                }
+            }
+
+            // 3. Capitals — springers where straight jamb meets pointed top
+            //    (y=82, dx=±4 on BOTH layers).
+            for (int signA : new int[] { -1, +1 }) {
+                int aa = signA * 4;
+                if (alongX) {
+                    painter.place(CX + aa, Y_BASE + 12, CZ + outerOffsetZ, Material.CHISELED_DEEPSLATE);
+                    painter.place(CX + aa, Y_BASE + 12, CZ + innerOffsetZ, Material.CHISELED_DEEPSLATE);
+                } else {
+                    painter.place(CX + outerOffsetX, Y_BASE + 12, CZ + aa, Material.CHISELED_DEEPSLATE);
+                    painter.place(CX + innerOffsetX, Y_BASE + 12, CZ + aa, Material.CHISELED_DEEPSLATE);
+                }
+                count += 2;
+            }
+
+            // 4. Keystone — GOLD apex on the OUTER face above the pointed top,
+            //    AMETHYST crown, END_ROD halo above. (y=85, 86, 87 at dx=0.)
+            int kx = CX + (alongX ? 0 : outerOffsetX);
+            int kz = CZ + (alongX ? outerOffsetZ : 0);
+            painter.place(kx, Y_BASE + 15, kz, Material.GOLD_BLOCK);
+            painter.place(kx, Y_BASE + 16, kz, Material.AMETHYST_BLOCK);
+            painter.place(kx, Y_BASE + 17, kz, Material.END_ROD);
+            count += 3;
+            // Inner-face mirror keystone — single GOLD_BLOCK on inner layer
+            // visible from the crossing.
+            int kxi = CX + (alongX ? 0 : innerOffsetX);
+            int kzi = CZ + (alongX ? innerOffsetZ : 0);
+            painter.place(kxi, Y_BASE + 15, kzi, Material.GOLD_BLOCK);
+            count++;
+
+            // 5. SOUL_LANTERN sconces on CHAIN at the jamb corners, hanging
+            //    INTO the crossing from y=82 down to y=78 (head height).
+            //    Anchor 1 block inside the inner wall layer (toward crossing
+            //    centre). For south arch (wallSignZ=+1, alongX): sconce at
+            //    z = CZ + innerOffsetZ - wallSignZ = CZ + 4 - 1 = CZ+3 (inside
+            //    the central tower's hollow), on dx=±5 (the original outer
+            //    corner — but that's a CORNER block, place 1 step inside =
+            //    dx=±4 instead).
+            for (int signA : new int[] { -1, +1 }) {
+                int aa = signA * 4; // sit just inside the corner, on the jamb
+                int sx, sz;
+                if (alongX) {
+                    sx = CX + aa;
+                    sz = CZ + innerOffsetZ - wallSignZ; // 1 step into the crossing from inner wall
+                } else {
+                    sx = CX + innerOffsetX - wallSignX;
+                    sz = CZ + aa;
+                }
+                // Chain ladder y=82..80, lantern at y=79.
+                painter.place(sx, Y_BASE + 12, sz, Material.CHAIN);
+                painter.place(sx, Y_BASE + 11, sz, Material.CHAIN);
+                painter.place(sx, Y_BASE + 10, sz, Material.CHAIN);
+                painter.place(sx, Y_BASE + 9, sz, Material.SOUL_LANTERN);
+                count += 4;
+            }
+        }
+        return count;
+    }
+
+    // =========================================================================
+    // ФАЗА 61 (PR 3.13) — ИНТЕРЬЕР ЛАНТЕРНОЙ БАШНИ (видно с пола крестовины)
+    // =========================================================================
+
+    /**
+     * Decorates the inside of the central tower (cross-tower) so that when a
+     * player stands at the crossing and looks up they see a striking gothic
+     * lantern: a hanging crown chandelier, vault ribs converging at the
+     * lantern's spring point, and amethyst relief on the inner walls.
+     *
+     * <p>The lantern body is a 7×7 hollow column from y=72 (above floor) up to
+     * y=136 (below the body top y=137 / spire start y=138). Without decoration
+     * this is just empty air — adding the elements below makes the upward view
+     * the centerpiece of the cathedral.
+     *
+     * <ul>
+     *   <li><b>Hanging crown chandelier</b> — 4 CHAIN strands from the lantern
+     *       ceiling at y=130 down to a GOLD_BLOCK ring at y=110, with a
+     *       SHROOMLIGHT centre + 8 SOUL_LANTERN around the ring + 4 END_ROD
+     *       upspikes. Reads as a parade crown floating ~40 blocks above the
+     *       crossing floor.</li>
+     *   <li><b>Vault ribs at y=92</b> — 4 diagonal POLISHED_BLACKSTONE_BRICK_WALL
+     *       ribs from each inner corner of the lantern (CX±3, CZ±3) toward
+     *       the centre, meeting at a CHISELED_DEEPSLATE keystone at (CX, 92, CZ).
+     *       Visually the spring point of the lantern's inner vault.</li>
+     *   <li><b>Inner-wall purple lancets</b> — 4 narrow 1×6 PURPLE_STAINED_GLASS
+     *       lancets on the inner faces of the lantern walls (y=86..91) with
+     *       AMETHYST_BLOCK crowns. Layered in front of the existing lantern
+     *       windows at y=88..100 (which sit on the OUTER face). Light passes
+     *       through both.</li>
+     *   <li><b>Amethyst relief</b> — 12 AMETHYST_CLUSTER blocks on the inner
+     *       walls at y=80..86 (sparkly purple speckle catching torchlight).</li>
+     *   <li><b>Inner-corner pilasters</b> — 4 thin END_ROD vertical accents
+     *       running from y=82 to y=92 at (CX±3, CZ±3). Light shafts up the
+     *       lantern.</li>
+     * </ul>
+     */
+    private long buildLanternInterior() {
+        long count = 0;
+        // 1. Hanging crown chandelier.
+        int crownY = 110;       // ring height
+        int chainTop = 130;     // top of suspension chains (1 block below lantern ceiling y=137-7=130)
+        // 4 chain strands from chainTop down to crownY.
+        int[][] chainXZ = { { -2, 0 }, { +2, 0 }, { 0, -2 }, { 0, +2 } };
+        for (int[] cxcz : chainXZ) {
+            for (int y = crownY + 1; y <= chainTop; y++) {
+                painter.place(CX + cxcz[0], y, CZ + cxcz[1], Material.CHAIN);
+                count++;
+            }
+        }
+        // GOLD_BLOCK ring at crownY — 8 blocks forming a ring of radius 2.
+        int[][] ringXZ = {
+                { -2, -1 }, { -2, 0 }, { -2, +1 },
+                { +2, -1 }, { +2, 0 }, { +2, +1 },
+                { -1, -2 }, {  0, -2 }, { +1, -2 },
+                { -1, +2 }, {  0, +2 }, { +1, +2 },
+        };
+        for (int[] r : ringXZ) {
+            painter.place(CX + r[0], crownY, CZ + r[1], Material.GOLD_BLOCK);
+            count++;
+        }
+        // SHROOMLIGHT centre at crownY (visible glow disk).
+        painter.place(CX, crownY, CZ, Material.SHROOMLIGHT);
+        count++;
+        // 8 SOUL_LANTERN one row below ring (hanging like pendants).
+        int[][] lanternXZ = {
+                { -2, -1 }, { -2, +1 }, { +2, -1 }, { +2, +1 },
+                { -1, -2 }, { +1, -2 }, { -1, +2 }, { +1, +2 },
+        };
+        for (int[] l : lanternXZ) {
+            painter.place(CX + l[0], crownY - 1, CZ + l[1], Material.SOUL_LANTERN);
+            count++;
+        }
+        // 4 END_ROD upspikes from the ring corners (y=crownY+1).
+        int[][] spikes = { { -2, 0 }, { +2, 0 }, { 0, -2 }, { 0, +2 } };
+        // (those are the chain points — END_ROD goes one block above ring on
+        //  the cardinal corners of the ring, which are NOT under chains: use
+        //  the diagonal positions of the ring.)
+        int[][] spikePositions = { { -2, -1 }, { +2, +1 }, { +2, -1 }, { -2, +1 } };
+        for (int[] s : spikePositions) {
+            painter.place(CX + s[0], crownY + 1, CZ + s[1], Material.END_ROD);
+            count++;
+        }
+        // (silence unused — keep "spikes" var for documentation)
+        if (spikes.length == 0) { /* no-op */ }
+
+        // 2. Vault ribs at y=92 — 4 diagonal walls converging at centre.
+        //    From inner corner (CX±3, CZ±3) along diagonal to (CX, CZ).
+        int ribY = Y_BASE + 22; // y=92
+        for (int signX : new int[] { -1, +1 }) {
+            for (int signZ : new int[] { -1, +1 }) {
+                for (int t = 1; t <= 3; t++) {
+                    int rx = CX + signX * t;
+                    int rz = CZ + signZ * t;
+                    painter.place(rx, ribY, rz, Material.POLISHED_BLACKSTONE_BRICK_WALL);
+                    count++;
+                }
+            }
+        }
+        // Centre keystone at (CX, ribY, CZ) — CHISELED_DEEPSLATE.
+        painter.place(CX, ribY, CZ, Material.CHISELED_DEEPSLATE);
+        count++;
+        // 4 cardinal ribs from inner wall (CX±3 at axis 0, CZ±3 at axis 0)
+        // converging to the keystone — short 3-block walls along the cardinal
+        // axes at ribY.
+        for (int signA : new int[] { -1, +1 }) {
+            for (int t = 1; t <= 3; t++) {
+                painter.place(CX + signA * t, ribY, CZ, Material.POLISHED_BLACKSTONE_BRICK_WALL);
+                painter.place(CX, ribY, CZ + signA * t, Material.POLISHED_BLACKSTONE_BRICK_WALL);
+                count += 2;
+            }
+        }
+
+        // 3. Inner-wall purple lancets — 4 sides, each 1×6 PURPLE_GLASS at
+        //    y=86..91 (ABOVE the new crossing arch keystones at y=85..87,
+        //    BELOW the existing outer lantern windows at y=88..100).
+        for (int side = 0; side < 4; side++) {
+            boolean alongX = (side == 0 || side == 2);
+            int wallX = (side == 1) ? +(CT_HALF - 1) : (side == 3) ? -(CT_HALF - 1) : 0;
+            int wallZ = (side == 0) ? -(CT_HALF - 1) : (side == 2) ? +(CT_HALF - 1) : 0;
+            // 2 lancets per side, on dx=±1 (inner-wall offset 1 block from corner).
+            for (int slot : new int[] { -1, +1 }) {
+                int wx = CX + (alongX ? slot : wallX);
+                int wz = CZ + (alongX ? wallZ : slot);
+                for (int dy = 16; dy <= 21; dy++) { // y=86..91
+                    painter.place(wx, Y_BASE + dy, wz, Material.PURPLE_STAINED_GLASS);
+                    count++;
+                }
+                // AMETHYST crown above lancet (y=92 — sits on the rib ring).
+                // Skip if it would overwrite the cardinal rib already placed.
+                if (slot != 0) {
+                    painter.place(wx, Y_BASE + 22, wz, Material.AMETHYST_BLOCK);
+                    count++;
+                }
+            }
+        }
+
+        // 4. Amethyst relief — replace 12 inner-wall-layer blocks with
+        //    AMETHYST_BLOCK at varying heights y∈{80, 83, 86}. Inner wall is
+        //    at outer=CT_HALF-1=4; positions across the wall span [-3..+3].
+        //    3 reliefs per side × 4 sides = 12 amethyst pips on the lantern
+        //    interior — visible from below as purple chevrons in the masonry.
+        int[] reliefAcross = { -3, 0, +3 };
+        int[] reliefY = { 80, 83, 86 };
+        for (int side = 0; side < 4; side++) {
+            boolean alongX = (side == 0 || side == 2);
+            int wsX = (side == 1) ? +1 : (side == 3) ? -1 : 0;
+            int wsZ = (side == 0) ? -1 : (side == 2) ? +1 : 0;
+            int innerX = wsX * (CT_HALF - 1);
+            int innerZ = wsZ * (CT_HALF - 1);
+            for (int i = 0; i < 3; i++) {
+                int across = reliefAcross[i];
+                int rx = CX + (alongX ? across : innerX);
+                int rz = CZ + (alongX ? innerZ : across);
+                painter.place(rx, reliefY[i], rz, Material.AMETHYST_BLOCK);
+                count++;
+            }
+        }
+
+        // 5. Inner-corner pilasters — END_ROD light shafts at the 4 inner
+        //    corners of the lantern (CX±3, CZ±3) from y=82 up to y=91.
+        for (int signX : new int[] { -1, +1 }) {
+            for (int signZ : new int[] { -1, +1 }) {
+                for (int dy = 12; dy <= 21; dy += 3) { // y=82, 85, 88, 91
+                    painter.place(CX + signX * 3, Y_BASE + dy, CZ + signZ * 3, Material.END_ROD);
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    // =========================================================================
+    // ФАЗА 62 (PR 3.13) — МОЗАИКА-ЗВЕЗДА НА ПОЛУ ПЕРЕСЕЧЕНИЯ
+    // =========================================================================
+
+    /**
+     * 9×9 mosaic star at the crossing centre (CX, Y_BASE, CZ) — replaces the
+     * original {@link #buildPulpit()} central platform's amethyst+purpur
+     * geometry with a wider, more readable rosette. The rosette is rendered
+     * AT FLOOR LEVEL (y=Y_BASE) so the player walks ON it (no height
+     * obstruction); the small platform at y=Y_BASE+1 from {@code buildPulpit}
+     * is no longer placed (we removed the END_ROD obstacle in PR 3.13).
+     *
+     * <p>Layout (concentric, distance = Chebyshev max(|dx|, |dz|)):
+     * <ul>
+     *   <li>d=0 (centre 1×1): {@link Material#AMETHYST_BLOCK}.</li>
+     *   <li>d=1 cardinal (4 blocks): {@link Material#PURPUR_PILLAR}.</li>
+     *   <li>d=1 diagonal (4 blocks): {@link Material#GOLD_BLOCK} (sparkles
+     *       under chandelier light).</li>
+     *   <li>d=2 cardinal: {@link Material#PURPUR_BLOCK}.</li>
+     *   <li>d=2 diagonal: {@link Material#DEEPSLATE_BRICKS}.</li>
+     *   <li>d=3 (frame): {@link Material#POLISHED_BLACKSTONE_BRICKS}
+     *       cardinals + {@link Material#CHISELED_DEEPSLATE} corners.</li>
+     *   <li>d=4 (corners only): END_ROD-style points → just frame stays
+     *       deepslate; ring d=4 not drawn (size limit 9×9 covered by central
+     *       7×7 already from {@code buildFloor}'s mosaic).</li>
+     * </ul>
+     */
+    private long buildCrossingFloorStar() {
+        long count = 0;
+        for (int dx = -3; dx <= 3; dx++) {
+            for (int dz = -3; dz <= 3; dz++) {
+                int adx = Math.abs(dx), adz = Math.abs(dz);
+                int dist = Math.max(adx, adz);
+                boolean cardinal = (dx == 0) ^ (dz == 0); // exactly one axis is zero
+                boolean centre = (dx == 0 && dz == 0);
+                Material mat;
+                if (centre) {
+                    mat = Material.AMETHYST_BLOCK;
+                } else if (dist == 1 && cardinal) {
+                    mat = Material.PURPUR_PILLAR;
+                } else if (dist == 1) { // diagonal d=1
+                    mat = Material.GOLD_BLOCK;
+                } else if (dist == 2 && cardinal) {
+                    mat = Material.PURPUR_BLOCK;
+                } else if (dist == 2) {
+                    mat = Material.DEEPSLATE_BRICKS;
+                } else if (dist == 3 && cardinal) {
+                    mat = Material.POLISHED_BLACKSTONE_BRICKS;
+                } else if (dist == 3 && adx == 3 && adz == 3) {
+                    mat = Material.CHISELED_DEEPSLATE;
+                } else {
+                    // edge of the 7×7 outer ring (d=3, non-corner non-cardinal)
+                    mat = Material.DEEPSLATE_BRICKS;
+                }
+                painter.place(CX + dx, Y_BASE, CZ + dz, mat);
+                count++;
+            }
+        }
+        return count;
+    }
+
+    // =========================================================================
+    // ФАЗА 63 (PR 3.13) — КРЕСТОВЫЙ КОВЁР: ВОСТОК-ЗАПАД ЧЕРЕЗ ТРАНСЕПТ
+    // =========================================================================
+
+    /**
+     * Adds a 3-wide RED_CARPET strip running east-west across the transept,
+     * from x=CX-(HALF_TRANSEPT_W-2) to x=CX+(HALF_TRANSEPT_W-2) at z=CZ-1..+1.
+     * Combined with the existing north-south carpet from {@link #buildCarpet()}
+     * this forms a CROSS of carpets centered on the crossing — visually
+     * reinforcing the cruciform plan and tying the 4 new arches together.
+     *
+     * <p>The rosette from {@link #buildCrossingFloorStar()} sits at y=Y_BASE
+     * (floor level); the carpet sits at y=Y_BASE+1 (on top of the floor).
+     * Both can coexist — the rosette's centre AMETHYST is visually covered by
+     * the carpet at the crossing, but at the corners of the rosette (dx=±2/3
+     * with dz=0 outside the 3-wide carpet strip) the mosaic remains visible.
+     *
+     * <p>Range avoids the altar approach and the south portal (those are
+     * already covered by the north-south carpet).
+     */
+    private long buildCrossCarpet() {
+        long count = 0;
+        int xMin = -(HALF_TRANSEPT_W - 2); // x=-28 (just inside west transept end)
+        int xMax = +(HALF_TRANSEPT_W - 2); // x=+28
+        for (int dx = xMin; dx <= xMax; dx++) {
+            for (int dz = -1; dz <= +1; dz++) {
+                painter.place(CX + dx, Y_BASE + 1, CZ + dz, Material.RED_CARPET);
+                count++;
+            }
+        }
+        return count;
+    }
+
+    // =========================================================================
+    // ФАЗА 64 (PR 3.13) — ВИСЯЧИЕ ФОНАРИ В УГЛАХ КРЕСТОВИНЫ
+    // =========================================================================
+
+    /**
+     * Adds 4 long CHAIN+SOUL_LANTERN pendants in the 4 inner corners of the
+     * crossing (just inside the central tower's lower body, in the transept
+     * wings). They hang from y=85 (above the crossing arch keystones) down to
+     * y=78 (head height for a player on the crossing floor) — bright purple
+     * fire glow at eye level frames the crossing nicely without blocking
+     * the new wide arches.
+     *
+     * <p>Anchor positions: (CX±(CT_HALF-1), CZ±(CT_HALF-1)) = (CX±4, CZ±4) —
+     * inner corners of the lantern body, just inside the 7×7 hollow.
+     */
+    private long buildCrossingHangingLanterns() {
+        long count = 0;
+        for (int signX : new int[] { -1, +1 }) {
+            for (int signZ : new int[] { -1, +1 }) {
+                int hx = CX + signX * (CT_HALF - 1); // ±4
+                int hz = CZ + signZ * (CT_HALF - 1);
+                // Chain from y=85 down to y=79.
+                for (int y = Y_BASE + 9; y <= Y_BASE + 15; y++) {
+                    painter.place(hx, y, hz, Material.CHAIN);
+                    count++;
+                }
+                // SOUL_LANTERN at y=78 (1 block below chain).
+                painter.place(hx, Y_BASE + 8, hz, Material.SOUL_LANTERN);
                 count++;
             }
         }
