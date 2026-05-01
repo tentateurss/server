@@ -101,8 +101,25 @@ public final class WorldGenerator {
      * с пинаклями, парящий «Глаз Эликия» на y=201 (AMETHYST 3×3×3 +
      * 3 кольца END_ROD). SpireParticles переезжает на Глаз и переходит
      * на DRAGON_BREATH+WITCH (фиолетовые). Старые v6..v10-миры несовместимы.
+     *
+     * <p><b>v14</b>: PR 3.8 — собор в фокусе по фидбэку фото-референса.
+     * Глаз поднят y=201→y=211 ({@code EYE_Y_OFFSET 14→24}) и подкреплён
+     * 4 видимыми блочными колоннами END_ROD (видны издалека даже без
+     * частиц). {@link SpireParticles} перешёл на overload
+     * {@code spawnParticle(..., null, force=true)} — пакеты идут всем
+     * игрокам в view-distance, миндаль увеличен ×1.6 (LID_A 7.5→12).
+     * Закрыты дыры в торцах нефа/трансепта (новый {@code buildGableCaps()}),
+     * добавлены: окно-роза на южном фронтоне, готические часы на южном
+     * фронтоне, аркбутаны (flying buttresses) от пинаклей контрфорсов
+     * к стене нефа, аметистовые жилы на 12 контрфорсах, SOUL_LANTERN-сконсы
+     * по фасаду, цветочные клумбы по периметру. Флаги переделаны: на 2
+     * фасадных башнях — большие чёрно-фиолетово-золотые штандарты на
+     * BLACKSTONE_WALL-древке (cloth 3×8 из WOOL+GOLD_BLOCK), на 4 угловых
+     * пинаклях — компактные флюгеры END_ROD+LIGHTNING_ROD вместо
+     * квадратных wool-полотен; на центральной башне ниже Глаза —
+     * 4-сторонний городской штандарт.
      */
-    public static final String GENERATED_FLAG = "eclipsia_world_generated_v13";
+    public static final String GENERATED_FLAG = "eclipsia_world_generated_v14";
 
     // =========================================================================
     // ГЕОМЕТРИЯ ГОРОДА
@@ -170,7 +187,7 @@ public final class WorldGenerator {
      * перезаписываются на фактическую (на случай будущего смещения).
      */
     public static volatile double spireCenterX = CATHEDRAL_X + 0.5;
-    public static volatile double spireCenterY = CITY_FLOOR_Y + 131 + 0.5; // y=201.5 (Глаз)
+    public static volatile double spireCenterY = CITY_FLOOR_Y + 141 + 0.5; // y=211.5 (Глаз, v14)
     public static volatile double spireCenterZ = CATHEDRAL_Z + 0.5;
 
     // =========================================================================
