@@ -9,31 +9,40 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
 /**
- * Атмосферные частицы вокруг парящего «Глаза Эликия» над собором.
+ * Парящий «Глаз Эликия» — рисуется ЧАСТИЦАМИ над собором.
  *
- * <p>После переделки в PR 3.5 Глаз парит на y≈201 над центральным
- * шпилем; вокруг него крутятся фиолетовые частицы, имитируя
- * магическую ауру:
+ * <p>В PR 3.6 блочный куб AMETHYST/PURPUR/END_ROD удалён —
+ * Глаз теперь существует только как параметрически нарисованный
+ * частицами визуальный символ:
  * <ul>
- *   <li>{@link Particle#DRAGON_BREATH} (≈40 шт., радиус 5) — основа
- *       фиолетового облака.</li>
- *   <li>{@link Particle#PORTAL} (≈80 шт., радиус 4) — мерцающие
- *       тёмно-фиолетовые точки.</li>
- *   <li>{@link Particle#WITCH} (≈30 шт., радиус 3) — магенто-розовые
- *       искры (зельеварные руны).</li>
- *   <li>{@link Particle#ENCHANTMENT_TABLE} (≈40 шт.) — магические
- *       руны, стекающие к Глазу.</li>
- *   <li>{@link Particle#END_ROD} (≈10 шт., тонкий ореол) — белые
- *       искры по верху Глаза.</li>
+ *   <li><b>Веко</b> (внешний эллипс) — {@link Particle#DRAGON_BREATH},
+ *       полуоси a=4.5 (X) × b=2.0 (Y). Плоскость <i>вертикальная</i>
+ *       XY (смотрит на юг, откуда подходит игрок).</li>
+ *   <li><b>Радужка</b> (вращается медленно) — {@link Particle#SPELL_WITCH}
+ *       по окружности r=1.6, фаза кратна {@link System#currentTimeMillis()}.
+ *       Магенто-розовая цветовая «корона».</li>
+ *   <li><b>Зрачок</b> (центр) — {@link Particle#END_ROD} (×4), пульсирует.</li>
+ *   <li><b>Аура</b> вокруг — {@link Particle#PORTAL} (×30, радиус 5),
+ *       тёмно-фиолетовый туман.</li>
+ *   <li><b>Руны сверху</b> — {@link Particle#ENCHANTMENT_TABLE} (×20),
+ *       стекают в Глаз с высоты 5 блоков.</li>
+ *   <li><b>Стекающие искры</b> — {@link Particle#REVERSE_PORTAL} (×15)
+ *       сверху в центр, имитируют «всасывание».</li>
  * </ul>
  *
- * <p>Запускается раз в 5 тиков (4 раза в секунду). Подписывается на
- * координаты Глаза через статические поля
+ * <p>Запускается каждые 3 тика (≈6.6 раз/сек) — достаточно для
+ * иллюзии непрерывной анимации без значимой нагрузки. Подписывается
+ * на координаты Глаза через статические поля
  * {@link WorldGenerator#spireCenterX}/{@link WorldGenerator#spireCenterY}/
- * {@link WorldGenerator#spireCenterZ} — после {@code CathedralBuilder.build()}
- * они перезаписываются на фактическую точку.
+ * {@link WorldGenerator#spireCenterZ}.
  */
 public final class SpireParticles {
+
+    private static final int LID_STEPS  = 36;
+    private static final int IRIS_STEPS = 24;
+    private static final double LID_A   = 4.5; // полуось эллипса по X
+    private static final double LID_B   = 2.0; // полуось эллипса по Y
+    private static final double IRIS_R  = 1.6; // радиус радужки
 
     private final Plugin plugin;
     private BukkitTask task;
@@ -55,26 +64,53 @@ public final class SpireParticles {
                 double cx = WorldGenerator.spireCenterX;
                 double cy = WorldGenerator.spireCenterY;
                 double cz = WorldGenerator.spireCenterZ;
-                // Координаты предынициализированы константами в
-                // WorldGenerator, поэтому Double.NaN тут не ожидается.
                 if (Double.isNaN(cx) || Double.isNaN(cy) || Double.isNaN(cz)) return;
 
                 Location center = new Location(world, cx, cy, cz);
 
-                // DRAGON_BREATH (40, радиус 5) — основа фиолетового облака.
-                world.spawnParticle(Particle.DRAGON_BREATH, center, 40, 5.0, 2.5, 5.0, 0.01);
-                // PORTAL (80, радиус 4) — мерцающие тёмно-фиолетовые точки.
-                world.spawnParticle(Particle.PORTAL, center, 80, 4.0, 3.0, 4.0, 0.05);
-                // SPELL_WITCH (30, радиус 3) — магенто-розовые зельеварные руны.
-                world.spawnParticle(Particle.SPELL_WITCH, center, 30, 3.0, 2.0, 3.0, 0.0);
-                // REVERSE_PORTAL (20) — частицы, стекающие В Глаз сверху.
-                world.spawnParticle(Particle.REVERSE_PORTAL, center, 20, 2.0, 4.0, 2.0, 0.05);
-                // ENCHANTMENT_TABLE (40) — стекающие руны.
-                world.spawnParticle(Particle.ENCHANTMENT_TABLE, center, 40, 3.0, 2.0, 3.0, 0.5);
-                // END_ROD (10, тонкий ореол) — белые искры по верху.
-                world.spawnParticle(Particle.END_ROD, center, 10, 1.5, 0.5, 1.5, 0.01);
+                // === ВЕКО (внешний эллипс, вертикальная плоскость XY) ===
+                for (int i = 0; i < LID_STEPS; i++) {
+                    double t = (double) i / LID_STEPS * Math.PI * 2.0;
+                    double dx = LID_A * Math.cos(t);
+                    double dy = LID_B * Math.sin(t);
+                    Location p = new Location(world, cx + dx, cy + dy, cz);
+                    world.spawnParticle(Particle.DRAGON_BREATH, p, 1, 0.0, 0.0, 0.0, 0.0);
+                }
+
+                // === РАДУЖКА (вращается, плоскость XY) ===
+                double phase = (System.currentTimeMillis() % 6000L) / 6000.0 * Math.PI * 2.0;
+                for (int i = 0; i < IRIS_STEPS; i++) {
+                    double t = (double) i / IRIS_STEPS * Math.PI * 2.0 + phase;
+                    double dx = IRIS_R * Math.cos(t);
+                    double dy = IRIS_R * Math.sin(t);
+                    Location p = new Location(world, cx + dx, cy + dy, cz);
+                    world.spawnParticle(Particle.SPELL_WITCH, p, 1, 0.0, 0.0, 0.0, 0.0);
+                }
+
+                // === ЗРАЧОК (центр, мерцает) ===
+                world.spawnParticle(Particle.END_ROD, center, 4, 0.18, 0.18, 0.18, 0.0);
+
+                // === АУРА (тёмно-фиолетовый туман вокруг Глаза) ===
+                world.spawnParticle(Particle.PORTAL, center, 30, 5.0, 1.5, 1.5, 0.05);
+
+                // === РУНЫ (стекают сверху в Глаз) ===
+                Location above = new Location(world, cx, cy + 5.0, cz);
+                world.spawnParticle(Particle.ENCHANTMENT_TABLE, above, 20, 1.5, 0.5, 1.5, 0.5);
+
+                // === ВСАСЫВАЮЩИЕ ИСКРЫ (REVERSE_PORTAL) ===
+                world.spawnParticle(Particle.REVERSE_PORTAL, center, 15, 2.0, 3.0, 2.0, 0.05);
+
+                // === ВНЕШНИЙ ОБОДОК (DRAGON_BREATH повторно, шире) ===
+                // Для жирности контура веко рисуем дважды — второй раз с offset 0.2.
+                for (int i = 0; i < LID_STEPS; i += 2) {
+                    double t = (double) i / LID_STEPS * Math.PI * 2.0;
+                    double dx = (LID_A + 0.4) * Math.cos(t);
+                    double dy = (LID_B + 0.2) * Math.sin(t);
+                    Location p = new Location(world, cx + dx, cy + dy, cz);
+                    world.spawnParticle(Particle.DRAGON_BREATH, p, 1, 0.05, 0.05, 0.05, 0.0);
+                }
             }
-        }.runTaskTimer(plugin, 60L, 5L); // первый запуск через 3 сек, потом каждые 5 тиков
+        }.runTaskTimer(plugin, 60L, 3L); // первый запуск через 3 сек, потом каждые 3 тика
     }
 
     /** Остановить эффект (вызывается на onDisable). */
