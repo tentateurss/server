@@ -7,6 +7,7 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Directional;
 import org.bukkit.block.data.Rotatable;
 import org.bukkit.block.data.type.Bell;
+import org.bukkit.block.data.type.Door;
 import org.bukkit.block.data.type.Slab;
 import org.bukkit.block.data.type.Stairs;
 import org.bukkit.plugin.Plugin;
@@ -120,6 +121,8 @@ public final class CathedralBuilder {
         ops += buildBell();
         ops += buildGargoyles();
         ops += buildVaultRibs();
+        // PR 3.7 — двери в портале
+        ops += buildSouthDoors();
 
         plugin.getLogger().info(
                 "CathedralBuilder: ~" + ops + " блок-операций готовы (стены, "
@@ -478,53 +481,105 @@ public final class CathedralBuilder {
     // ФАЗА 6: ДВУСКАТНАЯ КРЫША
     // =========================================================================
 
+    /**
+     * PR 3.7: переделанная крыша. Прежняя имела:
+     * <ul>
+     *   <li><b>Разрыв 3 блока</b> между скатом (max y=117) и гребнем
+     *       (y=120): {@code ROOF_PEAK_DY=18}, но скат шёл только до
+     *       {@code rise=15}, после чего {@code dxAt<0} ломал цикл.</li>
+     *   <li><b>Дыры на пересечении нефа и трансепта</b>: skip-условие
+     *       пропускало нефовый скат над всем трансептом, а трансептовый
+     *       скат не покрывал внутри нефа.</li>
+     *   <li>Цвет DEEPSLATE_TILES (серая черепица) — на референсе крыша
+     *       тёмно-коричневая, как DARK_OAK_LOG.</li>
+     * </ul>
+     * <p>Теперь:
+     * <ul>
+     *   <li>Скат идёт {@code rise=0..HALF_NAVE_W=15} → пик слипается с
+     *       гребнем (y=117 для скатов, y=118 для гребня — соприкасаются).</li>
+     *   <li>Скат нефа покрывает весь {@code z=-42..42} (skip убран).</li>
+     *   <li>Трансептовый скат покрывает только {@code |x|>HALF_NAVE_W}.</li>
+     *   <li>Материал — DARK_OAK_LOG (тёмно-коричневый).</li>
+     * </ul>
+     */
     private long buildRoof() {
         long count = 0;
-        // Крыша нефа: вдоль Z, гребень при x=CX.
-        for (int rise = 0; rise <= ROOF_PEAK_DY; rise++) {
+        Material roofMat = Material.DARK_OAK_LOG;
+        Material ridgeMat = Material.POLISHED_BLACKSTONE;
+
+        // ===== Крыша нефа: вдоль Z, гребень при x=CX =====
+        // rise=0..15 (HALF_NAVE_W). dxAt=15..0. Пик слипается с гребнем.
+        for (int rise = 0; rise <= HALF_NAVE_W; rise++) {
             int y = WALL_TOP_Y + rise;
             int dxAt = HALF_NAVE_W - rise;
-            if (dxAt < 0) break;
             for (int dz = -HALF_NAVE_L; dz <= HALF_NAVE_L; dz++) {
-                if (!inFootprint(0, dz) || Math.abs(0) > HALF_NAVE_W) {} // tiny safety
-                // Скаты только над нефом — не над трансептом.
-                if (Math.abs(dz) > HALF_NAVE_L) continue;
-                if (Math.abs(dz) <= HALF_TRANSEPT_L && dxAt < HALF_TRANSEPT_W) {
-                    // Над трансептом нужна отдельная крыша; пропускаем здесь.
-                    continue;
-                }
-                painter.place(CX - dxAt, y, CZ + dz, Material.DEEPSLATE_TILES);
-                painter.place(CX + dxAt, y, CZ + dz, Material.DEEPSLATE_TILES);
+                painter.place(CX - dxAt, y, CZ + dz, roofMat);
+                painter.place(CX + dxAt, y, CZ + dz, roofMat);
                 count += 2;
             }
         }
-        // Крыша трансепта: вдоль X, гребень при z=CZ.
-        for (int rise = 0; rise <= 13; rise++) {
+        // ===== Жирность нефовой крыши: ещё один слой "ниже" под скатом =====
+        // Это даёт визуальную толщину 2 блока, как в готике.
+        for (int rise = 1; rise <= HALF_NAVE_W; rise++) {
+            int y = WALL_TOP_Y + rise;
+            int dxAt = HALF_NAVE_W - rise + 1;
+            for (int dz = -HALF_NAVE_L; dz <= HALF_NAVE_L; dz++) {
+                painter.place(CX - dxAt, y, CZ + dz, roofMat);
+                painter.place(CX + dxAt, y, CZ + dz, roofMat);
+                count += 2;
+            }
+        }
+        // ===== Гребень нефа на y=WALL_TOP_Y+HALF_NAVE_W+1=118 =====
+        int naveRidgeY = WALL_TOP_Y + HALF_NAVE_W + 1;
+        for (int dz = -HALF_NAVE_L; dz <= HALF_NAVE_L; dz++) {
+            // Не дублировать там, где центральная башня — она пробьёт крышу.
+            if (Math.abs(dz) <= CT_HALF) continue;
+            painter.place(CX, naveRidgeY, CZ + dz, ridgeMat);
+            count++;
+        }
+
+        // ===== Крыша трансепта: вдоль X, гребень при z=CZ =====
+        // rise=0..7 (HALF_TRANSEPT_L). Покрывает только |x|>HALF_NAVE_W
+        // (внутри нефа крыша нефа покрывает с большей высотой).
+        for (int rise = 0; rise <= HALF_TRANSEPT_L; rise++) {
             int y = WALL_TOP_Y + rise;
             int dzAt = HALF_TRANSEPT_L - rise;
-            if (dzAt < 0) break;
             for (int dx = -HALF_TRANSEPT_W; dx <= HALF_TRANSEPT_W; dx++) {
-                if (Math.abs(dx) > HALF_TRANSEPT_W) continue;
-                // Только над трансептом, вне нефа.
                 if (Math.abs(dx) <= HALF_NAVE_W) continue;
-                painter.place(CX + dx, y, CZ - dzAt, Material.DEEPSLATE_TILES);
-                painter.place(CX + dx, y, CZ + dzAt, Material.DEEPSLATE_TILES);
+                painter.place(CX + dx, y, CZ - dzAt, roofMat);
+                painter.place(CX + dx, y, CZ + dzAt, roofMat);
                 count += 2;
             }
         }
-        // Гребень нефа.
-        for (int dz = -HALF_NAVE_L; dz <= HALF_NAVE_L; dz++) {
-            // Не дублировать там, где будет крест трансепта (закроет это центральная башня).
-            if (Math.abs(dz) <= CT_HALF) continue;
-            painter.place(CX, ROOF_PEAK_Y, CZ + dz, Material.POLISHED_BLACKSTONE);
+        // ===== Жирность трансепта =====
+        for (int rise = 1; rise <= HALF_TRANSEPT_L; rise++) {
+            int y = WALL_TOP_Y + rise;
+            int dzAt = HALF_TRANSEPT_L - rise + 1;
+            for (int dx = -HALF_TRANSEPT_W; dx <= HALF_TRANSEPT_W; dx++) {
+                if (Math.abs(dx) <= HALF_NAVE_W) continue;
+                painter.place(CX + dx, y, CZ - dzAt, roofMat);
+                painter.place(CX + dx, y, CZ + dzAt, roofMat);
+                count += 2;
+            }
+        }
+        // ===== Гребень трансепта на y=WALL_TOP_Y+HALF_TRANSEPT_L+1=110 =====
+        int transeptRidgeY = WALL_TOP_Y + HALF_TRANSEPT_L + 1;
+        for (int dx = -HALF_TRANSEPT_W; dx <= HALF_TRANSEPT_W; dx++) {
+            if (Math.abs(dx) <= HALF_NAVE_W) continue;
+            painter.place(CX + dx, transeptRidgeY, CZ, ridgeMat);
             count++;
         }
-        // Гребень трансепта.
-        for (int dx = -HALF_TRANSEPT_W; dx <= HALF_TRANSEPT_W; dx++) {
-            if (Math.abs(dx) <= CT_HALF) continue;
-            if (Math.abs(dx) <= HALF_NAVE_W) continue;
-            painter.place(CX + dx, WALL_TOP_Y + 13, CZ, Material.POLISHED_BLACKSTONE);
-            count++;
+
+        // ===== Декоративные SHROOMLIGHT-«окошки» на скатах =====
+        // Каждые 14 блоков по нефу — мансардные окна.
+        for (int dz : new int[] { -32, -18, 18, 32 }) {
+            for (int side : new int[] { -1, +1 }) {
+                int rise = 6;
+                int y = WALL_TOP_Y + rise;
+                int x = CX + side * (HALF_NAVE_W - rise);
+                painter.place(x, y, CZ + dz, Material.SHROOMLIGHT);
+                count++;
+            }
         }
         return count;
     }
@@ -762,9 +817,11 @@ public final class CathedralBuilder {
             int tz = CZ + c[1];
             count += buildOneSideTower(tx, tz, CP_HALF, CP_BODY_DY, CP_SPIRE_DY);
             // Маяк сверху.
-            painter.place(tx, WALL_TOP_Y + CP_BODY_DY + CP_SPIRE_DY + 1, tz,
-                    Material.END_ROD);
+            int beaconY = WALL_TOP_Y + CP_BODY_DY + CP_SPIRE_DY + 1;
+            painter.place(tx, beaconY, tz, Material.END_ROD);
             count++;
+            // PR 3.7: флаг на каждом пинакле (вешаем на восточную сторону).
+            count += buildFlagPole(tx, beaconY, tz);
         }
         return count;
     }
@@ -823,40 +880,104 @@ public final class CathedralBuilder {
     // =========================================================================
 
     /**
-     * Две квадратные колонны 3×3×8 по бокам южного входа, увенчанные
-     * черепом-«гаргульей» (визуальный аналог скульптуры).
+     * PR 3.7: переделаны на массивные пьедесталы 5×5 с жаровней SOUL_FIRE
+     * наверху (как фиолетовые огни на референсе у входа). Прежняя версия
+     * 3.6 (колонна 1×1×6 + череп) визуально была фаллической.
      */
     private long buildPortalStatues() {
         long count = 0;
         int absZ = CZ + HALF_NAVE_L + 4; // на 1 блок южнее последней ступени
-        int statueHeight = 8;
         for (int side : new int[] { -1, +1 }) {
-            int sx = CX + side * 8;
-            // Постамент 3×3, высота 2.
-            for (int dx = -1; dx <= 1; dx++) {
-                for (int dz = -1; dz <= 1; dz++) {
+            int sx = CX + side * 11;
+            // ===== Уровень 1 (y=Y_BASE+1): база 5×5 POLISHED_BLACKSTONE =====
+            for (int dx = -2; dx <= 2; dx++) {
+                for (int dz = -2; dz <= 2; dz++) {
                     painter.place(sx + dx, Y_BASE + 1, absZ + dz, Material.POLISHED_BLACKSTONE);
-                    painter.place(sx + dx, Y_BASE + 2, absZ + dz, Material.CHISELED_DEEPSLATE);
-                    count += 2;
+                    count++;
                 }
             }
-            // Колонна 1×1×6.
-            for (int dy = 3; dy <= statueHeight; dy++) {
-                Material mat = (dy == statueHeight) ? Material.CHISELED_DEEPSLATE
-                        : Material.POLISHED_BLACKSTONE_BRICKS;
-                painter.place(sx, Y_BASE + dy, absZ, mat);
+            // ===== Уровень 2 (y=Y_BASE+2): 5×5 POLISHED_BLACKSTONE_BRICKS =====
+            for (int dx = -2; dx <= 2; dx++) {
+                for (int dz = -2; dz <= 2; dz++) {
+                    painter.place(sx + dx, Y_BASE + 2, absZ + dz, Material.POLISHED_BLACKSTONE_BRICKS);
+                    count++;
+                }
+            }
+            // ===== Уровень 3 (y=Y_BASE+3): 3×3 DEEPSLATE_BRICKS (карниз) =====
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    painter.place(sx + dx, Y_BASE + 3, absZ + dz, Material.DEEPSLATE_BRICKS);
+                    count++;
+                }
+            }
+            // ===== Уровень 4 (y=Y_BASE+4): 3×3 DEEPSLATE_BRICKS (тело) =====
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    painter.place(sx + dx, Y_BASE + 4, absZ + dz, Material.DEEPSLATE_BRICKS);
+                    count++;
+                }
+            }
+            // ===== Уровень 5 (y=Y_BASE+5): 3×3 CHISELED_DEEPSLATE (капитель) =====
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    painter.place(sx + dx, Y_BASE + 5, absZ + dz, Material.CHISELED_DEEPSLATE);
+                    count++;
+                }
+            }
+            // ===== Жаровня (y=Y_BASE+6): SOUL_FIRE на NETHERITE, по углам DARK_OAK_FENCE =====
+            painter.place(sx, Y_BASE + 6, absZ, Material.NETHERITE_BLOCK);
+            count++;
+            for (int[] off : new int[][] { {-1, -1}, {-1, 1}, {1, -1}, {1, 1} }) {
+                painter.place(sx + off[0], Y_BASE + 6, absZ + off[1], Material.DARK_OAK_FENCE);
                 count++;
             }
-            // Венчающая «гаргулья»: SKELETON_SKULL на ROTATION смотрит на юг.
-            BlockData skull = Material.SKELETON_SKULL.createBlockData();
-            if (skull instanceof Rotatable) {
-                ((Rotatable) skull).setRotation(BlockFace.SOUTH);
+            // Само пламя — SOUL_FIRE на y+7.
+            painter.place(sx, Y_BASE + 7, absZ, Material.SOUL_FIRE);
+            count++;
+            // Концы FENCE на y+7 — END_ROD на каждом столбе для доп. подсветки.
+            for (int[] off : new int[][] { {-1, -1}, {-1, 1}, {1, -1}, {1, 1} }) {
+                painter.place(sx + off[0], Y_BASE + 7, absZ + off[1], Material.DARK_OAK_FENCE);
+                painter.place(sx + off[0], Y_BASE + 8, absZ + off[1], Material.END_ROD);
+                count += 2;
             }
-            painter.placeData(sx, Y_BASE + statueHeight + 1, absZ, skull);
-            count++;
-            // Подсветка постамента — SOUL_LANTERN на CHAIN над черепом.
-            painter.place(sx, Y_BASE + statueHeight + 2, absZ, Material.AMETHYST_BLOCK);
-            count++;
+        }
+        return count;
+    }
+
+    // =========================================================================
+    // ФАЗА 12.5 (PR 3.7): ДВЕРИ ЮЖНОГО ПОРТАЛА
+    // =========================================================================
+
+    /**
+     * Двойная DARK_OAK_DOOR в южном портале. Проём 9×16, ставим 2 двери
+     * (dx=-1 и dx=+1, перед ними AIR-проход). Двери смотрят на юг
+     * (наружу), {@link Door#setHinge}: левая=LEFT, правая=RIGHT.
+     */
+    private long buildSouthDoors() {
+        long count = 0;
+        int absZ = CZ + HALF_NAVE_L; // z южной стены
+        int doorY = Y_BASE + 1;
+        for (int side : new int[] { -1, +1 }) {
+            int dx = side; // -1 (левая), +1 (правая)
+            // Нижняя половина.
+            BlockData lower = Material.DARK_OAK_DOOR.createBlockData();
+            if (lower instanceof Door) {
+                Door dd = (Door) lower;
+                dd.setHalf(Bisected.Half.BOTTOM);
+                dd.setHinge(side == -1 ? Door.Hinge.LEFT : Door.Hinge.RIGHT);
+                dd.setFacing(BlockFace.SOUTH);
+            }
+            painter.placeData(CX + dx, doorY, absZ, lower);
+            // Верхняя половина.
+            BlockData upper = Material.DARK_OAK_DOOR.createBlockData();
+            if (upper instanceof Door) {
+                Door dd = (Door) upper;
+                dd.setHalf(Bisected.Half.TOP);
+                dd.setHinge(side == -1 ? Door.Hinge.LEFT : Door.Hinge.RIGHT);
+                dd.setFacing(BlockFace.SOUTH);
+            }
+            painter.placeData(CX + dx, doorY + 1, absZ, upper);
+            count += 2;
         }
         return count;
     }
