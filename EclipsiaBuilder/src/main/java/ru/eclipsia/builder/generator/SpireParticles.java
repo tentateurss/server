@@ -9,7 +9,20 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
 /**
- * Парящий «Глаз Эликия» — рисуется ЧАСТИЦАМИ над собором.
+ * Парящий «Глаз Эликия» + аура вокруг собора — всё на ЧАСТИЦАХ.
+ *
+ * <p>PR 3.9 (v15): Глаз СТАЛ ЖИРНЕЕ:
+ * <ul>
+ *   <li>LID_STEPS 96→144 и SCLERA_STEPS 72→108 — больше частиц на оборот;</li>
+ *   <li>Контур LID — 5 параллельных проходов (вместо 3) с spread ±0.20;</li>
+ *   <li>Склера — 3 параллельных прохода (вместо 1) с spread ±0.15;</li>
+ *   <li>8 радиальных лучей (вместо 4): N/S/E/W + 4 диагонали NE/NW/SE/SW.</li>
+ * </ul>
+ *
+ * <p>PR 3.9 (v15): АУРА ВОКРУГ СОБОРА — новый блок {@code spawnAura()}
+ * рассыпает PORTAL+SOUL_FIRE_FLAME+ENCHANTMENT_TABLE в радиусе ~50
+ * блоков от центра собора (CATHEDRAL_X, CATHEDRAL_Z), на высотах
+ * y=70..150 — собор выглядит «в фиолетовом тумане» из города.
  *
  * <p>PR 3.8 (v14): все 18 вызовов {@code spawnParticle} переведены на
  * overload {@code (..., Object data, boolean force)} с {@code data=null,
@@ -62,12 +75,12 @@ public final class SpireParticles {
     // чтобы Глаз был отчётливо виден с дистанции 100-150 блоков.
     private static final double LID_A   = 12.0; // полуось эллипса по X (3.7: 7.5)
     private static final double LID_B   = 4.8;  // полуось эллипса по Y (3.7: 3.0)
-    private static final int LID_STEPS  = 96;   // больше шагов из-за большего периметра
+    private static final int LID_STEPS  = 144;  // PR 3.9: 96→144 (жирнее контур)
 
     // Склера (внутренний контур).
     private static final double SCLERA_A = 9.6;  // 3.7: 6.0
     private static final double SCLERA_B = 3.84; // 3.7: 2.4
-    private static final int SCLERA_STEPS = 72;
+    private static final int SCLERA_STEPS = 108; // PR 3.9: 72→108
 
     // Радужка.
     private static final double IRIS_OUT_R = 3.5; // 3.7: 2.2
@@ -113,27 +126,30 @@ public final class SpireParticles {
                 world.spawnParticle(Particle.PORTAL, center, 100, 12.0, 5.0, 3.5, 0.05,
                         null, true);
 
-                // ===== 2. DIAMOND-GLOW (4 луча наружу) =====
+                // ===== 2. DIAMOND-GLOW (8 лучей наружу) =====
+                // PR 3.9: 4→8 лучей — добавлены 4 диагонали (NE/NW/SE/SW),
+                // плюс SOUL_FIRE_FLAME для разнообразия цветов (белый-синий пламень).
+                double[][] rayDirs = {
+                        { +1.0, 0.0 }, { -1.0, 0.0 }, { 0.0, +1.0 }, { 0.0, -1.0 },
+                        { +0.707, +0.707 }, { -0.707, +0.707 },
+                        { +0.707, -0.707 }, { -0.707, -0.707 },
+                };
                 for (int len = 1; len <= 14; len++) {
                     double f = 1.0 - (len - 1) / 14.0; // плотность затухает
                     int parts = (int) Math.round(3 * f);
                     if (parts < 1) parts = 1;
-                    // Восток
-                    world.spawnParticle(Particle.DRAGON_BREATH,
-                            new Location(world, cx + LID_A + len, cy, cz), parts,
-                            0.05, 0.05, 0.05, 0.0, null, true);
-                    // Запад
-                    world.spawnParticle(Particle.DRAGON_BREATH,
-                            new Location(world, cx - LID_A - len, cy, cz), parts,
-                            0.05, 0.05, 0.05, 0.0, null, true);
-                    // Север (вверх)
-                    world.spawnParticle(Particle.DRAGON_BREATH,
-                            new Location(world, cx, cy + LID_B + len, cz), parts,
-                            0.05, 0.05, 0.05, 0.0, null, true);
-                    // Юг (вниз)
-                    world.spawnParticle(Particle.DRAGON_BREATH,
-                            new Location(world, cx, cy - LID_B - len, cz), parts,
-                            0.05, 0.05, 0.05, 0.0, null, true);
+                    for (int d = 0; d < rayDirs.length; d++) {
+                        double[] dir = rayDirs[d];
+                        double rx = cx + dir[0] * (LID_A + len);
+                        double ry = cy + dir[1] * (LID_B + len);
+                        // Кардинальные — DRAGON_BREATH (фиолетовые), диагонали —
+                        // SOUL_FIRE_FLAME (бело-синие языки пламени) — эффектнее.
+                        Particle pType = (d < 4) ? Particle.DRAGON_BREATH
+                                : Particle.SOUL_FIRE_FLAME;
+                        world.spawnParticle(pType,
+                                new Location(world, rx, ry, cz), parts,
+                                0.05, 0.05, 0.05, 0.0, null, true);
+                    }
                 }
 
                 // ===== 3. РУНИЧЕСКОЕ КОЛЬЦО (вращается) =====
@@ -158,10 +174,12 @@ public final class SpireParticles {
                 }
 
                 // ===== 5. ВЕКО — внешний миндаль (DRAGON_BREATH) =====
-                // Тройной проход: ровный + чуть меньше + чуть больше = жирность.
-                for (int pass = 0; pass < 3; pass++) {
-                    double aMul = 1.0 + (pass - 1) * 0.05;
-                    double bMul = 1.0 + (pass - 1) * 0.05;
+                // PR 3.9: 5 параллельных проходов (вместо 3) с spread ±0.10 × 0.20 —
+                // контур жирный, виден издалека.
+                for (int pass = 0; pass < 5; pass++) {
+                    double offset = (pass - 2) * 0.20; // -0.40, -0.20, 0, +0.20, +0.40
+                    double aMul = 1.0 + offset / LID_A;
+                    double bMul = 1.0 + offset / LID_B;
                     for (int i = 0; i < LID_STEPS; i++) {
                         double t = (double) i / LID_STEPS * Math.PI * 2.0;
                         double dx = LID_A * aMul * Math.cos(t);
@@ -173,13 +191,19 @@ public final class SpireParticles {
                 }
 
                 // ===== 6. СКЛЕРА (FIREWORKS_SPARK белый внутренний контур) =====
-                for (int i = 0; i < SCLERA_STEPS; i++) {
-                    double t = (double) i / SCLERA_STEPS * Math.PI * 2.0;
-                    double dx = SCLERA_A * Math.cos(t);
-                    double dy = SCLERA_B * Math.sin(t);
-                    Location p = new Location(world, cx + dx, cy + dy, cz);
-                    world.spawnParticle(Particle.FIREWORKS_SPARK, p, 1, 0.0, 0.0, 0.0, 0.0,
-                            null, true);
+                // PR 3.9: 3 параллельных прохода (вместо 1) с spread ±0.15.
+                for (int pass = 0; pass < 3; pass++) {
+                    double offset = (pass - 1) * 0.15;
+                    double aMul = 1.0 + offset / SCLERA_A;
+                    double bMul = 1.0 + offset / SCLERA_B;
+                    for (int i = 0; i < SCLERA_STEPS; i++) {
+                        double t = (double) i / SCLERA_STEPS * Math.PI * 2.0;
+                        double dx = SCLERA_A * aMul * Math.cos(t);
+                        double dy = SCLERA_B * bMul * Math.sin(t);
+                        Location p = new Location(world, cx + dx, cy + dy, cz);
+                        world.spawnParticle(Particle.FIREWORKS_SPARK, p, 1, 0.0, 0.0, 0.0, 0.0,
+                                null, true);
+                    }
                 }
 
                 // ===== 7. ВНЕШНЯЯ РАДУЖКА (SPELL_WITCH, по часовой) =====
@@ -256,6 +280,11 @@ public final class SpireParticles {
                 // ===== 14. ВСАСЫВАЮЩИЕ ИСКРЫ =====
                 world.spawnParticle(Particle.REVERSE_PORTAL, center, 32, 6.0, 5.0, 3.0, 0.05,
                         null, true);
+
+                // ===== 15. АУРА ВОКРУГ СОБОРА =====
+                // PR 3.9: пассивный фиолетовый туман в радиусе ~50 блоков
+                // от центра собора. force=true — видно из всего города.
+                spawnAura(world, ms);
             }
         }.runTaskTimer(plugin, 60L, 3L); // первый запуск через 3 сек, потом каждые 3 тика
     }
@@ -265,6 +294,86 @@ public final class SpireParticles {
         if (task != null) {
             task.cancel();
             task = null;
+        }
+    }
+
+    /**
+     * PR 3.9 (v15): пассивная фиолетовая аура частиц вокруг ВСЕГО собора.
+     *
+     * <p>Рассыпает 3 типа частиц (PORTAL, SOUL_FIRE_FLAME, ENCHANTMENT_TABLE)
+     * детерминистически по времени в кольцевой зоне вокруг
+     * {@code (CATHEDRAL_X, CATHEDRAL_Z)} на высотах y=70..150. Все частицы
+     * с {@code force=true}, поэтому видны игрокам в любой точке города
+     * независимо от particle distance клиента.
+     *
+     * <p>Алгоритм: за каждый тик берём ~24 случайных точек в кольце
+     * радиуса 18..50 от центра собора. Псевдо-«случайность» через
+     * детерминированный hash от {@code ms}, чтобы не плодить аллокаций.
+     */
+    private static void spawnAura(World world, long ms) {
+        final double cathX = WorldGenerator.CATHEDRAL_X + 0.5;
+        final double cathZ = WorldGenerator.CATHEDRAL_Z + 0.5;
+        final int    samples = 24;
+        final double rMin = 18.0;
+        final double rMax = 50.0;
+        final double yMin = 72.0;
+        final double yMax = 150.0;
+
+        // Псевдо-случайный seed от ms (без аллокаций Random на каждый тик).
+        long seed = ms * 6364136223846793005L + 1442695040888963407L;
+
+        for (int i = 0; i < samples; i++) {
+            seed = seed * 6364136223846793005L + 1442695040888963407L;
+            double a = ((seed >>> 16) & 0xFFFF) / 65535.0; // [0..1)
+            seed = seed * 6364136223846793005L + 1442695040888963407L;
+            double b = ((seed >>> 16) & 0xFFFF) / 65535.0;
+            seed = seed * 6364136223846793005L + 1442695040888963407L;
+            double c = ((seed >>> 16) & 0xFFFF) / 65535.0;
+
+            // Угол в кольце.
+            double theta = a * Math.PI * 2.0;
+            // Радиус с распределением sqrt(uniform), чтобы плотность была равномерной.
+            double r = Math.sqrt(b) * (rMax - rMin) + rMin;
+            double px = cathX + r * Math.cos(theta);
+            double pz = cathZ + r * Math.sin(theta);
+            double py = yMin + c * (yMax - yMin);
+
+            Location loc = new Location(world, px, py, pz);
+
+            // 3 разных частицы, выбираем по индексу.
+            int kind = i % 3;
+            switch (kind) {
+                case 0:
+                    world.spawnParticle(Particle.PORTAL, loc, 4,
+                            0.6, 0.6, 0.6, 0.05, null, true);
+                    break;
+                case 1:
+                    world.spawnParticle(Particle.SOUL_FIRE_FLAME, loc, 1,
+                            0.1, 0.1, 0.1, 0.005, null, true);
+                    break;
+                default:
+                    world.spawnParticle(Particle.ENCHANTMENT_TABLE, loc, 2,
+                            0.4, 0.4, 0.4, 0.02, null, true);
+                    break;
+            }
+        }
+
+        // Колонки END_ROD, поднимающиеся вверх над 4 фасадными башнями
+        // (декоративные «фонари» по углам собора). Координаты CT-офсета +/- 30
+        // относительно центра собора.
+        final int[][] towerOffsets = {
+                { +30, +30 }, { +30, -30 }, { -30, +30 }, { -30, -30 },
+        };
+        double anim = (ms % 3000L) / 3000.0; // 0..1
+        for (int[] off : towerOffsets) {
+            double tx = cathX + off[0];
+            double tz = cathZ + off[1];
+            for (int up = 0; up < 30; up += 3) {
+                double y = 100.0 + up + anim * 3.0;
+                world.spawnParticle(Particle.END_ROD,
+                        new Location(world, tx, y, tz), 1,
+                        0.0, 0.0, 0.0, 0.0, null, true);
+            }
         }
     }
 }
