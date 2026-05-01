@@ -2,8 +2,13 @@ package ru.eclipsia.builder.generator;
 
 import org.bukkit.Material;
 import org.bukkit.block.BlockFace;
+import org.bukkit.block.data.Bisected;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Directional;
+import org.bukkit.block.data.Rotatable;
+import org.bukkit.block.data.type.Bell;
+import org.bukkit.block.data.type.Slab;
+import org.bukkit.block.data.type.Stairs;
 import org.bukkit.plugin.Plugin;
 
 import java.util.Random;
@@ -14,18 +19,24 @@ import java.util.Random;
  * со внутренней подсветкой, крестообразный план (cruciform), семь
  * остроконечных башен и парящий «Глаз Эликия» над центральным шпилем.
  *
- * <p><b>Геометрия (PR 3.5)</b>:
+ * <p><b>Геометрия (PR 3.5/3.6)</b>:
  * <ul>
  *   <li>Центр: ({@link WorldGenerator#CATHEDRAL_X}, {@link WorldGenerator#CATHEDRAL_Z})
  *       = (45, -15).</li>
  *   <li>Cruciform: неф ±15 × ±42 (вдоль Z), трансепт ±30 × ±7 (вдоль X).</li>
- *   <li>Стены y=70..101 (высота 32), толщина 2 блока.</li>
+ *   <li>Стены y=70..101 (высота 32), толщина 1 блок, вогнутые углы
+ *       cruciform ​дополнительно уплотнены (PR 3.6) — закрывают «дыры».</li>
  *   <li>Двускатная крыша до y=119, гребень y=120 POLISHED_BLACKSTONE.</li>
  *   <li>Башни: 1 центральная (11×11, шпиль до y=186), 2 фасадные
  *       южные (7×7, шпили до y=143), 4 пинакля по концам креста
  *       (5×5, шпили до y=130).</li>
- *   <li>Парящий «Глаз Эликия» — на y=200 (15 блоков над центральным
- *       шпилем), AMETHYST_BLOCK 3×3×3 + 3 кольца END_ROD.</li>
+ *   <li>Парящий «Глаз Эликия» — целиком из частиц на y≈201 (PR 3.6:
+ *       блочный куб удалён, оставлен только {@link Material#LIGHT}-куб для
+ *       подсветки воздуха; реальный глаз рисуется в
+ *       {@link SpireParticles}).</li>
+ *   <li>Декор интерьера: 6 колонн вдоль нефа, 5 свисающих канделябров,
+ *       4 ряда скамей DARK_OAK_SLAB, пюпитр на пересечении, алтарь
+ *       в северной апсиде, гаргульи на центральной башне (PR 3.6).</li>
  * </ul>
  *
  * <p>Все блоки кладутся через {@link RegionPainter} — асинхронно. После
@@ -101,6 +112,14 @@ public final class CathedralBuilder {
         ops += buildCornerPinnacles();
         ops += buildFloatingEye();
         ops += buildInteriorLight();
+        // PR 3.6 — декор
+        ops += buildPortalStatues();
+        ops += buildInteriorColumns();
+        ops += buildPews();
+        ops += buildPulpit();
+        ops += buildBell();
+        ops += buildGargoyles();
+        ops += buildVaultRibs();
 
         plugin.getLogger().info(
                 "CathedralBuilder: ~" + ops + " блок-операций готовы (стены, "
@@ -125,11 +144,22 @@ public final class CathedralBuilder {
         return inNave || inTransept;
     }
 
-    /** Точка лежит на внешнем периметре footprint (есть сосед-снаружи). */
+    /**
+     * Точка лежит на внешнем периметре footprint (есть сосед-снаружи).
+     * <p>В PR 3.6 проверка дополнена диагональными соседями — это закрывает
+     * «дыры» в вогнутых углах cruciform (там, где неф встречается с
+     * трансептом и две стены подходят диагонально).
+     */
     private boolean isPerimeter(int dx, int dz) {
         if (!inFootprint(dx, dz)) return false;
-        return !inFootprint(dx - 1, dz) || !inFootprint(dx + 1, dz)
-            || !inFootprint(dx, dz - 1) || !inFootprint(dx, dz + 1);
+        // Cardinal-соседи (стандартный периметр).
+        if (!inFootprint(dx - 1, dz) || !inFootprint(dx + 1, dz)
+            || !inFootprint(dx, dz - 1) || !inFootprint(dx, dz + 1)) {
+            return true;
+        }
+        // Диагональные соседи — обработка вогнутых углов cruciform.
+        return !inFootprint(dx - 1, dz - 1) || !inFootprint(dx + 1, dz - 1)
+            || !inFootprint(dx - 1, dz + 1) || !inFootprint(dx + 1, dz + 1);
     }
 
     /** Точка является внешним углом периметра (2 пустых соседа подряд). */
@@ -743,85 +773,282 @@ public final class CathedralBuilder {
     // ФАЗА 10: ПАРЯЩИЙ «ГЛАЗ ЭЛИКИЯ»
     // =========================================================================
 
+    /**
+     * PR 3.6: «Глаз Эликия» теперь полностью на частицах. Сюда
+     * заходим только чтобы расставить невидимые {@link Material#LIGHT}
+     * блоки для атмосферного свечения воздуха и стереть возможные
+     * остатки старого блочного куба.
+     */
     private long buildFloatingEye() {
         long count = 0;
-        // Ядро: 3×3×3 куб AMETHYST_BLOCK с центром в (CX, EYE_Y, CZ),
-        // углы — PURPUR_BLOCK для контраста.
-        for (int ox = -1; ox <= 1; ox++) {
-            for (int oy = -1; oy <= 1; oy++) {
-                for (int oz = -1; oz <= 1; oz++) {
-                    int adx = Math.abs(ox), ady = Math.abs(oy), adz = Math.abs(oz);
-                    int dist = adx + ady + adz;
-                    Material mat;
-                    if (dist == 0) {
-                        mat = Material.BEACON; // ядро светится столпом вверх
-                    } else if (dist == 3) {
-                        mat = Material.PURPUR_BLOCK;
-                    } else {
-                        mat = Material.AMETHYST_BLOCK;
-                    }
-                    painter.place(CX + ox, EYE_Y + oy, CZ + oz, mat);
+        // Очищаем 5×5×5 область вокруг Глаза (на случай старого мира v11).
+        for (int ox = -2; ox <= 2; ox++) {
+            for (int oy = -2; oy <= 2; oy++) {
+                for (int oz = -2; oz <= 2; oz++) {
+                    painter.place(CX + ox, EYE_Y + oy, CZ + oz, Material.AIR);
                     count++;
                 }
             }
         }
-        // 3 горизонтальных кольца END_ROD радиуса 4, 5, 4 на y-1, y, y+1.
-        int[][] rings = {
-                { EYE_Y - 1, 4 },
-                { EYE_Y,     6 },
-                { EYE_Y + 1, 4 },
-        };
-        for (int[] r : rings) {
-            int ry = r[0];
-            int rad = r[1];
-            count += buildRing(CX, ry, CZ, rad);
+        // Стираем «копья» по 4 сторонам и нижние END_ROD (старый блочный Глаз).
+        for (int step = 0; step <= 10; step++) {
+            painter.place(CX + step, EYE_Y, CZ, Material.AIR);
+            painter.place(CX - step, EYE_Y, CZ, Material.AIR);
+            painter.place(CX, EYE_Y, CZ + step, Material.AIR);
+            painter.place(CX, EYE_Y, CZ - step, Material.AIR);
+            count += 4;
         }
-        // 4 длинных END_ROD-«копья» наружу от Глаза по 4 направлениям.
-        BlockFace[] faces = { BlockFace.EAST, BlockFace.WEST, BlockFace.NORTH, BlockFace.SOUTH };
-        int[][] dirs = { {1, 0}, {-1, 0}, {0, -1}, {0, 1} };
-        for (int i = 0; i < 4; i++) {
-            for (int step = 7; step <= 10; step++) {
-                BlockData rod = Material.END_ROD.createBlockData();
-                if (rod instanceof Directional) {
-                    ((Directional) rod).setFacing(faces[i]);
-                }
-                painter.placeData(CX + dirs[i][0] * step, EYE_Y, CZ + dirs[i][1] * step, rod);
-                count++;
-            }
-        }
-        // Подвешенная вертикальная свечная подсветка ниже Глаза (3 END_ROD вниз).
-        for (int dy = 1; dy <= 3; dy++) {
-            BlockData rod = Material.END_ROD.createBlockData();
-            if (rod instanceof Directional) {
-                ((Directional) rod).setFacing(BlockFace.DOWN);
-            }
-            painter.placeData(CX, EYE_Y - 1 - dy, CZ, rod);
+        for (int dy = 1; dy <= 5; dy++) {
+            painter.place(CX, EYE_Y - dy, CZ, Material.AIR);
             count++;
         }
-        return count;
-    }
-
-    /** Кольцо из END_ROD на горизонтальной плоскости y. */
-    private long buildRing(int cx, int y, int cz, int radius) {
-        long count = 0;
-        // Аппроксимация окружности на 32 шага.
-        int steps = Math.max(16, radius * 6);
-        boolean[][] placed = new boolean[radius * 2 + 3][radius * 2 + 3];
-        for (int s = 0; s < steps; s++) {
-            double a = 2.0 * Math.PI * s / steps;
-            int dx = (int) Math.round(radius * Math.cos(a));
-            int dz = (int) Math.round(radius * Math.sin(a));
-            if (placed[dx + radius + 1][dz + radius + 1]) continue;
-            placed[dx + radius + 1][dz + radius + 1] = true;
-            painter.place(cx + dx, y, cz + dz, Material.END_ROD);
-            count++;
-        }
+        // Невидимые LIGHT-блоки в центре + 4 вокруг — даёт fluctuating
+        // свечение в воздухе вокруг Глаза без видимого каркаса.
+        BlockData light = Material.LIGHT.createBlockData("[level=15]");
+        painter.placeData(CX, EYE_Y, CZ, light);
+        painter.placeData(CX + 1, EYE_Y, CZ, light);
+        painter.placeData(CX - 1, EYE_Y, CZ, light);
+        painter.placeData(CX, EYE_Y + 1, CZ, light);
+        painter.placeData(CX, EYE_Y - 1, CZ, light);
+        count += 5;
         return count;
     }
 
     // =========================================================================
     // ФАЗА 11: ВНУТРЕННЕЕ ОСВЕЩЕНИЕ
     // =========================================================================
+
+    // =========================================================================
+    // ФАЗА 12 (PR 3.6): СТАТУИ-АТЛАНТЫ У ЮЖНОГО ПОРТАЛА
+    // =========================================================================
+
+    /**
+     * Две квадратные колонны 3×3×8 по бокам южного входа, увенчанные
+     * черепом-«гаргульей» (визуальный аналог скульптуры).
+     */
+    private long buildPortalStatues() {
+        long count = 0;
+        int absZ = CZ + HALF_NAVE_L + 4; // на 1 блок южнее последней ступени
+        int statueHeight = 8;
+        for (int side : new int[] { -1, +1 }) {
+            int sx = CX + side * 8;
+            // Постамент 3×3, высота 2.
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    painter.place(sx + dx, Y_BASE + 1, absZ + dz, Material.POLISHED_BLACKSTONE);
+                    painter.place(sx + dx, Y_BASE + 2, absZ + dz, Material.CHISELED_DEEPSLATE);
+                    count += 2;
+                }
+            }
+            // Колонна 1×1×6.
+            for (int dy = 3; dy <= statueHeight; dy++) {
+                Material mat = (dy == statueHeight) ? Material.CHISELED_DEEPSLATE
+                        : Material.POLISHED_BLACKSTONE_BRICKS;
+                painter.place(sx, Y_BASE + dy, absZ, mat);
+                count++;
+            }
+            // Венчающая «гаргулья»: SKELETON_SKULL на ROTATION смотрит на юг.
+            BlockData skull = Material.SKELETON_SKULL.createBlockData();
+            if (skull instanceof Rotatable) {
+                ((Rotatable) skull).setRotation(BlockFace.SOUTH);
+            }
+            painter.placeData(sx, Y_BASE + statueHeight + 1, absZ, skull);
+            count++;
+            // Подсветка постамента — SOUL_LANTERN на CHAIN над черепом.
+            painter.place(sx, Y_BASE + statueHeight + 2, absZ, Material.AMETHYST_BLOCK);
+            count++;
+        }
+        return count;
+    }
+
+    // =========================================================================
+    // ФАЗА 13 (PR 3.6): КОЛОННАДА ВНУТРИ НЕФА
+    // =========================================================================
+
+    /**
+     * 6 колонн (3 пары) вдоль нефа — поддерживают «своды» (визуальные
+     * ребра от стен к гребню крыши).
+     */
+    private long buildInteriorColumns() {
+        long count = 0;
+        int[] zs = { -28, -10, 8, 28 };
+        for (int dz : zs) {
+            for (int side : new int[] { -1, +1 }) {
+                int cx = CX + side * (HALF_NAVE_W - 4); // x=±11
+                int cz = CZ + dz;
+                // Базовая часть 1×1, h=1: COBBLED_DEEPSLATE.
+                painter.place(cx, Y_BASE + 1, cz, Material.COBBLED_DEEPSLATE);
+                count++;
+                // Тело колонны y=72..91 PURPUR_PILLAR.
+                for (int dy = 2; dy <= 21; dy++) {
+                    BlockData pillar = Material.PURPUR_PILLAR.createBlockData();
+                    painter.placeData(cx, Y_BASE + dy, cz, pillar);
+                    count++;
+                }
+                // Капитель y=92..93 CHISELED_DEEPSLATE.
+                painter.place(cx, Y_BASE + 22, cz, Material.CHISELED_DEEPSLATE);
+                painter.place(cx, Y_BASE + 23, cz, Material.POLISHED_BLACKSTONE);
+                count += 2;
+            }
+        }
+        return count;
+    }
+
+    // =========================================================================
+    // ФАЗА 14 (PR 3.6): СКАМЬИ
+    // =========================================================================
+
+    private long buildPews() {
+        long count = 0;
+        // 8 рядов скамей по обе стороны от центрального прохода (dx=±2).
+        for (int dz : new int[] { -34, -30, -22, -18, 18, 22, 30, 34 }) {
+            for (int side : new int[] { -1, +1 }) {
+                // Сидение DARK_OAK_SLAB y=Y_BASE+1, длина 5 блоков.
+                for (int dx = side == -1 ? -7 : 3; dx <= (side == -1 ? -3 : 7); dx++) {
+                    Slab slab = (Slab) Material.DARK_OAK_SLAB.createBlockData();
+                    slab.setType(Slab.Type.BOTTOM);
+                    painter.placeData(CX + dx, Y_BASE + 1, CZ + dz, slab);
+                    count++;
+                }
+                // Спинка DARK_OAK_FENCE y=Y_BASE+2 на дальнем конце скамьи.
+                int backDx = side == -1 ? -7 : 7;
+                for (int dx = backDx - (side == -1 ? -4 : 4);
+                     dx <= backDx;
+                     dx++) {
+                    if (dx == backDx || (side == -1 && dx == backDx + 4)
+                        || (side == 1 && dx == backDx - 4)) {
+                        painter.place(CX + dx, Y_BASE + 2, CZ + dz, Material.DARK_OAK_FENCE);
+                        count++;
+                    }
+                }
+            }
+        }
+        return count;
+    }
+
+    // =========================================================================
+    // ФАЗА 15 (PR 3.6): ПЮПИТР НА ПЕРЕСЕЧЕНИИ
+    // =========================================================================
+
+    private long buildPulpit() {
+        long count = 0;
+        // Круглая платформа r=2 в (CX, Y_BASE+2, CZ), 2 ступени.
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dz = -2; dz <= 2; dz++) {
+                int dist = Math.abs(dx) + Math.abs(dz);
+                if (dist > 3) continue;
+                Material mat;
+                if (dist == 0) mat = Material.AMETHYST_BLOCK;
+                else if (dist == 1) mat = Material.PURPUR_PILLAR;
+                else mat = Material.PURPUR_BLOCK;
+                painter.place(CX + dx, Y_BASE + 1, CZ + dz, mat);
+                count++;
+            }
+        }
+        // Над пюпитром — END_ROD «лектор», подсвечивающий проповедника.
+        painter.place(CX, Y_BASE + 2, CZ, Material.END_ROD);
+        count++;
+        // Дополнительные SHROOMLIGHT по 4 углам у крестовой башни.
+        for (int sx : new int[] { -3, 3 }) {
+            for (int sz : new int[] { -3, 3 }) {
+                painter.place(CX + sx, Y_BASE + 2, CZ + sz, Material.SHROOMLIGHT);
+                count++;
+            }
+        }
+        return count;
+    }
+
+    // =========================================================================
+    // ФАЗА 16 (PR 3.6): КОЛОКОЛ НА ЗАПАДНОЙ ФАСАДНОЙ БАШНЕ
+    // =========================================================================
+
+    private long buildBell() {
+        long count = 0;
+        // Колокол ставим в окне западной башни (запад = -X).
+        int tx = CX - WT_X_OFFSET;
+        int tz = CZ + WT_Z;
+        int by = WALL_TOP_Y + WT_BODY_DY - 4;
+        Bell bell = (Bell) Material.BELL.createBlockData();
+        bell.setAttachment(Bell.Attachment.CEILING);
+        bell.setFacing(BlockFace.SOUTH);
+        painter.placeData(tx, by, tz, bell);
+        count++;
+        // Цепь над колоколом 2 блока.
+        painter.place(tx, by + 1, tz, Material.CHAIN);
+        painter.place(tx, by + 2, tz, Material.CHAIN);
+        count += 2;
+        return count;
+    }
+
+    // =========================================================================
+    // ФАЗА 17 (PR 3.6): ГАРГУЛЬИ НА УГЛАХ ЦЕНТРАЛЬНОЙ БАШНИ
+    // =========================================================================
+
+    private long buildGargoyles() {
+        long count = 0;
+        int gy = CT_BODY_TOP_Y + 1;
+        int half = CT_HALF + 2;
+        int[][] corners = {
+                { -half, -half }, { -half, half },
+                {  half, -half }, {  half, half },
+        };
+        BlockFace[] outwardFaces = {
+                BlockFace.WEST, BlockFace.WEST,
+                BlockFace.EAST, BlockFace.EAST,
+        };
+        for (int i = 0; i < 4; i++) {
+            int gx = CX + corners[i][0];
+            int gz = CZ + corners[i][1];
+            // Выносная балка-кронштейн POLISHED_BLACKSTONE_STAIRS.
+            Stairs bracket = (Stairs) Material.POLISHED_BLACKSTONE_BRICK_STAIRS.createBlockData();
+            bracket.setFacing(outwardFaces[i].getOppositeFace());
+            bracket.setHalf(Bisected.Half.TOP);
+            painter.placeData(gx, gy - 1, gz, bracket);
+            count++;
+            // Череп смотрит наружу.
+            BlockData skull = Material.WITHER_SKELETON_SKULL.createBlockData();
+            if (skull instanceof Rotatable) {
+                ((Rotatable) skull).setRotation(outwardFaces[i]);
+            }
+            painter.placeData(gx, gy, gz, skull);
+            count++;
+        }
+        return count;
+    }
+
+    // =========================================================================
+    // ФАЗА 18 (PR 3.6): СВОДЫ-РЕБРА
+    // =========================================================================
+
+    /**
+     * Декоративные DARK_OAK_FENCE-ребра от стен нефа к коньку крыши,
+     * имитирующие готические нервюры. Не структурные, чисто визуально.
+     */
+    private long buildVaultRibs() {
+        long count = 0;
+        int[] ribZs = { -36, -22, -10, 0, 10, 22, 36 };
+        for (int dz : ribZs) {
+            // Не рисуем над трансептом и центральной башней.
+            if (Math.abs(dz) <= HALF_TRANSEPT_L) continue;
+            int z = CZ + dz;
+            // От пары «капителей» (y=Y_BASE+24) на (CX±11, z) к коньку (CX, ROOF_PEAK_Y-1, z).
+            for (int side : new int[] { -1, +1 }) {
+                int x0 = CX + side * (HALF_NAVE_W - 4);
+                int x1 = CX;
+                int y0 = Y_BASE + 24;
+                int y1 = ROOF_PEAK_Y - 1;
+                int steps = Math.abs(x1 - x0);
+                for (int s = 0; s <= steps; s++) {
+                    double t = (double) s / steps;
+                    int x = (int) Math.round(x0 + (x1 - x0) * t);
+                    int y = (int) Math.round(y0 + (y1 - y0) * t);
+                    painter.place(x, y, z, Material.DARK_OAK_FENCE);
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
 
     private long buildInteriorLight() {
         long count = 0;
