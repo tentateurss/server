@@ -77,51 +77,17 @@ structures:
         z: 62
   
   # ========== ОСНОВНОЙ МИР ==========
-  
-  # Город Эликиум - главный хаб
-  elikium_city:
-    world: world
-    type: HUB
-    x: 0
-    y: 70
-    z: 0
-    description: "Главный город-хаб"
-    features:
-      - type: FOUNTAIN
-        x: 0
-        y: 71
-        z: 0
-      - type: NPC_SPAWN
-        npc_type: MERCHANT
-        x: -5
-        y: 71
-        z: 0
-      - type: NPC_SPAWN
-        npc_type: BLACKSMITH
-        x: 5
-        y: 71
-        z: 0
-      - type: NPC_SPAWN
-        npc_type: QUEST_GIVER
-        x: 0
-        y: 71
-        z: -5
-      - type: LAMP
-        x: -10
-        y: 71
-        z: -10
-      - type: LAMP
-        x: 10
-        y: 71
-        z: -10
-      - type: LAMP
-        x: -10
-        y: 71
-        z: 10
-      - type: LAMP
-        x: 10
-        y: 71
-        z: 10
+  #
+  # ВНИМАНИЕ: legacy-структура `elikium_city` (тип HUB) была удалена в PR #3.17.
+  # Раньше она каждый рестарт переписывала центр города (0,70,0):
+  # 40×40 STONE_BRICKS пол + 3×3 WATER «фонтан» + 4 GLOWSTONE по углам,
+  # и это рисовалось ПОВЕРХ настоящего города, сгенерированного
+  # WorldGenerator/ElikiumCity (см. PR #3.16). Замена: ElikiumCity сам
+  # делает соборную и рыночную площади, фонтан, фонари — без legacy HUB.
+  #
+  # NPC (MERCHANT, BLACKSMITH, QUEST_GIVER) и LAMP-фичи убраны вместе
+  # со структурой; в будущем NPC будут спавниться через отдельный
+  # NpcManager на координатах внутри ElikiumCity POI.
   
   # ========== ЛАГЕРЯ ==========
   
@@ -259,21 +225,24 @@ structures:
         radius: 25
         level: 15
   
-  # Портал в подземелье
+  # Портал в подземелье. Вынесен за пределы городского полигона
+  # (раньше был на (100, 70, -100) — внутри города, переписывал
+  # мостовую обсидиановой рамкой и PURPLE_STAINED_GLASS на каждый
+  # рестарт сервера).
   dungeon_portal:
     world: world
     type: PORTAL
-    x: 100
+    x: 250
     y: 70
-    z: -100
+    z: -300
     description: "Портал в подземелье"
     features:
       - type: PORTAL_FRAME
-        x: 100
+        x: 250
         y: 71
-        z: -100
+        z: -300
       - type: SIGN
         text: "§5Подземелье"
-        x: 100
+        x: 250
         y: 72
-        z: -101
+        z: -301
