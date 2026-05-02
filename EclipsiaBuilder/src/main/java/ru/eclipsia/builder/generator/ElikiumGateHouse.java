@@ -90,6 +90,14 @@ public final class ElikiumGateHouse {
         plugin.getLogger().info("ElikiumGateHouse: гейтхаус в (" + gx + ", " + gz
                 + ") horizontal=" + horizontal + " mainEntry=" + mainEntry);
 
+        // 0) v31: бульдозер — большая очистка выше Y_BASE,
+        //    чтобы дома из ElikiumHouses не лезли в башни.
+        bulldozeArea(gx, gz, horizontal);
+
+        // 0.1) Штамп пола под всем гейтхаусом — фиксит «дыру в полу»,
+        //    которую оставлял откат канала/площади.
+        stampFloor(gx, gz, horizontal);
+
         // 1) Очистить пространство арки (на случай старых блоков).
         clearOpeningSpace(gx, gz, horizontal);
 
@@ -115,10 +123,66 @@ public final class ElikiumGateHouse {
         // 6) Парящий FloatingText прямо над аркой (для близкого чтения).
         spawnFloatingTitle(gx, gz, horizontal, hoverTitle, hoverSubtitle);
 
-        // 7) Для южных ворот — путь к городу: статуи стражей и фонари
-        //    вдоль каньона, парящий «Глаз» над аркой.
+        // 7) Подход к воротам (статуи, фонари, Глаз):
+        //    v31 — выполняется для всех 4 ворот, ориентация
+        //    определяется из позиции ворот относительно центра.
         if (mainEntry) {
-            buildSouthernApproach(gx, gz);
+            // Вектор «наружу» от центра города (0,0):
+            //   SOUTH (0,120)  → outDx=0,  outDz=+1
+            //   NORTH (0,-144) → outDx=0,  outDz=-1
+            //   EAST  (144,0)  → outDx=+1, outDz=0
+            //   WEST  (-150,0) → outDx=-1, outDz=0
+            int outDx = horizontal ? 0 : (gx > 0 ? 1 : -1);
+            int outDz = horizontal ? (gz > 0 ? 1 : -1) : 0;
+            buildApproach(gx, gz, outDx, outDz);
+        }
+    }
+
+    // =========================================================================
+    // v31: СНОС ПОСТОРОННИХ ПОСТРОЕК + ПОЛПОД ГЕЙТХАУСОМ
+    // =========================================================================
+
+    /**
+     * «Бульдозер»: сносит всё выше пола в радиусе ~14 блоков
+     * вокруг гейтхауса. Дома из ElikiumHouses, которые v30 рисовал
+     * поверх будущего гейтхауса, полностью сносятся.
+     */
+    private void bulldozeArea(int gx, int gz, boolean horizontal) {
+        int radAlong = OPENING_HALF + TOWER_HALF * 2 + 4;  // 5+8+4 = 17
+        int radAcross = TOWER_HALF + 8;                    // 4+8 = 12
+        int yMax = Y_BASE + TOWER_HEIGHT + 8;
+        for (int dAlong = -radAlong; dAlong <= radAlong; dAlong++) {
+            for (int dAcross = -radAcross; dAcross <= radAcross; dAcross++) {
+                int x = horizontal ? gx + dAlong : gx + dAcross;
+                int z = horizontal ? gz + dAcross : gz + dAlong;
+                for (int y = Y_BASE + 1; y <= yMax; y++) {
+                    painter.place(x, y, z, Material.AIR);
+                }
+            }
+        }
+    }
+
+    /**
+     * Положить мощёный пол POLISHED_DEEPSLATE под всем
+     * гейтхаусом. Фикс проблемы «дыра в полу под аркой» — когда
+     * гейтхаус пересекает вырез от воды/канала.
+     */
+    private void stampFloor(int gx, int gz, boolean horizontal) {
+        int radAlong = OPENING_HALF + TOWER_HALF * 2 + 2;  // 5+8+2 = 15
+        int radAcross = TOWER_HALF + 4;                    // 4+4 = 8
+        for (int dAlong = -radAlong; dAlong <= radAlong; dAlong++) {
+            for (int dAcross = -radAcross; dAcross <= radAcross; dAcross++) {
+                int x = horizontal ? gx + dAlong : gx + dAcross;
+                int z = horizontal ? gz + dAcross : gz + dAlong;
+                // Подложка из двух слоёв: y_base-1 (deepslate)
+                // и y_base (polished_deepslate, видимый пол).
+                painter.place(x, Y_BASE - 1, z, Material.DEEPSLATE);
+                Material floor = (Math.abs(dAlong) % 6 == 0
+                                  || Math.abs(dAcross) % 6 == 0)
+                        ? Material.GILDED_BLACKSTONE
+                        : Material.POLISHED_DEEPSLATE;
+                painter.place(x, Y_BASE, z, floor);
+            }
         }
     }
 
@@ -418,21 +482,49 @@ public final class ElikiumGateHouse {
             }
         }
 
-        // 4.2 Надпись ELIKIUM (или другая) — буквы из GOLD_BLOCK на
-        //     центральной полосе фронтона. Используем встроенную карту букв.
-        int letterRowY = (pediYBot + pediYTop) / 2 - 2; // нижний ряд букв
-        drawSign(signTitle, gx, gz, horizontal, letterRowY);
-
-        // 4.3 Подсветка надписи: SHROOMLIGHT за буквами.
-        int frontLightDz = horizontal ? -1 : 0;
-        int frontLightDx = horizontal ? 0 : -1;
-        for (int row = 0; row < 5; row++) {
-            for (int col = -halfW + 1; col <= halfW - 1; col++) {
-                int x = horizontal ? gx + col : gx + frontLightDx;
-                int z = horizontal ? gz + frontLightDz : gz + col;
-                int y = letterRowY - 1 + row;
-                painter.place(x, y, z, Material.SHROOMLIGHT);
+        // 4.2 v31: вместо кривых GOLD_BLOCK-букв (3×5 пикселей вплотную
+        //     обрезают длинные слова) — розетта в стиле Собора:
+        //     AMETHYST_BLOCK в центре + PURPLE_STAINED_GLASS вокруг +
+        //     END_ROD-лучи. Название «ELIKIUM» показывается крупным
+        //     FloatingText (см. шаг 6).
+        int rosY = (pediYBot + pediYTop) / 2;
+        int rosX = horizontal ? gx : gx;
+        int rosZ = horizontal ? gz : gz;
+        // Ось розетты — в плоскости фронтона (XY для horizontal,
+        // YZ для вертикальных ворот).
+        for (int dy = -2; dy <= 2; dy++) {
+            for (int dh = -3; dh <= 3; dh++) {
+                int dist = Math.abs(dy) + Math.abs(dh);
+                int x = horizontal ? gx + dh : gx;
+                int z = horizontal ? gz : gz + dh;
+                int y = rosY + dy;
+                Material mat;
+                if (dist == 0) mat = Material.AMETHYST_BLOCK;
+                else if (dist <= 1) mat = Material.AMETHYST_CLUSTER;
+                else if (dist <= 2) mat = Material.PURPLE_STAINED_GLASS;
+                else if (dist == 3) mat = Material.GILDED_BLACKSTONE;
+                else continue;
+                painter.place(x, y, z, mat);
             }
+        }
+        // 4.3 Подсветка розетты — SHROOMLIGHT за витражем.
+        int backDz = horizontal ? -1 : 0;
+        int backDx = horizontal ? 0 : -1;
+        for (int dy = -2; dy <= 2; dy++) {
+            for (int dh = -3; dh <= 3; dh++) {
+                int x = horizontal ? gx + dh : gx + backDx;
+                int z = horizontal ? gz + backDz : gz + dh;
+                painter.place(x, rosY + dy, z, Material.SHROOMLIGHT);
+            }
+        }
+        // 4.4 END_ROD-лучи по углам розетты (вперёд).
+        int frontDz = horizontal ? +1 : 0;
+        int frontDx = horizontal ? 0 : +1;
+        for (int[] off : new int[][]{{-3, 0}, {3, 0}, {0, -2}, {0, 2}}) {
+            int x = horizontal ? gx + off[0] + frontDx : gx + frontDx;
+            int z = horizontal ? gz + frontDz : gz + off[0] + frontDz;
+            int y = rosY + off[1];
+            painter.place(x, y, z, Material.END_ROD);
         }
     }
 
@@ -573,8 +665,11 @@ public final class ElikiumGateHouse {
             dx = (gx > 0 ? +2.5 : -2.5);
         }
         try {
-            FloatingText.createLocationTitle(plugin, world,
-                    gx + 0.5 + dx, y, gz + 0.5 + dz, title, subtitle);
+            // v31: гигантский заголовок (×3) — надпись «ELIKIUM» видна
+            // от спавна на (0, 75, 130). Заменяет кривую блочную надпись
+            // GOLD_BLOCK 3×5 пикселей, которая ломалась на длинных словах.
+            FloatingText.createGiantTitle(plugin, world,
+                    gx + 0.5 + dx, y, gz + 0.5 + dz, title, subtitle, 3.0f);
         } catch (Throwable t) {
             plugin.getLogger().warning("ElikiumGateHouse: FloatingText fail: " + t);
         }
@@ -584,41 +679,48 @@ public final class ElikiumGateHouse {
     // ШАГ 7 — ЮЖНЫЙ ПОДХОД: статуи, фонари вдоль каньона
     // =========================================================================
 
-    private void buildSouthernApproach(int gx, int gz) {
-        // gx, gz = 0, 120 (SOUTH_GATE на полигоне после v29).
-        // Игрок появляется на (0, 75, 130) — 10 блоков южнее ворот.
-        // Декорируем путь z=121..200 в стиле «приближение к крепости»:
-        // статуи стражей, фонари, ковровая дорожка, парящий «Глаз».
+    /**
+     * v31: ориентация-агностичный подход к воротам.
+     * {@code outDx, outDz} — единичный вектор «наружу из города».
+     * Статуи, фонари, мостовая, «Глаз» над аркой, цветы.
+     */
+    private void buildApproach(int gx, int gz, int outDx, int outDz) {
+        boolean horizontal = outDx == 0;
+        // Перпендикулярный вектор («влево» по ходу наружу).
+        int sideDx = horizontal ? 1 : 0;
+        int sideDz = horizontal ? 0 : 1;
 
-        // 7.1 Статуи стражей по обе стороны арки (на расстоянии 7 от центра,
-        //     z=125 — за башнями, перед игроком).
-        buildGuardianStatue(gx - 7, gz + 5);
-        buildGuardianStatue(gx + 7, gz + 5);
+        // 7.1 Статуи стражей по обе стороны арки.
+        buildGuardianStatue(gx - 7 * sideDx + 5 * outDx,
+                            gz - 7 * sideDz + 5 * outDz);
+        buildGuardianStatue(gx + 7 * sideDx + 5 * outDx,
+                            gz + 7 * sideDz + 5 * outDz);
 
-        // 7.2 Фонарные столбы парами вдоль каньона каждые 6 блоков.
-        for (int z = gz + 8; z <= gz + 80; z += 6) {
-            buildLanternPost(gx - 9, z);
-            buildLanternPost(gx + 9, z);
+        // 7.2 Фонарные столбы парами вдоль пути наружу каждые 6 блоков.
+        for (int t = 8; t <= 60; t += 6) {
+            buildLanternPost(gx - 9 * sideDx + t * outDx,
+                             gz - 9 * sideDz + t * outDz);
+            buildLanternPost(gx + 9 * sideDx + t * outDx,
+                             gz + 9 * sideDz + t * outDz);
         }
 
-        // 7.3 «Декоративная» центральная мостовая — 3 блока шириной
-        //     с акцентами GILDED_BLACKSTONE каждые 4 блока (как на
-        //     референсе у трона/алтаря).
-        for (int dz = 1; dz <= 14; dz++) {
-            for (int dx = -1; dx <= 1; dx++) {
-                Material floor = (dz % 4 == 0)
+        // 7.3 Мостовая-«ковёр» 3 блока шириной, GILDED каждые 4 блока.
+        for (int t = 1; t <= 14; t++) {
+            for (int s = -1; s <= 1; s++) {
+                Material floor = (t % 4 == 0)
                         ? Material.GILDED_BLACKSTONE
                         : Material.POLISHED_BLACKSTONE;
-                painter.place(gx + dx, Y_BASE, gz + dz, floor);
+                int x = gx + s * sideDx + t * outDx;
+                int z = gz + s * sideDz + t * outDz;
+                painter.place(x, Y_BASE, z, floor);
             }
         }
 
-        // 7.4 Парящий «Всевидящий Глаз» над аркой (отсылка к собору).
+        // 7.4 Парящий «Всевидящий Глаз» над аркой.
         int orbX = gx, orbZ = gz;
         int orbY = Y_BASE + OPENING_HEIGHT + ARCH_HEIGHT + 14;
         painter.place(orbX, orbY, orbZ, Material.AMETHYST_BLOCK);
         painter.place(orbX, orbY + 1, orbZ, Material.LIGHTNING_ROD);
-        // Корона из END_ROD-ов.
         for (int sx = -1; sx <= 1; sx++) {
             for (int sz = -1; sz <= 1; sz++) {
                 if (sx == 0 && sz == 0) continue;
@@ -627,14 +729,18 @@ public final class ElikiumGateHouse {
             }
         }
 
-        // 7.5 Декоративные «огонь души» костры по бокам входа.
-        painter.place(gx - 4, Y_BASE + 1, gz + 6, Material.SOUL_CAMPFIRE);
-        painter.place(gx + 4, Y_BASE + 1, gz + 6, Material.SOUL_CAMPFIRE);
+        // 7.5 Сол-костры по бокам входа.
+        painter.place(gx - 4 * sideDx + 6 * outDx, Y_BASE + 1,
+                      gz - 4 * sideDz + 6 * outDz, Material.SOUL_CAMPFIRE);
+        painter.place(gx + 4 * sideDx + 6 * outDx, Y_BASE + 1,
+                      gz + 4 * sideDz + 6 * outDz, Material.SOUL_CAMPFIRE);
 
-        // 7.6 Цветочные горшки с ALLIUM на пьедесталах вдоль ковра.
-        for (int dz = 4; dz <= 12; dz += 4) {
-            painter.place(gx - 3, Y_BASE + 1, gz + dz, Material.POTTED_ALLIUM);
-            painter.place(gx + 3, Y_BASE + 1, gz + dz, Material.POTTED_ALLIUM);
+        // 7.6 POTTED_ALLIUM вдоль ковра.
+        for (int t = 4; t <= 12; t += 4) {
+            painter.place(gx - 3 * sideDx + t * outDx, Y_BASE + 1,
+                          gz - 3 * sideDz + t * outDz, Material.POTTED_ALLIUM);
+            painter.place(gx + 3 * sideDx + t * outDx, Y_BASE + 1,
+                          gz + 3 * sideDz + t * outDz, Material.POTTED_ALLIUM);
         }
     }
 

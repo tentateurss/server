@@ -34,19 +34,42 @@ public class StructureManager {
             return;
         }
         
+        // v31: legacy-структуры, которые рисуют поверх ElikiumCity
+        // (40×40 STONE_BRICKS «хаб» в (0,70,0) и т.п.) — игнорируем,
+        // даже если в кэшированном TestServer/plugins/EclipsiaBuilder/
+        // config.yml они ещё прописаны со времён v3.16.
+        java.util.Set<String> blacklist = java.util.Set.of(
+                "elikium_city",
+                "spawn_hub",
+                "main_hub"
+        );
+
         for (String id : structuresSection.getKeys(false)) {
             ConfigurationSection structureSection = structuresSection.getConfigurationSection(id);
             if (structureSection == null) continue;
-            
+
+            String type = structureSection.getString("type", "CUSTOM");
+            String worldName = structureSection.getString("world", "");
+
+            // v31: HUB-структуры в основном мире 'world' блокируем
+            // полностью — они конфликтуют с настоящим городом из
+            // ElikiumCity.
+            if (blacklist.contains(id)
+                    || ("HUB".equalsIgnoreCase(type) && "world".equalsIgnoreCase(worldName))) {
+                plugin.getLogger().info("StructureManager: пропускаю legacy-структуру '"
+                        + id + "' (type=" + type + "), её перекрывает ElikiumCity.");
+                continue;
+            }
+
             Structure structure = new Structure(
                 id,
-                structureSection.getString("world"),
+                worldName,
                 structureSection.getInt("x"),
                 structureSection.getInt("y"),
                 structureSection.getInt("z"),
-                structureSection.getString("type", "CUSTOM")
+                type
             );
-            
+
             structures.put(id, structure);
         }
         
