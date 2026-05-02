@@ -224,6 +224,31 @@ public final class ElikiumDecor {
             }
         }
 
+        // === МОСТЫ через канал — перила и фонари ===
+        for (int bridgeX : new int[]{0, -60, 60, -100, 100}) {
+            for (int side = -1; side <= 1; side += 2) {
+                double canalZ = 35.0 + 12.0 * Math.sin(bridgeX / 40.0);
+                int bz = (int) Math.round(canalZ) + side * 3;
+                if (WorldGenerator.isInsideCityPolygon(bridgeX, bz)
+                        && !ElikiumCity.insideCathedralZone(bridgeX, bz)) {
+                    // Перила моста
+                    for (int dx = -3; dx <= 3; dx++) {
+                        painter.place(bridgeX + dx, Y_BASE + 1, bz, Material.STONE_BRICK_WALL);
+                        count++;
+                    }
+                    // Фонарь на мосту
+                    for (int dy = 1; dy <= 3; dy++) {
+                        painter.place(bridgeX - 3, Y_BASE + dy, bz, Material.OAK_FENCE);
+                        painter.place(bridgeX + 3, Y_BASE + dy, bz, Material.OAK_FENCE);
+                        count += 2;
+                    }
+                    painter.place(bridgeX - 3, Y_BASE + 4, bz, Material.SOUL_LANTERN);
+                    painter.place(bridgeX + 3, Y_BASE + 4, bz, Material.SOUL_LANTERN);
+                    count += 2;
+                }
+            }
+        }
+
         // === УКАЗАТЕЛИ на перекрёстках (через POI) ===
         ctx.pois.add(new ElikiumCity.POI("§f→ Собор", "§7прямо",
                 10, Y_BASE + 5, 30));

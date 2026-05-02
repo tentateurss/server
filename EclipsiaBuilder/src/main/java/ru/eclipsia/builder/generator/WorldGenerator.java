@@ -8,6 +8,8 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import ru.eclipsia.builder.util.FloatingText;
 
+import org.bukkit.util.noise.SimplexNoiseGenerator;
+
 import java.util.Random;
 
 /**
@@ -215,7 +217,7 @@ public final class WorldGenerator {
      *   <li>Декоративные крокеты END_ROD по конькам нефа и трансепта.</li>
      * </ul>
      */
-    public static final String GENERATED_FLAG = "eclipsia_world_generated_v26";
+    public static final String GENERATED_FLAG = "eclipsia_world_generated_v27";
 
     // =========================================================================
     // ГЕОМЕТРИЯ ГОРОДА
@@ -394,10 +396,43 @@ public final class WorldGenerator {
      * <p>Также очищаем 60 блоков воздуха над мостовой — на случай, если
      * мир уже был заселён сущностями/деревьями ванильной генерации.
      */
-    private void phase1Landscape(RegionPainter p, Random rng) {
-        plugin.getLogger().info("WorldGenerator/phase1: замощение городского полигона…");
+    /**
+     * Шумовая высота рельефа города. Город НЕ плоский: мягкие холмы ±2 блока
+     * (выше к северу/собору, ниже к южным воротам). Канал проходит через город.
+     */
+    private SimplexNoiseGenerator terrainNoise;
 
-        // Bounding box полигона (см. CITY_POLYGON): x ∈ [-150..150], z ∈ [-150..126].
+    /** Высота городского рельефа в столбе (x,z). Гарантирует >= CITY_FLOOR_Y. */
+    public int getCityHeight(int x, int z) {
+        if (terrainNoise == null) return CITY_FLOOR_Y;
+        // Крупный холм: подъём к северу (к собору) на ~3 блока
+        double northRise = Math.max(0, (-z - 30) / 120.0) * 3.0;
+        // Мелкий шум ±1.5 блока
+        double detail = terrainNoise.noise(x * 0.012, z * 0.012) * 1.5;
+        int h = CITY_FLOOR_Y + (int) Math.round(northRise + detail);
+        return Math.max(CITY_FLOOR_Y, h);
+    }
+
+    /** Точка попадает в канал? Канал идёт с запада на восток через центр. */
+    public boolean isCanal(int x, int z) {
+        if (terrainNoise == null) return false;
+        // Канал: синусоида z = 35 + 12*sin(x/40), ширина 4 блока
+        double centerZ = 35.0 + 12.0 * Math.sin(x / 40.0);
+        double dist = Math.abs(z - centerZ);
+        return dist <= 2.0;
+    }
+
+    /** Мост через канал? (мощение вместо воды на пересечении с улицами) */
+    private boolean isBridge(int x, int z) {
+        // Мосты в ключевых точках пересечения: x ≈ 0 (центр), x ≈ -60, x ≈ 60
+        return (Math.abs(x) < 4) || (Math.abs(x + 60) < 4) || (Math.abs(x - 60) < 4)
+                || (Math.abs(x + 100) < 3) || (Math.abs(x - 100) < 3);
+    }
+
+    private void phase1Landscape(RegionPainter p, Random rng) {
+        plugin.getLogger().info("WorldGenerator/phase1: замощение городского полигона с рельефом…");
+        terrainNoise = new SimplexNoiseGenerator(rng.nextLong());
+
         int xMin = -150, xMax = 150;
         int zMin = -150, zMax = 126;
 
@@ -405,16 +440,61 @@ public final class WorldGenerator {
         for (int x = xMin; x <= xMax; x++) {
             for (int z = zMin; z <= zMax; z++) {
                 if (!isInsideCityPolygon(x, z)) continue;
-                p.place(x, CITY_FLOOR_Y, z, Material.POLISHED_DEEPSLATE);
-                // Чистый воздух над мостовой (на 120 блоков — высота собора PR #3 ×3 + запас).
-                for (int dy = 1; dy <= 120; dy++) {
-                    p.place(x, CITY_FLOOR_Y + dy, z, Material.AIR);
+
+                int groundY = getCityHeight(x, z);
+                boolean canal = isCanal(x, z) && !isBridge(x, z)
+                        && !insideCathedralZone(x, z);
+
+                if (canal) {
+                    // Канал: вырезать на 2 блока ниже CITY_FLOOR_Y, залить водой
+                    for (int y = CITY_FLOOR_Y - 2; y <= CITY_FLOOR_Y - 1; y++) {
+                        p.place(x, y, z, Material.WATER);
+                    }
+                    p.place(x, CITY_FLOOR_Y, z, Material.WATER);
+                    // Каменная стенка канала
+                    // (стенки рисуются для крайних блоков автоматически соседним столбом)
+                } else {
+                    // Заполнить столб от CITY_FLOOR_Y до groundY
+                    for (int y = CITY_FLOOR_Y; y <= groundY; y++) {
+                        // Верхний слой — мостовая, подслой — камень
+                        if (y == groundY) {
+                            // Узор мостовой: чередование POLISHED_DEEPSLATE + DEEPSLATE_BRICKS
+                            int bucket = Math.floorMod(x * 7 + z * 13, 10);
+                            Material mat = bucket < 7 ? Material.POLISHED_DEEPSLATE
+                                    : Material.DEEPSLATE_BRICKS;
+                            p.place(x, y, z, mat);
+                        } else {
+                            p.place(x, y, z, Material.STONE);
+                        }
+                    }
+                }
+                // Чистый воздух над рельефом
+                int clearFrom = canal ? CITY_FLOOR_Y + 1 : groundY + 1;
+                for (int dy = clearFrom; dy <= CITY_FLOOR_Y + 120; dy++) {
+                    p.place(x, dy, z, Material.AIR);
                 }
                 paved++;
             }
         }
+
+        // Перила канала: STONE_BRICK_WALL по краям
+        for (int x = xMin; x <= xMax; x++) {
+            for (int z = zMin; z <= zMax; z++) {
+                if (!isInsideCityPolygon(x, z)) continue;
+                if (!isCanal(x, z) || isBridge(x, z) || insideCathedralZone(x, z)) continue;
+                // Проверяем: если сосед НЕ канал — ставим перила
+                for (int[] off : new int[][]{{0, 1}, {0, -1}, {1, 0}, {-1, 0}}) {
+                    int nx = x + off[0], nz = z + off[1];
+                    if (!isCanal(nx, nz) || isBridge(nx, nz)) {
+                        p.place(x, CITY_FLOOR_Y + 1, z, Material.STONE_BRICK_WALL);
+                        break;
+                    }
+                }
+            }
+        }
+
         plugin.getLogger().info("WorldGenerator/phase1: замощено " + paved
-                + " блоков мостовой города.");
+                + " блоков мостовой города (с рельефом и каналом).");
     }
 
     // =========================================================================
@@ -449,7 +529,19 @@ public final class WorldGenerator {
     private void phase5PointsOfInterest(RegionPainter p, Random rng) {
         plugin.getLogger().info("WorldGenerator/phase5: интерьер города (улицы, площади, POI, дома, декор).");
         this.city = new ElikiumCity(plugin, p, rng);
+        // Регистрируем зоны ворот как occupied ДО строительства домов
+        registerGateZones();
         this.city.build();
+    }
+
+    /** Зоны ворот (±12 блоков) отмечены как occupied чтобы дома не наезжали. */
+    private void registerGateZones() {
+        if (city == null) return;
+        int[][] gates = {SOUTH_GATE, NORTH_GATE, EAST_GATE, WEST_GATE};
+        for (int[] g : gates) {
+            city.occupied.add(new ElikiumCity.Footprint(
+                    g[0] - 12, g[1] - 12, g[0] + 12, g[1] + 12));
+        }
     }
 
     // =========================================================================
@@ -523,6 +615,12 @@ public final class WorldGenerator {
      * (px, pz) и считаем количество пересечений с рёбрами полигона —
      * нечётное число пересечений = точка внутри.
      */
+    /** Точка внутри зоны собора? Публичный доступ для канала/рельефа. */
+    public static boolean insideCathedralZone(int x, int z) {
+        return x >= CATHEDRAL_X - 34 && x <= CATHEDRAL_X + 34
+            && z >= CATHEDRAL_Z - 46 && z <= CATHEDRAL_Z + 46;
+    }
+
     public static boolean isInsideCityPolygon(int px, int pz) {
         boolean inside = false;
         int n = CITY_POLYGON.length;
