@@ -240,10 +240,10 @@ public final class ElikiumHouses {
             if (!WorldGenerator.isInsideCityPolygon(c[0], c[1])) return false;
             if (ElikiumCity.insideCathedralZone(c[0], c[1])) return false;
         }
-        // Не строить на канале (проверяем только углы и центр)
+        // Не строить на канале (проверяем углы и центр, буфер 7 блоков)
         for (int[] c : corners) {
-            double centerZ = 35.0 + 12.0 * Math.sin(c[0] / 40.0);
-            if (Math.abs(c[1] - centerZ) <= 5.0) return false;
+            double centerZ = WorldGenerator.canalCenterZ(c[0]);
+            if (Math.abs(c[1] - centerZ) <= 7.0) return false;
         }
         ElikiumCity.Footprint candidate = new ElikiumCity.Footprint(x1, z1, x2, z2);
         for (ElikiumCity.Footprint f : ctx.occupied) {

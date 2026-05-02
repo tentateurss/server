@@ -396,69 +396,138 @@ public final class WorldGenerator {
      * <p>Также очищаем 60 блоков воздуха над мостовой — на случай, если
      * мир уже был заселён сущностями/деревьями ванильной генерации.
      */
-    /**
-     * Шумовая высота рельефа города. Город НЕ плоский: мягкие холмы ±2 блока
-     * (выше к северу/собору, ниже к южным воротам). Канал проходит через город.
-     */
+    // =========================================================================
+    // РЕЛЬЕФ + ОСТРОВ + КАНАЛ
+    // =========================================================================
+
+    private static final int SEA_LEVEL = 62;
+    private static final int ISLAND_SLOPE = 25;
+
     private SimplexNoiseGenerator terrainNoise;
 
-    /** Высота городского рельефа в столбе (x,z). Гарантирует >= CITY_FLOOR_Y. */
+    /** Высота городского рельефа. */
     public int getCityHeight(int x, int z) {
         if (terrainNoise == null) return CITY_FLOOR_Y;
-        // Крупный холм: подъём к северу (к собору) на ~3 блока
         double northRise = Math.max(0, (-z - 30) / 120.0) * 3.0;
-        // Мелкий шум ±1.5 блока
         double detail = terrainNoise.noise(x * 0.012, z * 0.012) * 1.5;
         int h = CITY_FLOOR_Y + (int) Math.round(northRise + detail);
         return Math.max(CITY_FLOOR_Y, h);
     }
 
-    /** Точка попадает в канал? Канал идёт с запада на восток через центр. */
-    public boolean isCanal(int x, int z) {
-        if (terrainNoise == null) return false;
-        // Канал: синусоида z = 35 + 12*sin(x/40), ширина 4 блока
-        double centerZ = 35.0 + 12.0 * Math.sin(x / 40.0);
-        double dist = Math.abs(z - centerZ);
-        return dist <= 2.0;
+    /** Канал: синусоида z = 40 + 15*sin(x/45), ширина 6 блоков. */
+    public static boolean isCanal(int x, int z) {
+        double centerZ = 40.0 + 15.0 * Math.sin(x / 45.0);
+        return Math.abs(z - centerZ) <= 3.0;
     }
 
-    /** Мост через канал? (мощение вместо воды на пересечении с улицами) */
-    private boolean isBridge(int x, int z) {
-        // Мосты в ключевых точках пересечения: x ≈ 0 (центр), x ≈ -60, x ≈ 60
-        return (Math.abs(x) < 4) || (Math.abs(x + 60) < 4) || (Math.abs(x - 60) < 4)
-                || (Math.abs(x + 100) < 3) || (Math.abs(x - 100) < 3);
+    /** Центр канала Z для данного X. */
+    public static double canalCenterZ(int x) {
+        return 40.0 + 15.0 * Math.sin(x / 45.0);
+    }
+
+    /** Мост через канал (5 мостов, ширина 5 блоков каждый). */
+    private static boolean isBridge(int x) {
+        return (Math.abs(x) < 5) || (Math.abs(x + 55) < 5) || (Math.abs(x - 55) < 5)
+                || (Math.abs(x + 110) < 4) || (Math.abs(x - 110) < 4);
+    }
+
+    /** Расстояние точки до ближайшего ребра полигона. */
+    private static double distToPolygonEdge(int px, int pz) {
+        double minDist = Double.MAX_VALUE;
+        int n = CITY_POLYGON.length;
+        for (int i = 0, j = n - 1; i < n; j = i++) {
+            double d = ptSegDist(px, pz,
+                    CITY_POLYGON[i][0], CITY_POLYGON[i][1],
+                    CITY_POLYGON[j][0], CITY_POLYGON[j][1]);
+            if (d < minDist) minDist = d;
+        }
+        return minDist;
+    }
+
+    private static double ptSegDist(double px, double pz,
+                                     double ax, double az, double bx, double bz) {
+        double dx = bx - ax, dz = bz - az;
+        double len2 = dx * dx + dz * dz;
+        if (len2 < 1e-9) return Math.sqrt((px - ax) * (px - ax) + (pz - az) * (pz - az));
+        double t = Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / len2));
+        double cx = ax + t * dx, cz = az + t * dz;
+        return Math.sqrt((px - cx) * (px - cx) + (pz - cz) * (pz - cz));
     }
 
     private void phase1Landscape(RegionPainter p, Random rng) {
-        plugin.getLogger().info("WorldGenerator/phase1: замощение городского полигона с рельефом…");
+        plugin.getLogger().info("WorldGenerator/phase1: остров + город + канал…");
         terrainNoise = new SimplexNoiseGenerator(rng.nextLong());
 
-        int xMin = -150, xMax = 150;
-        int zMin = -150, zMax = 126;
+        int extMin = -300, extMax = 300;
 
+        // === ЧАСТЬ A: Территория за пределами полигона — склон к океану ===
+        for (int x = extMin; x <= extMax; x++) {
+            for (int z = extMin; z <= extMax; z++) {
+                if (isInsideCityPolygon(x, z)) continue;
+
+                double dist = distToPolygonEdge(x, z);
+                double noise = terrainNoise.noise(x * 0.015, z * 0.015) * 2.0;
+
+                if (dist <= ISLAND_SLOPE) {
+                    // Переходная зона: склон от CITY_FLOOR_Y вниз к SEA_LEVEL
+                    double t = dist / ISLAND_SLOPE; // 0 у стены..1 у моря
+                    int groundY = CITY_FLOOR_Y - (int) Math.round(t * (CITY_FLOOR_Y - SEA_LEVEL) + noise * (1 - t));
+                    groundY = Math.max(SEA_LEVEL, Math.min(CITY_FLOOR_Y, groundY));
+
+                    // Поверхность: грязь/гравий у стены, песок/камень дальше
+                    Material surface;
+                    if (t < 0.3) surface = Material.COARSE_DIRT;
+                    else if (t < 0.6) surface = Material.GRAVEL;
+                    else surface = Material.SAND;
+
+                    // Заполнить столб до groundY
+                    for (int y = SEA_LEVEL; y <= groundY; y++) {
+                        p.place(x, y, z, y == groundY ? surface : Material.STONE);
+                    }
+                    // Вода если ниже уровня моря+1
+                    if (groundY < SEA_LEVEL + 1) {
+                        for (int y = groundY + 1; y <= SEA_LEVEL; y++) {
+                            p.place(x, y, z, Material.WATER);
+                        }
+                    }
+                    // Очистить воздух
+                    for (int y = Math.max(groundY, SEA_LEVEL) + 1; y <= CITY_FLOOR_Y + 5; y++) {
+                        p.place(x, y, z, Material.AIR);
+                    }
+                } else {
+                    // Океан: вода на SEA_LEVEL, камень/песок ниже
+                    int seabed = SEA_LEVEL - 3 + (int) Math.round(noise);
+                    seabed = Math.max(SEA_LEVEL - 5, seabed);
+                    for (int y = seabed; y <= SEA_LEVEL; y++) {
+                        p.place(x, y, z, y <= seabed + 1 ? Material.SAND : Material.WATER);
+                    }
+                    // Очистить над водой
+                    for (int y = SEA_LEVEL + 1; y <= CITY_FLOOR_Y + 5; y++) {
+                        p.place(x, y, z, Material.AIR);
+                    }
+                }
+            }
+        }
+
+        // === ЧАСТЬ B: Внутри полигона — мостовая + рельеф + канал ===
         int paved = 0;
-        for (int x = xMin; x <= xMax; x++) {
-            for (int z = zMin; z <= zMax; z++) {
+        for (int x = -150; x <= 150; x++) {
+            for (int z = -150; z <= 126; z++) {
                 if (!isInsideCityPolygon(x, z)) continue;
 
                 int groundY = getCityHeight(x, z);
-                boolean canal = isCanal(x, z) && !isBridge(x, z)
+                boolean canal = isCanal(x, z) && !isBridge(x)
                         && !insideCathedralZone(x, z);
 
                 if (canal) {
-                    // Канал: вырезать на 2 блока ниже CITY_FLOOR_Y, залить водой
-                    for (int y = CITY_FLOOR_Y - 2; y <= CITY_FLOOR_Y - 1; y++) {
+                    // Канал глубиной 4 блока: y=67..70 = вода, y=66 = каменное дно
+                    p.place(x, CITY_FLOOR_Y - 4, z, Material.STONE_BRICKS);
+                    for (int y = CITY_FLOOR_Y - 3; y <= CITY_FLOOR_Y; y++) {
                         p.place(x, y, z, Material.WATER);
                     }
-                    p.place(x, CITY_FLOOR_Y, z, Material.WATER);
-                    // Каменная стенка канала
-                    // (стенки рисуются для крайних блоков автоматически соседним столбом)
                 } else {
-                    // Заполнить столб от CITY_FLOOR_Y до groundY
                     for (int y = CITY_FLOOR_Y; y <= groundY; y++) {
-                        // Верхний слой — мостовая, подслой — камень
                         if (y == groundY) {
-                            // Узор мостовой: чередование POLISHED_DEEPSLATE + DEEPSLATE_BRICKS
                             int bucket = Math.floorMod(x * 7 + z * 13, 10);
                             Material mat = bucket < 7 ? Material.POLISHED_DEEPSLATE
                                     : Material.DEEPSLATE_BRICKS;
@@ -468,7 +537,6 @@ public final class WorldGenerator {
                         }
                     }
                 }
-                // Чистый воздух над рельефом
                 int clearFrom = canal ? CITY_FLOOR_Y + 1 : groundY + 1;
                 for (int dy = clearFrom; dy <= CITY_FLOOR_Y + 120; dy++) {
                     p.place(x, dy, z, Material.AIR);
@@ -477,15 +545,14 @@ public final class WorldGenerator {
             }
         }
 
-        // Перила канала: STONE_BRICK_WALL по краям
-        for (int x = xMin; x <= xMax; x++) {
-            for (int z = zMin; z <= zMax; z++) {
+        // === ЧАСТЬ C: Берега канала — STONE_BRICK_WALL ===
+        for (int x = -150; x <= 150; x++) {
+            for (int z = -150; z <= 126; z++) {
                 if (!isInsideCityPolygon(x, z)) continue;
-                if (!isCanal(x, z) || isBridge(x, z) || insideCathedralZone(x, z)) continue;
-                // Проверяем: если сосед НЕ канал — ставим перила
+                if (!isCanal(x, z) || isBridge(x) || insideCathedralZone(x, z)) continue;
                 for (int[] off : new int[][]{{0, 1}, {0, -1}, {1, 0}, {-1, 0}}) {
                     int nx = x + off[0], nz = z + off[1];
-                    if (!isCanal(nx, nz) || isBridge(nx, nz)) {
+                    if (!isCanal(nx, nz) || isBridge(nx)) {
                         p.place(x, CITY_FLOOR_Y + 1, z, Material.STONE_BRICK_WALL);
                         break;
                     }
@@ -493,8 +560,8 @@ public final class WorldGenerator {
             }
         }
 
-        plugin.getLogger().info("WorldGenerator/phase1: замощено " + paved
-                + " блоков мостовой города (с рельефом и каналом).");
+        plugin.getLogger().info("WorldGenerator/phase1: остров + " + paved
+                + " блоков мостовой + канал.");
     }
 
     // =========================================================================

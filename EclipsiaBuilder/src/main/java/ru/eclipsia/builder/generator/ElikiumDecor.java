@@ -225,28 +225,62 @@ public final class ElikiumDecor {
         }
 
         // === МОСТЫ через канал — перила и фонари ===
-        for (int bridgeX : new int[]{0, -60, 60, -100, 100}) {
+        for (int bridgeX : new int[]{0, -55, 55, -110, 110}) {
+            double canalZ = WorldGenerator.canalCenterZ(bridgeX);
+            int cz0 = (int) Math.round(canalZ);
             for (int side = -1; side <= 1; side += 2) {
-                double canalZ = 35.0 + 12.0 * Math.sin(bridgeX / 40.0);
-                int bz = (int) Math.round(canalZ) + side * 3;
+                int bz = cz0 + side * 4;
                 if (WorldGenerator.isInsideCityPolygon(bridgeX, bz)
                         && !ElikiumCity.insideCathedralZone(bridgeX, bz)) {
-                    // Перила моста
-                    for (int dx = -3; dx <= 3; dx++) {
+                    for (int dx = -4; dx <= 4; dx++) {
                         painter.place(bridgeX + dx, Y_BASE + 1, bz, Material.STONE_BRICK_WALL);
                         count++;
                     }
-                    // Фонарь на мосту
+                    // Столбы фонарей
                     for (int dy = 1; dy <= 3; dy++) {
-                        painter.place(bridgeX - 3, Y_BASE + dy, bz, Material.OAK_FENCE);
-                        painter.place(bridgeX + 3, Y_BASE + dy, bz, Material.OAK_FENCE);
+                        painter.place(bridgeX - 4, Y_BASE + dy, bz, Material.DARK_OAK_FENCE);
+                        painter.place(bridgeX + 4, Y_BASE + dy, bz, Material.DARK_OAK_FENCE);
                         count += 2;
                     }
-                    painter.place(bridgeX - 3, Y_BASE + 4, bz, Material.SOUL_LANTERN);
-                    painter.place(bridgeX + 3, Y_BASE + 4, bz, Material.SOUL_LANTERN);
+                    painter.place(bridgeX - 4, Y_BASE + 4, bz, Material.SOUL_LANTERN);
+                    painter.place(bridgeX + 4, Y_BASE + 4, bz, Material.SOUL_LANTERN);
                     count += 2;
                 }
             }
+        }
+
+        // === РЫНОЧНЫЕ ПАЛАТКИ у канала — цветные шерстяные навесы ===
+        Material[] awnings = {Material.RED_WOOL, Material.YELLOW_WOOL, Material.GREEN_WOOL,
+                Material.BLUE_WOOL, Material.WHITE_WOOL, Material.ORANGE_WOOL};
+        int[][] stallSpots = {{-30, 55}, {-10, 50}, {15, 52}, {35, 48}, {-50, 52},
+                {60, 45}, {80, 43}, {-70, 48}, {-90, 45}, {100, 40}};
+        for (int i = 0; i < stallSpots.length; i++) {
+            int sx = stallSpots[i][0], sz = stallSpots[i][1];
+            if (!WorldGenerator.isInsideCityPolygon(sx, sz)) continue;
+            if (ElikiumCity.insideCathedralZone(sx, sz)) continue;
+            if (WorldGenerator.isCanal(sx, sz)) continue;
+            Material awning = awnings[i % awnings.length];
+            // 4 столба
+            painter.place(sx, Y_BASE + 1, sz, Material.OAK_FENCE);
+            painter.place(sx + 3, Y_BASE + 1, sz, Material.OAK_FENCE);
+            painter.place(sx, Y_BASE + 1, sz + 2, Material.OAK_FENCE);
+            painter.place(sx + 3, Y_BASE + 1, sz + 2, Material.OAK_FENCE);
+            for (int dy = 2; dy <= 3; dy++) {
+                painter.place(sx, Y_BASE + dy, sz, Material.OAK_FENCE);
+                painter.place(sx + 3, Y_BASE + dy, sz, Material.OAK_FENCE);
+                painter.place(sx, Y_BASE + dy, sz + 2, Material.OAK_FENCE);
+                painter.place(sx + 3, Y_BASE + dy, sz + 2, Material.OAK_FENCE);
+            }
+            // Навес
+            for (int dx = 0; dx <= 3; dx++) {
+                for (int dz = 0; dz <= 2; dz++) {
+                    painter.place(sx + dx, Y_BASE + 4, sz + dz, awning);
+                }
+            }
+            // Товары на прилавке
+            painter.place(sx + 1, Y_BASE + 1, sz + 1, Material.BARREL);
+            painter.place(sx + 2, Y_BASE + 1, sz + 1, Material.CHEST);
+            count += 30;
         }
 
         // === УКАЗАТЕЛИ на перекрёстках (через POI) ===
