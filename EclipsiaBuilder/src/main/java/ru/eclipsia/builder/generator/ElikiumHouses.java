@@ -49,35 +49,47 @@ public final class ElikiumHouses {
      * друг к другу. Перекрытия с POI/площадями отбраковываются.
      */
     private static final int[][] BLOCKS = {
-            // Запад — 6 зон
-            {-145, -120, -50, -75},
-            {-145, -72, -50, -20},
-            {-145, -18, -50,  35},
-            {-145,  38, -50,  80},
-            {-145,  82, -50, 125},
-            {-112, -15, -52,  30},
-            // Восток — 6 зон
-            {  80, -120, 145, -70},
-            {  80,  -68, 145, -15},
-            {  80,  -13, 145,  35},
-            {  80,   38, 145,  80},
-            {  80,   82, 145, 125},
-            {  70,   25, 140,  70},
-            // Север (выше собора) — 4 зоны
-            { -60, -145, -5, -85},
-            {   0, -145,  70, -85},
-            { -50, -83,  10, -50},
-            {  15, -83,  85, -50},
-            // Юг (ниже собора и площадей) — 4 зоны
-            { -55,   50,  10, 125},
-            {  15,   50,  85, 125},
-            { -40,   30,  88,  48},
-            {  -5,   85,  65, 120},
-            // Центральная полоса — 4 зоны
-            { -50,  -48,  -8, -10},
-            {  10,  -48,  75, -10},
-            { -50,   55,  -8,  82},
-            {  10,   55,  75,  82},
+            // Запад — 8 зон (плотная застройка вдоль стены)
+            {-145, -120, -55, -80},
+            {-145, -78, -55, -30},
+            {-145, -28, -55,  25},
+            {-145,  27, -55,  70},
+            {-145,  72, -55, 120},
+            {-115, -45, -55,  10},
+            {-115,  12, -55,  55},
+            {-115,  57, -55, 100},
+            // Восток — 8 зон
+            {  55, -120, 145, -75},
+            {  55,  -73, 145, -20},
+            {  55,  -18, 145,  30},
+            {  55,   32, 145,  75},
+            {  55,   77, 145, 120},
+            {  65,  -55, 140,   0},
+            {  65,    2, 140,  50},
+            {  65,   52, 140, 100},
+            // Север (выше собора) — 6 зон
+            { -60, -145,  -5, -90},
+            {  -3, -145,  55, -90},
+            {  57, -145, 120, -90},
+            { -60,  -88,  -5, -55},
+            {   0,  -88,  55, -55},
+            {  57,  -88, 120, -55},
+            // Юг (ниже собора и площадей) — 6 зон
+            { -55,   45, -10, 120},
+            {  -8,   60,  50, 120},
+            {  52,   45, 120, 120},
+            { -55,   30,   5,  43},
+            {  50,   30, 120,  43},
+            {   5,   85,  50, 120},
+            // Центральная полоса — 8 зон (заполняем ВСЁ между POI)
+            { -50,  -53,  -5, -15},
+            {   0,  -53,  10, -15},
+            {  12,  -53,  55, -15},
+            { -50,  -13, -12,  25},
+            {  12,  -13,  55,  25},
+            { -50,   55, -12,  85},
+            {  12,   55,  55,  85},
+            { -12,   60,  10,  85},
     };
 
     /**
@@ -87,6 +99,8 @@ public final class ElikiumHouses {
     private static final int[][] COURTYARDS = {
             {-90, -25}, {-90, 95}, {55, -90}, {115, 0},
             {-70, 50}, {70, 60}, {-80, -70}, {100, -70},
+            {-100, 50}, {100, 50}, {-70, -100}, {70, -100},
+            {-30, -70}, {30, 90}, {-110, -50}, {110, -50},
     };
 
     public long build() {
@@ -117,19 +131,19 @@ public final class ElikiumHouses {
      */
     private int fillBlock(int xMin, int zMin, int xMax, int zMax) {
         int placed = 0;
-        int step = 14;
+        int step = 12;
         boolean offsetRow = false;
         for (int z = zMin + 7; z + 7 <= zMax; z += step) {
             int rowOffset = offsetRow ? step / 2 : 0;
             offsetRow = !offsetRow;
             for (int x = xMin + 7 + rowOffset; x + 7 <= xMax; x += step) {
-                int w = 12 + rng.nextInt(5);  // 12..16
-                int d = 14 + rng.nextInt(5); // 14..18
+                int w = 8 + rng.nextInt(5);  // 8..12
+                int d = 10 + rng.nextInt(5); // 10..14
                 int cx = x + rng.nextInt(3) - 1;
                 int cz = z + rng.nextInt(3) - 1;
                 int hxMin = cx - w / 2, hxMax = cx + w / 2;
                 int hzMin = cz - d / 2, hzMax = cz + d / 2;
-                if (!isFreeFootprint(hxMin - 1, hzMin - 1, hxMax + 1, hzMax + 1)) {
+                if (!isFreeFootprint(hxMin, hzMin, hxMax, hzMax)) {
                     continue;
                 }
                 int doorFacing = pickDoorFacing(cx, cz, xMin, zMin, xMax, zMax);
@@ -146,8 +160,8 @@ public final class ElikiumHouses {
      * 3×3 фонтана/колодца. Дома стоят вплотную (расстояние 6 от центра).
      */
     private boolean buildCourtyard(int cx, int cz) {
-        int extXMin = cx - 16, extXMax = cx + 16;
-        int extZMin = cz - 16, extZMax = cz + 16;
+        int extXMin = cx - 14, extXMax = cx + 14;
+        int extZMin = cz - 14, extZMax = cz + 14;
         if (!isFreeFootprint(extXMin, extZMin, extXMax, extZMax)) return false;
         if (!WorldGenerator.isInsideCityPolygon(extXMin, extZMin)
                 || !WorldGenerator.isInsideCityPolygon(extXMax, extZMax)
@@ -157,17 +171,17 @@ public final class ElikiumHouses {
                 || ElikiumCity.insideCathedralZone(extXMax, extZMax)) return false;
 
         int[][] houseSpots = {
-                {cx,       cz - 11},
-                {cx + 11,  cz},
-                {cx,       cz + 11},
-                {cx - 11,  cz},
+                {cx,       cz - 9},
+                {cx + 9,   cz},
+                {cx,       cz + 9},
+                {cx - 9,   cz},
         };
         int[] facings = {2, 3, 0, 1};
         int built = 0;
         for (int i = 0; i < 4; i++) {
             int hx = houseSpots[i][0];
             int hz = houseSpots[i][1];
-            int hw = 14, hd = 12;
+            int hw = 10, hd = 12;
             int hxMin = hx - hw / 2, hxMax = hx + hw / 2;
             int hzMin = hz - hd / 2, hzMax = hz + hd / 2;
             buildHouse(hx, hz, hw, hd, rng.nextInt(), facings[i]);
@@ -231,12 +245,13 @@ public final class ElikiumHouses {
             if (candidate.overlaps(f, 1)) return false;
         }
         int streetCount = 0;
+        int totalCells = Math.max(1, (x2 - x1 + 1) * (z2 - z1 + 1));
         for (int x = x1; x <= x2; x++) {
             for (int z = z1; z <= z2; z++) {
                 if (ctx.streetCells.contains(ElikiumCity.packCoord(x, z))) streetCount++;
             }
         }
-        if (streetCount > 0) return false;
+        if ((double) streetCount / totalCells > 0.25) return false;
         return true;
     }
 

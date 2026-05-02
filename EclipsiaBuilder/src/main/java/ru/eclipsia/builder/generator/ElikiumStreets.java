@@ -62,6 +62,15 @@ public final class ElikiumStreets {
         count += buildAlley(new int[]{-80, 70},  new int[]{-50, 90});
         count += buildAlley(new int[]{70, 80},   new int[]{100, 60});
         count += buildAlley(new int[]{-100, -40}, new int[]{-80, -70});
+        // Дополнительные переулки для плотности
+        count += buildAlley(new int[]{-70, -60}, new int[]{-100, -85});
+        count += buildAlley(new int[]{70, -40},  new int[]{100, -65});
+        count += buildAlley(new int[]{-40, 30},  new int[]{-60, 60});
+        count += buildAlley(new int[]{40, 30},   new int[]{60, 55});
+        count += buildAlley(new int[]{-110, 0},  new int[]{-130, 25});
+        count += buildAlley(new int[]{110, 0},   new int[]{130, -25});
+        count += buildAlley(new int[]{-30, -80}, new int[]{-10, -100});
+        count += buildAlley(new int[]{30, -80},  new int[]{10, -100});
 
         // Тупиковые переулки с мини-двориками в конце
         count += buildDeadEndAlley(new int[]{-110, -60}, new int[]{-130, -75});
@@ -70,6 +79,10 @@ public final class ElikiumStreets {
         count += buildDeadEndAlley(new int[]{  60,  90}, new int[]{  35, 115});
         count += buildDeadEndAlley(new int[]{-70, -90},  new int[]{-90, -110});
         count += buildDeadEndAlley(new int[]{ 80, 100},  new int[]{ 60, 115});
+        count += buildDeadEndAlley(new int[]{-120, 30},  new int[]{-140, 45});
+        count += buildDeadEndAlley(new int[]{ 120, -30}, new int[]{ 140, -45});
+        count += buildDeadEndAlley(new int[]{-40, -100}, new int[]{-55, -120});
+        count += buildDeadEndAlley(new int[]{ 40, -100}, new int[]{ 55, -120});
 
         plugin.getLogger().info("ElikiumStreets: " + ctx.streetCells.size()
                 + " клеток мощения, ~" + count + " блок-операций.");
