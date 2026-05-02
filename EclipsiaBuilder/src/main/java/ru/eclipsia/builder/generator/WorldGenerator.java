@@ -217,7 +217,7 @@ public final class WorldGenerator {
      *   <li>Декоративные крокеты END_ROD по конькам нефа и трансепта.</li>
      * </ul>
      */
-    public static final String GENERATED_FLAG = "eclipsia_world_generated_v29";
+    public static final String GENERATED_FLAG = "eclipsia_world_generated_v30";
 
     // =========================================================================
     // ГЕОМЕТРИЯ ГОРОДА
