@@ -34,7 +34,7 @@ public final class ElikiumStreets {
     }
 
     private static final int[] PLAZA_CATHEDRAL = {45, 36};
-    private static final int[] PLAZA_MARKET    = {-30, 45};
+    private static final int[] PLAZA_MARKET    = {-30, 65};
 
     public long build() {
         long count = 0;

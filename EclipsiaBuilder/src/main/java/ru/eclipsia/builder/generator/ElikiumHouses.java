@@ -271,29 +271,29 @@ public final class ElikiumHouses {
         int xMin = cx - w / 2, xMax = cx + w / 2;
         int zMin = cz - d / 2, zMax = cz + d / 2;
 
-        // Выбор материальной семьи
+        // Выбор материальной семьи (40% фахверк, 30% тёмное дерево, 20% камень, 10% богатый)
         int family = pickFamily(hr);
         Material wallA, wallB, pillar, foundation;
         switch (family) {
-            case 0: // тёмный фахверк
-                wallA = Material.SPRUCE_PLANKS;
-                wallB = Material.STONE_BRICKS;
+            case 0: // 40% — фахверк (белая штукатурка + тёмный каркас)
+                wallA = Material.OAK_PLANKS;
+                wallB = Material.OAK_PLANKS;
                 pillar = Material.DARK_OAK_LOG;
                 foundation = Material.COBBLED_DEEPSLATE;
                 break;
-            case 1:
+            case 1: // 30% — тёмное дерево + камень
                 wallA = Material.DARK_OAK_PLANKS;
                 wallB = Material.STONE_BRICKS;
                 pillar = Material.DARK_OAK_LOG;
                 foundation = Material.DEEPSLATE_BRICKS;
                 break;
-            case 2:
-                wallA = Material.DEEPSLATE_BRICKS;
-                wallB = Material.COBBLED_DEEPSLATE;
+            case 2: // 20% — каменный дом
+                wallA = Material.STONE_BRICKS;
+                wallB = Material.STONE_BRICKS;
                 pillar = Material.SPRUCE_LOG;
                 foundation = Material.COBBLED_DEEPSLATE;
                 break;
-            default: // богатый дом
+            default: // 10% — богатый дом
                 wallA = Material.POLISHED_BLACKSTONE;
                 wallB = Material.POLISHED_BLACKSTONE_BRICKS;
                 pillar = Material.DARK_OAK_LOG;
@@ -362,12 +362,22 @@ public final class ElikiumHouses {
                         painter.place(xMax, yBase + dy, z, pillar);
                     }
                 }
+                // Горизонтальные балки фахверка на середине этажа
+                int beamY = yBase + floorH / 2;
+                for (int x = xMin; x <= xMax; x++) {
+                    painter.place(x, beamY, zMin, pillar);
+                    painter.place(x, beamY, zMax, pillar);
+                }
+                for (int z = zMin; z <= zMax; z++) {
+                    painter.place(xMin, beamY, z, pillar);
+                    painter.place(xMax, beamY, z, pillar);
+                }
             }
 
             // ОКНА на каждом этаже
             Material winMat = (family == 3)
                     ? Material.PURPLE_STAINED_GLASS_PANE
-                    : (hr.nextDouble() < 0.7 ? Material.YELLOW_STAINED_GLASS_PANE : Material.GLASS_PANE);
+                    : Material.YELLOW_STAINED_GLASS_PANE;
             placeWindowsOnWall(xMin, xMax, zMin, yBase + 1, winMat, "south", true, hr);
             placeWindowsOnWall(xMin, xMax, zMax, yBase + 1, winMat, "north", true, hr);
             placeWindowsOnSide(zMin, zMax, xMin, yBase + 1, winMat, "east", false, hr);
@@ -376,6 +386,33 @@ public final class ElikiumHouses {
 
         // 4. ДВЕРЬ + СТУПЕНЬКИ + КОЗЫРЁК (только 1-й этаж)
         placeDoorWithPorch(cx, cz, xMin, xMax, zMin, zMax, facing, family, hr, roofMat);
+
+        // 4a. БАЛКОН на 2-м этаже (30% шанс, если >= 2 этажей)
+        if (floors >= 2 && hr.nextDouble() < 0.3) {
+            int balcFacing = hr.nextInt(4);
+            int balcY = Y_BASE + 2 + floorH;
+            int bx = cx, bz = cz;
+            if (balcFacing == 0) { bz = zMin - 1; }
+            else if (balcFacing == 1) { bx = xMax + 1; }
+            else if (balcFacing == 2) { bz = zMax + 1; }
+            else { bx = xMin - 1; }
+            // Площадка балкона
+            for (int dx = -1; dx <= 1; dx++) {
+                if (balcFacing == 0 || balcFacing == 2) {
+                    painter.place(bx + dx, balcY, bz, Material.OAK_SLAB);
+                } else {
+                    painter.place(bx, balcY, bz + dx, Material.OAK_SLAB);
+                }
+            }
+            // Перила
+            for (int dx = -1; dx <= 1; dx++) {
+                if (balcFacing == 0 || balcFacing == 2) {
+                    painter.place(bx + dx, balcY + 1, bz, Material.OAK_FENCE);
+                } else {
+                    painter.place(bx, balcY + 1, bz + dx, Material.OAK_FENCE);
+                }
+            }
+        }
 
         // 5. КАРНИЗ — STAIRS перевёрнутые свесом наружу
         int wallTopY = Y_BASE + 1 + floors * floorH;
@@ -563,14 +600,17 @@ public final class ElikiumHouses {
         painter.place(dx + outDx, Y_BASE + 4, dz + outDz, Material.CHAIN);
         painter.place(dx + outDx, Y_BASE + 3, dz + outDz, Material.LANTERN);
 
-        // 5. ДЕКОР: горшок слева, бочка справа, SOUL_TORCH на стене
+        // 5. ДЕКОР у входа: горшок с ALLIUM, бочки, SOUL_TORCH
+        painter.place(dx + outDx + leftDx, Y_BASE + 1, dz + outDz + leftDz, Material.STONE_BRICKS);
         painter.place(dx + outDx + leftDx, Y_BASE + 2, dz + outDz + leftDz, Material.FLOWER_POT);
-        painter.place(dx + outDx + rightDx, Y_BASE + 2, dz + outDz + rightDz,
-                hr.nextBoolean() ? Material.BARREL : Material.OAK_PLANKS);
-        // Коврик у важных зданий (10%)
-        if (hr.nextDouble() < 0.4) {
-            Material carpet = (family == 3) ? Material.PURPLE_CARPET : Material.RED_CARPET;
-            painter.place(dx + outDx, Y_BASE + 2, dz + outDz, carpet);
+        painter.place(dx + outDx + rightDx, Y_BASE + 2, dz + outDz + rightDz, Material.BARREL);
+        // Второй бочонок рядом (70%)
+        if (hr.nextDouble() < 0.7) {
+            painter.place(dx + outDx + rightDx * 2, Y_BASE + 2, dz + outDz + rightDz * 2, Material.BARREL);
+        }
+        // Коврик у богатых домов
+        if (family == 3) {
+            painter.place(dx + outDx, Y_BASE + 2, dz + outDz, Material.PURPLE_CARPET);
         }
         // Настенный SOUL_TORCH у двери
         painter.place(dx + leftDx, Y_BASE + 4, dz + leftDz, Material.SOUL_TORCH);
@@ -680,9 +720,9 @@ public final class ElikiumHouses {
 
     private int pickFamily(Random hr) {
         double r = hr.nextDouble();
-        if (r < 0.35) return 0;
-        if (r < 0.65) return 1;
-        if (r < 0.85) return 2;
-        return 3;
+        if (r < 0.40) return 0; // 40% фахверк
+        if (r < 0.70) return 1; // 30% тёмное дерево
+        if (r < 0.90) return 2; // 20% камень
+        return 3;               // 10% богатый
     }
 }
