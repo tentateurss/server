@@ -150,18 +150,9 @@ public final class ElikiumNamedBuildings {
         count += buildFloor(xMin, zMin, xMax, zMax, Y_BASE + 2, 8,
                 Material.COBBLESTONE, Material.POLISHED_BLACKSTONE);
 
-        // Крыша плоская BLACKSTONE_STAIRS — лёгкий наклон
-        for (int x = xMin; x <= xMax; x++) {
-            for (int z = zMin; z <= zMax; z++) {
-                painter.place(x, Y_BASE + 10, z, Material.POLISHED_BLACKSTONE_BRICKS);
-                count++;
-            }
-        }
-        // Конёк
-        for (int x = xMin; x <= xMax; x++) {
-            painter.place(x, Y_BASE + 11, cz, Material.POLISHED_BLACKSTONE_BRICK_SLAB);
-            count++;
-        }
+        // Крыша smithy — низкая массивная blackstone двускатная вместо коробки
+        count += buildGableRoof(xMin - 1, zMin, xMax + 1, zMax, Y_BASE + 9, false,
+                Material.POLISHED_BLACKSTONE_BRICK_STAIRS, Material.POLISHED_BLACKSTONE_BRICKS);
 
         // Большой дымоход на крыше с LAVA внутри
         int chX = xMin + 2, chZ = zMin + 2;
@@ -478,13 +469,9 @@ public final class ElikiumNamedBuildings {
                 }
             }
         }
-        // Крыша (плоская)
-        for (int x = xMin; x <= xMax; x++) {
-            for (int z = zMin; z <= zMax; z++) {
-                painter.place(x, Y_BASE + 5, z, Material.DARK_OAK_PLANKS);
-                count++;
-            }
-        }
+        // Крыша будки — маленькая двускатная, чтобы не выглядела коробкой
+        count += buildGableRoof(xMin, zMin, xMax, zMax, Y_BASE + 5,
+                false, Material.DARK_OAK_STAIRS, Material.DARK_OAK_PLANKS);
         // Дверь по центру
         painter.place(cx, Y_BASE + 1, zMax, Material.AIR);
         painter.place(cx, Y_BASE + 2, zMax, Material.AIR);

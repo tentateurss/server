@@ -56,16 +56,20 @@ public final class ElikiumHouses {
             {-145,  -45, -50, -15},   // 1: W-C-N
             {-145,   30, -50,  62},   // 2: W-C-S
             {-145,   80, -50, 120},   // 3: W-S
+            {-112,  -10, -52,  24},   // 4: W-inner gap
             // Восток
-            {  90, -115, 145, -65},   // 4: E-N
-            {  90,  -25, 145,  25},   // 5: E-C
-            {  90,   70, 145, 120},   // 6: E-S
+            {  90, -115, 145, -65},   // 5: E-N
+            {  90,  -25, 145,  25},   // 6: E-C
+            {  90,   70, 145, 120},   // 7: E-S
+            {  80,   28, 145,  64},   // 8: E-inner gap
             // Север (выше собора)
-            { -55, -145,  10, -90},   // 7: N-W
-            {  15, -145,  80, -90},   // 8: N-C
+            { -55, -145,  10, -90},   // 9: N-W
+            {  15, -145,  80, -90},   // 10: N-C
+            { -45,  -88,  90, -66},   // 11: north ring
             // Юг (ниже собора и площадей)
-            { -50,   55,   8, 120},   // 9: S-W
-            {  15,   55,  80, 120},   // 10: S-C
+            { -50,   55,   8, 120},   // 12: S-W
+            {  15,   55,  80, 120},   // 13: S-C
+            { -40,   34,  88,  54},   // 14: south ring
     };
 
     /**
@@ -102,15 +106,15 @@ public final class ElikiumHouses {
      */
     private int fillBlock(int xMin, int zMin, int xMax, int zMax) {
         int placed = 0;
-        int step = 14;
+        int step = 13;
         boolean offsetRow = false;
         for (int z = zMin + 6; z + 6 <= zMax; z += step) {
             int rowOffset = offsetRow ? step / 2 : 0;
             offsetRow = !offsetRow;
             for (int x = xMin + 6 + rowOffset; x + 6 <= xMax; x += step) {
                 // Случайные размеры
-                int w = 11 + rng.nextInt(3); // 11..13
-                int d = 8 + rng.nextInt(3);  // 8..10
+                int w = 13 + rng.nextInt(4); // 13..16
+                int d = 10 + rng.nextInt(3); // 10..12
                 // Случайный сдвиг ±1
                 int cx = x + rng.nextInt(3) - 1;
                 int cz = z + rng.nextInt(3) - 1;
@@ -223,7 +227,7 @@ public final class ElikiumHouses {
                 if (ctx.streetCells.contains(ElikiumCity.packCoord(x, z))) streetCount++;
             }
         }
-        if (total > 0 && streetCount * 10 > total) return false; // <10% улицы
+        if (streetCount > 0) return false;
         return true;
     }
 
