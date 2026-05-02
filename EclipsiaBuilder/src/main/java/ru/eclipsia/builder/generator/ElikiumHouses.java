@@ -131,14 +131,14 @@ public final class ElikiumHouses {
      */
     private int fillBlock(int xMin, int zMin, int xMax, int zMax) {
         int placed = 0;
-        int step = 12;
+        int step = 14;
         boolean offsetRow = false;
-        for (int z = zMin + 7; z + 7 <= zMax; z += step) {
+        for (int z = zMin + 8; z + 8 <= zMax; z += step) {
             int rowOffset = offsetRow ? step / 2 : 0;
             offsetRow = !offsetRow;
-            for (int x = xMin + 7 + rowOffset; x + 7 <= xMax; x += step) {
-                int w = 8 + rng.nextInt(5);  // 8..12
-                int d = 10 + rng.nextInt(5); // 10..14
+            for (int x = xMin + 8 + rowOffset; x + 8 <= xMax; x += step) {
+                int w = 10 + rng.nextInt(5);  // 10..14
+                int d = 12 + rng.nextInt(5); // 12..16
                 int cx = x + rng.nextInt(3) - 1;
                 int cz = z + rng.nextInt(3) - 1;
                 int hxMin = cx - w / 2, hxMax = cx + w / 2;
@@ -240,9 +240,14 @@ public final class ElikiumHouses {
             if (!WorldGenerator.isInsideCityPolygon(c[0], c[1])) return false;
             if (ElikiumCity.insideCathedralZone(c[0], c[1])) return false;
         }
+        // Не строить на канале (проверяем только углы и центр)
+        for (int[] c : corners) {
+            double centerZ = 35.0 + 12.0 * Math.sin(c[0] / 40.0);
+            if (Math.abs(c[1] - centerZ) <= 5.0) return false;
+        }
         ElikiumCity.Footprint candidate = new ElikiumCity.Footprint(x1, z1, x2, z2);
         for (ElikiumCity.Footprint f : ctx.occupied) {
-            if (candidate.overlaps(f, 1)) return false;
+            if (candidate.overlaps(f, 2)) return false;
         }
         int streetCount = 0;
         int totalCells = Math.max(1, (x2 - x1 + 1) * (z2 - z1 + 1));
@@ -298,8 +303,8 @@ public final class ElikiumHouses {
         Material roofFill = Material.DARK_OAK_PLANKS;
 
         // Количество этажей: 2-3 (больше у крупных домов)
-        int floors = (w >= 14 || d >= 16 || family == 3) ? 3 : 2;
-        if (hr.nextDouble() < 0.4) floors = 3;
+        int floors = (w >= 12 || d >= 14 || family == 3) ? 3 : 2;
+        if (hr.nextDouble() < 0.45) floors = 3;
         int floorH = 5;
 
         // 1. ЦОКОЛЬ (Y_BASE)
