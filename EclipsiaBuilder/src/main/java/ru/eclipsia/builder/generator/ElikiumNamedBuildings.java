@@ -37,8 +37,8 @@ public final class ElikiumNamedBuildings {
     public long build() {
         long count = 0;
         count += buildTavern(-30, -25);
-        count += buildSmithy(105, 55);
-        count += buildArtifactShop(-30, 25);
+        count += buildSmithy(105, 70);
+        count += buildArtifactShop(-30, 15);
         count += buildGuildhall(105, -50);
         count += buildWarehouse(-100, 5);
         count += buildAllGateBooths();

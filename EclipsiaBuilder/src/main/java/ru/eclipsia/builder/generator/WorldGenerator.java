@@ -217,7 +217,7 @@ public final class WorldGenerator {
      *   <li>Декоративные крокеты END_ROD по конькам нефа и трансепта.</li>
      * </ul>
      */
-    public static final String GENERATED_FLAG = "eclipsia_world_generated_v27";
+    public static final String GENERATED_FLAG = "eclipsia_world_generated_v28";
 
     // =========================================================================
     // ГЕОМЕТРИЯ ГОРОДА
@@ -401,7 +401,7 @@ public final class WorldGenerator {
     // =========================================================================
 
     private static final int SEA_LEVEL = 62;
-    private static final int ISLAND_SLOPE = 25;
+    private static final int ISLAND_SLOPE = 40;
 
     private SimplexNoiseGenerator terrainNoise;
 
@@ -458,7 +458,7 @@ public final class WorldGenerator {
         plugin.getLogger().info("WorldGenerator/phase1: остров + город + канал…");
         terrainNoise = new SimplexNoiseGenerator(rng.nextLong());
 
-        int extMin = -300, extMax = 300;
+        int extMin = -250, extMax = 250;
 
         // === ЧАСТЬ A: Территория за пределами полигона — склон к океану ===
         for (int x = extMin; x <= extMax; x++) {
@@ -466,50 +466,54 @@ public final class WorldGenerator {
                 if (isInsideCityPolygon(x, z)) continue;
 
                 double dist = distToPolygonEdge(x, z);
-                double noise = terrainNoise.noise(x * 0.015, z * 0.015) * 2.0;
+                double n1 = terrainNoise.noise(x * 0.015, z * 0.015) * 2.5;
+                double n2 = terrainNoise.noise(x * 0.04, z * 0.04) * 1.0;
+                double noise = n1 + n2;
 
                 if (dist <= ISLAND_SLOPE) {
-                    // Переходная зона: склон от CITY_FLOOR_Y вниз к SEA_LEVEL
-                    double t = dist / ISLAND_SLOPE; // 0 у стены..1 у моря
-                    int groundY = CITY_FLOOR_Y - (int) Math.round(t * (CITY_FLOOR_Y - SEA_LEVEL) + noise * (1 - t));
-                    groundY = Math.max(SEA_LEVEL, Math.min(CITY_FLOOR_Y, groundY));
+                    double t = dist / ISLAND_SLOPE;
+                    double smooth = t * t * (3 - 2 * t); // smoothstep
+                    int groundY = CITY_FLOOR_Y - (int) Math.round(
+                            smooth * (CITY_FLOOR_Y - SEA_LEVEL) + noise * (1 - smooth) * 0.5);
+                    groundY = Math.max(SEA_LEVEL - 1, Math.min(CITY_FLOOR_Y, groundY));
 
-                    // Поверхность: грязь/гравий у стены, песок/камень дальше
                     Material surface;
-                    if (t < 0.3) surface = Material.COARSE_DIRT;
-                    else if (t < 0.6) surface = Material.GRAVEL;
+                    if (t < 0.25) surface = Material.COARSE_DIRT;
+                    else if (t < 0.5) surface = Material.GRAVEL;
+                    else if (t < 0.75) surface = Material.DIRT;
                     else surface = Material.SAND;
 
-                    // Заполнить столб до groundY
-                    for (int y = SEA_LEVEL; y <= groundY; y++) {
-                        p.place(x, y, z, y == groundY ? surface : Material.STONE);
+                    // Заполнить столб: камень до groundY-2, грязь до groundY-1, поверхность
+                    for (int y = SEA_LEVEL - 5; y <= groundY; y++) {
+                        Material m;
+                        if (y == groundY) m = surface;
+                        else if (y >= groundY - 2) m = Material.DIRT;
+                        else m = Material.STONE;
+                        p.place(x, y, z, m);
                     }
-                    // Вода если ниже уровня моря+1
-                    if (groundY < SEA_LEVEL + 1) {
+                    // Вода если ниже уровня моря
+                    if (groundY < SEA_LEVEL) {
                         for (int y = groundY + 1; y <= SEA_LEVEL; y++) {
                             p.place(x, y, z, Material.WATER);
                         }
                     }
-                    // Очистить воздух
-                    for (int y = Math.max(groundY, SEA_LEVEL) + 1; y <= CITY_FLOOR_Y + 5; y++) {
+                    for (int y = Math.max(groundY, SEA_LEVEL) + 1; y <= CITY_FLOOR_Y + 10; y++) {
                         p.place(x, y, z, Material.AIR);
                     }
                 } else {
-                    // Океан: вода на SEA_LEVEL, камень/песок ниже
-                    int seabed = SEA_LEVEL - 3 + (int) Math.round(noise);
-                    seabed = Math.max(SEA_LEVEL - 5, seabed);
+                    int seabed = SEA_LEVEL - 4 + (int) Math.round(noise * 0.5);
+                    seabed = Math.max(SEA_LEVEL - 6, Math.min(SEA_LEVEL - 2, seabed));
                     for (int y = seabed; y <= SEA_LEVEL; y++) {
                         p.place(x, y, z, y <= seabed + 1 ? Material.SAND : Material.WATER);
                     }
-                    // Очистить над водой
-                    for (int y = SEA_LEVEL + 1; y <= CITY_FLOOR_Y + 5; y++) {
+                    for (int y = SEA_LEVEL + 1; y <= CITY_FLOOR_Y + 10; y++) {
                         p.place(x, y, z, Material.AIR);
                     }
                 }
             }
         }
 
-        // === ЧАСТЬ B: Внутри полигона — мостовая + рельеф + канал ===
+        // === ЧАСТЬ B: Внутри полигона — заполнение опоры + мостовая + канал ===
         int paved = 0;
         for (int x = -150; x <= 150; x++) {
             for (int z = -150; z <= 126; z++) {
@@ -520,8 +524,10 @@ public final class WorldGenerator {
                         && !insideCathedralZone(x, z);
 
                 if (canal) {
-                    // Канал глубиной 4 блока: y=67..70 = вода, y=66 = каменное дно
-                    p.place(x, CITY_FLOOR_Y - 4, z, Material.STONE_BRICKS);
+                    // Канал: каменное дно + 4 блока воды (y=67..70)
+                    for (int y = CITY_FLOOR_Y - 5; y <= CITY_FLOOR_Y - 4; y++) {
+                        p.place(x, y, z, Material.STONE_BRICKS);
+                    }
                     for (int y = CITY_FLOOR_Y - 3; y <= CITY_FLOOR_Y; y++) {
                         p.place(x, y, z, Material.WATER);
                     }
@@ -538,14 +544,14 @@ public final class WorldGenerator {
                     }
                 }
                 int clearFrom = canal ? CITY_FLOOR_Y + 1 : groundY + 1;
-                for (int dy = clearFrom; dy <= CITY_FLOOR_Y + 120; dy++) {
+                for (int dy = clearFrom; dy <= CITY_FLOOR_Y + 60; dy++) {
                     p.place(x, dy, z, Material.AIR);
                 }
                 paved++;
             }
         }
 
-        // === ЧАСТЬ C: Берега канала — STONE_BRICK_WALL ===
+        // === ЧАСТЬ C: Берега канала — каменные перила ===
         for (int x = -150; x <= 150; x++) {
             for (int z = -150; z <= 126; z++) {
                 if (!isInsideCityPolygon(x, z)) continue;

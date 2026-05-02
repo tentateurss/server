@@ -39,9 +39,9 @@ public final class ElikiumPlazas {
     static final int CATH_PLAZA_HALF_X = 10;  // 21 wide
     static final int CATH_PLAZA_HALF_Z = 13;  // 27 deep
 
-    /** Рыночная площадь — увеличенная. */
+    /** Рыночная площадь — увеличенная, смещена южнее канала. */
     static final int MARKET_PLAZA_CX = -30;
-    static final int MARKET_PLAZA_CZ = 45;
+    static final int MARKET_PLAZA_CZ = 65;
     static final int MARKET_PLAZA_HALF_X = 9;  // 19 wide
     static final int MARKET_PLAZA_HALF_Z = 11; // 23 deep
 
