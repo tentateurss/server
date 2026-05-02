@@ -169,12 +169,27 @@ public final class ElikiumWall {
             }
         }
 
-        // Над каждыми воротами строим арку и пилоны (в одном проходе по
-        // всем 4 точкам — проще, чем пытаться поймать момент в Бресенхэме).
-        for (int[] g : gates) {
-            buildGateArch(g[0], g[1]);
-            gatesBuilt++;
-        }
+        // Над каждыми воротами строим готический гейтхаус с башнями,
+        // стрельчатой аркой и надписью «ELIKIUM» (южные ворота — главный
+        // вход, для них особо плотный декор).
+        ElikiumGateHouse gh = new ElikiumGateHouse(plugin, painter);
+        // SOUTH — главный вход; через него игрок приходит с Берега.
+        gh.build(WorldGenerator.SOUTH_GATE[0], WorldGenerator.SOUTH_GATE[1],
+                /*horizontal=*/ true,
+                /*signTitle=*/   "ELIKIUM",
+                /*hoverTitle=*/  "§5§l~ Эликий ~",
+                /*hoverSubtitle=*/ "§7Город под Всевидящим Оком",
+                /*mainEntry=*/   true);
+        gatesBuilt++;
+        gh.build(WorldGenerator.NORTH_GATE[0], WorldGenerator.NORTH_GATE[1],
+                true, "NORD", "§5§lСеверные ворота", "§7Эликий", false);
+        gatesBuilt++;
+        gh.build(WorldGenerator.EAST_GATE[0], WorldGenerator.EAST_GATE[1],
+                false, "EST", "§5§lВосточные ворота", "§7Эликий", false);
+        gatesBuilt++;
+        gh.build(WorldGenerator.WEST_GATE[0], WorldGenerator.WEST_GATE[1],
+                false, "WEST", "§5§lЗападные ворота", "§7Эликий", false);
+        gatesBuilt++;
 
         plugin.getLogger().info("ElikiumWall: периметр (" + wallSegments
                 + " клеток) + " + towersBuilt + " башен + "

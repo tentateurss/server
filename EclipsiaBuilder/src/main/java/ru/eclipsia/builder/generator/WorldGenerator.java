@@ -217,7 +217,7 @@ public final class WorldGenerator {
      *   <li>Декоративные крокеты END_ROD по конькам нефа и трансепта.</li>
      * </ul>
      */
-    public static final String GENERATED_FLAG = "eclipsia_world_generated_v28";
+    public static final String GENERATED_FLAG = "eclipsia_world_generated_v29";
 
     // =========================================================================
     // ГЕОМЕТРИЯ ГОРОДА
@@ -253,10 +253,15 @@ public final class WorldGenerator {
     public static final int CATHEDRAL_Z = -15;
 
     /** Координаты ворот: {@code [x, z]}. */
-    public static final int[] SOUTH_GATE = {    0,  113 };
-    public static final int[] NORTH_GATE = {    0, -135 };
-    public static final int[] EAST_GATE  = {  135,    0 };
-    public static final int[] WEST_GATE  = { -120,  -15 };
+    // ВАЖНО: координаты ворот должны лежать НА полигоне (вершина или
+    // ребро) — иначе wall trace не катит «gate slice» в этих клетках,
+    // и проёма в стене не будет (как было до v29). Исправлено в v29:
+    // все 4 ворот ровно на вершинах полигона, gate slice прорезает
+    // настоящий проход в стене.
+    public static final int[] SOUTH_GATE = {    0,  120 };  // вершина (0, 120)
+    public static final int[] NORTH_GATE = {    0, -144 };  // вершина (0, -144)
+    public static final int[] EAST_GATE  = {  144,    0 };  // вершина (144, 0)
+    public static final int[] WEST_GATE  = { -150,    0 };  // вершина (-150, 0)
 
     // =========================================================================
     // ТОЧКА СПАВНА ИГРОКА
@@ -272,7 +277,12 @@ public final class WorldGenerator {
      */
     public static final int SPAWN_X = 0;
     public static final int SPAWN_Y = CITY_FLOOR_Y + 5; // 75
-    public static final int SPAWN_Z = 118;
+    /**
+     * z=130 — 10 блоков южнее вершины полигона/гейтхауса (0, 120),
+     * в южном каньоне. Игрок стоит лицом к северу, перед ним арка
+     * южных ворот, по бокам — стенки каньона из {@link WorldMountains}.
+     */
+    public static final int SPAWN_Z = 130;
 
     // =========================================================================
     // КООРДИНАТЫ ШПИЛЯ (для SpireParticles)
@@ -400,9 +410,6 @@ public final class WorldGenerator {
     // РЕЛЬЕФ + ОСТРОВ + КАНАЛ
     // =========================================================================
 
-    private static final int SEA_LEVEL = 62;
-    private static final int ISLAND_SLOPE = 40;
-
     private SimplexNoiseGenerator terrainNoise;
 
     /** Высота городского рельефа. */
@@ -433,6 +440,16 @@ public final class WorldGenerator {
 
     /** Расстояние точки до ближайшего ребра полигона. */
     private static double distToPolygonEdge(int px, int pz) {
+        return distanceToCityPolygon(px, pz);
+    }
+
+    /**
+     * Расстояние от точки {@code (px, pz)} до ближайшего ребра городского
+     * полигона. Публично — {@link WorldMountains}/{@link OuterTerrain}
+     * читают его, чтобы знать, насколько близко к стене они находятся
+     * и не строить горы прямо на стене.
+     */
+    public static double distanceToCityPolygon(int px, int pz) {
         double minDist = Double.MAX_VALUE;
         int n = CITY_POLYGON.length;
         for (int i = 0, j = n - 1; i < n; j = i++) {
@@ -455,60 +472,78 @@ public final class WorldGenerator {
     }
 
     private void phase1Landscape(RegionPainter p, Random rng) {
-        plugin.getLogger().info("WorldGenerator/phase1: остров + город + канал…");
+        plugin.getLogger().info("WorldGenerator/phase1: горная долина + город + канал…");
         terrainNoise = new SimplexNoiseGenerator(rng.nextLong());
 
-        int extMin = -250, extMax = 250;
-
-        // === ЧАСТЬ A: Территория за пределами полигона — склон к океану ===
-        for (int x = extMin; x <= extMax; x++) {
-            for (int z = extMin; z <= extMax; z++) {
+        // === ЧАСТЬ A: Территория за пределами полигона — без воды и без
+        //              «острова». Делаем «беговую дорожку» вдоль стены
+        //              и лёгкий каменный foothill, остальной рельеф
+        //              достроит {@link WorldMountains} в фазе 6. ===
+        // Узкое кольцо вокруг полигона (skirt 0..7) — мостовая
+        // POLISHED_DEEPSLATE/ANDESITE, ровно как в городе. Это убирает
+        // ванильную траву около стен и даёт «бульвар» под стенами.
+        // Без водного рва: визуально город теперь часть горной долины.
+        int skirtMin = -250, skirtMax = 250;
+        for (int x = skirtMin; x <= skirtMax; x++) {
+            for (int z = skirtMin; z <= skirtMax; z++) {
                 if (isInsideCityPolygon(x, z)) continue;
 
-                double dist = distToPolygonEdge(x, z);
-                double n1 = terrainNoise.noise(x * 0.015, z * 0.015) * 2.5;
-                double n2 = terrainNoise.noise(x * 0.04, z * 0.04) * 1.0;
-                double noise = n1 + n2;
+                double dist = distanceToCityPolygon(x, z);
+                if (dist > 7.5) continue; // skirt-кольцо
 
-                if (dist <= ISLAND_SLOPE) {
-                    double t = dist / ISLAND_SLOPE;
-                    double smooth = t * t * (3 - 2 * t); // smoothstep
-                    int groundY = CITY_FLOOR_Y - (int) Math.round(
-                            smooth * (CITY_FLOOR_Y - SEA_LEVEL) + noise * (1 - smooth) * 0.5);
-                    groundY = Math.max(SEA_LEVEL - 1, Math.min(CITY_FLOOR_Y, groundY));
+                // Замостить y=70 темным камнем, очистить воздух выше.
+                int bucket = Math.floorMod(x * 7 + z * 13, 10);
+                Material mat = bucket < 7 ? Material.POLISHED_DEEPSLATE
+                        : Material.DEEPSLATE_BRICKS;
+                // Заполняем дёрн вниз, чтобы не было дырки в склоне.
+                for (int y = CITY_FLOOR_Y - 2; y < CITY_FLOOR_Y; y++) {
+                    p.place(x, y, z, Material.DEEPSLATE);
+                }
+                p.place(x, CITY_FLOOR_Y, z, mat);
+                // Очистить воздух над дорожкой.
+                for (int y = CITY_FLOOR_Y + 1; y <= CITY_FLOOR_Y + 8; y++) {
+                    p.place(x, y, z, Material.AIR);
+                }
+            }
+        }
 
-                    Material surface;
-                    if (t < 0.25) surface = Material.COARSE_DIRT;
-                    else if (t < 0.5) surface = Material.GRAVEL;
-                    else if (t < 0.75) surface = Material.DIRT;
-                    else surface = Material.SAND;
+        // === ЧАСТЬ A2: Южный каньон — мощёная тропа от южных ворот ===
+        // Игрок появляется на (0, 75, 130) перед южными воротами (0, 120)
+        // и идёт к ним по этой тропе. Каньон шириной 60 блоков (x∈[-30..30]),
+        // длиной 170 блоков (z=121..290). Стенки каньона (x>30 и x<-30)
+        // достроит WorldMountains в фазе 6. Здесь — только пол.
+        for (int x = -30; x <= 30; x++) {
+            for (int z = 121; z <= 290; z++) {
+                if (isInsideCityPolygon(x, z)) continue;
+                // Только если ещё не покрыто скиртом из части A.
+                double dist = distanceToCityPolygon(x, z);
+                if (dist <= 7.5) continue;
 
-                    // Заполнить столб: камень до groundY-2, грязь до groundY-1, поверхность
-                    for (int y = SEA_LEVEL - 5; y <= groundY; y++) {
-                        Material m;
-                        if (y == groundY) m = surface;
-                        else if (y >= groundY - 2) m = Material.DIRT;
-                        else m = Material.STONE;
-                        p.place(x, y, z, m);
-                    }
-                    // Вода если ниже уровня моря
-                    if (groundY < SEA_LEVEL) {
-                        for (int y = groundY + 1; y <= SEA_LEVEL; y++) {
-                            p.place(x, y, z, Material.WATER);
-                        }
-                    }
-                    for (int y = Math.max(groundY, SEA_LEVEL) + 1; y <= CITY_FLOOR_Y + 10; y++) {
-                        p.place(x, y, z, Material.AIR);
-                    }
+                // Заполняем подстилающий слой DEEPSLATE и кладём
+                // COBBLESTONE-тропу в центре, COBBLED_DEEPSLATE по бокам.
+                for (int y = CITY_FLOOR_Y - 2; y < CITY_FLOOR_Y; y++) {
+                    p.place(x, y, z, Material.DEEPSLATE);
+                }
+                Material floor;
+                int absX = Math.abs(x);
+                if (absX <= 8) {
+                    // Центр тропы — мощёный камень (как на референсе).
+                    int bucket = Math.floorMod(x * 11 + z * 5, 10);
+                    floor = bucket < 7 ? Material.COBBLESTONE
+                            : Material.MOSSY_COBBLESTONE;
+                } else if (absX <= 18) {
+                    // Боковины — обочина из дернин и щебня.
+                    int bucket = Math.floorMod(x * 7 + z * 13, 10);
+                    floor = bucket < 6 ? Material.COBBLED_DEEPSLATE
+                            : Material.GRAVEL;
                 } else {
-                    int seabed = SEA_LEVEL - 4 + (int) Math.round(noise * 0.5);
-                    seabed = Math.max(SEA_LEVEL - 6, Math.min(SEA_LEVEL - 2, seabed));
-                    for (int y = seabed; y <= SEA_LEVEL; y++) {
-                        p.place(x, y, z, y <= seabed + 1 ? Material.SAND : Material.WATER);
-                    }
-                    for (int y = SEA_LEVEL + 1; y <= CITY_FLOOR_Y + 10; y++) {
-                        p.place(x, y, z, Material.AIR);
-                    }
+                    // У края каньона — рваный камень.
+                    floor = Material.COBBLED_DEEPSLATE;
+                }
+                p.place(x, CITY_FLOOR_Y, z, floor);
+                // Очистить воздух над тропой (на случай grass из flatworld).
+                for (int y = CITY_FLOOR_Y + 1; y <= CITY_FLOOR_Y + 6; y++) {
+                    p.place(x, y, z, Material.AIR);
                 }
             }
         }
