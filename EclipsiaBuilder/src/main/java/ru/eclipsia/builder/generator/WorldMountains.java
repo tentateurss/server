@@ -56,11 +56,18 @@ import java.util.Random;
 public final class WorldMountains {
 
     /** Граница ландшафта по обеим осям — мир «бесконечен» за этим квадратом
-     *  (flat-settings продолжают давать y=70 grass, что нас устраивает). */
-    private static final int X_MIN = -550;
-    private static final int X_MAX =  550;
-    private static final int Z_MIN = -550;
-    private static final int Z_MAX =  550;
+     *  (flat-settings продолжают давать y=70 grass, что нас устраивает).
+     *  v30: сжато с ±550 до ±260 чтобы не выжирать heap. Город ±150,
+     *  скирт ещё +25, потом 80 блоков «горного кольца» — итого 260. */
+    private static final int X_MIN = -260;
+    private static final int X_MAX =  260;
+    private static final int Z_MIN = -260;
+    private static final int Z_MAX =  290; // +30 на юге для каньона до z=280
+
+    /** Максимальная дистанция от стены, на которой ещё имеет смысл
+     *  что-то ставить. Дальше — невидимо при render distance ~10
+     *  и просто жрёт RAM. */
+    private static final int MAX_DIST_FROM_WALL = 105;
 
     /** Базовый y, на котором сидит вся flatSettings-травa. */
     private static final int Y_BASE = WorldGenerator.CITY_FLOOR_Y; // 70
@@ -102,14 +109,28 @@ public final class WorldMountains {
         plugin.getLogger().info(
                 "WorldMountains: строю горный обвод вокруг Эликия "
                 + "(x=" + X_MIN + ".." + X_MAX
-                + ", z=" + Z_MIN + ".." + Z_MAX + ")…");
+                + ", z=" + Z_MIN + ".." + Z_MAX
+                + ", maxDist=" + MAX_DIST_FROM_WALL + ")…");
 
         long ops = 0;
+        long skipped = 0;
         for (int x = X_MIN; x <= X_MAX; x++) {
             for (int z = Z_MIN; z <= Z_MAX; z++) {
                 // Внутри городского полигона ничего не строим — там
                 // мостовая POLISHED_DEEPSLATE из phase1.
                 if (WorldGenerator.isInsideCityPolygon(x, z)) continue;
+
+                // Жёсткий cap на дистанцию: дальше MAX_DIST_FROM_WALL
+                // мы вне видимости и просто едим heap. Однако: если
+                // столб попал в южный каньон (он длинный), пропускать
+                // нельзя — тогда стенки каньона не построятся.
+                double distToWall = WorldGenerator.distanceToCityPolygon(x, z);
+                boolean inCanyonZone = (z >= 120 && z <= 120 + CANYON_DEPTH
+                        && Math.abs(x) <= CANYON_HALF_WIDTH + 30);
+                if (distToWall > MAX_DIST_FROM_WALL && !inCanyonZone) {
+                    skipped++;
+                    continue;
+                }
 
                 int peakY = computePeakY(x, z);
                 if (peakY <= Y_BASE) continue; // в плоской долине ничего не ставим
@@ -118,7 +139,8 @@ public final class WorldMountains {
             }
         }
         plugin.getLogger().info(
-                "WorldMountains: подготовлено " + ops + " блок-операций "
+                "WorldMountains: подготовлено " + ops + " блок-операций, "
+                + "пропущено " + skipped + " далёких столбов "
                 + "(горный обвод + южный каньон).");
     }
 
