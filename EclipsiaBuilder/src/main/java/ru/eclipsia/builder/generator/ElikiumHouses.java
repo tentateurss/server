@@ -245,6 +245,11 @@ public final class ElikiumHouses {
             double centerZ = WorldGenerator.canalCenterZ(c[0]);
             if (Math.abs(c[1] - centerZ) <= 7.0) return false;
         }
+        // v31: не строить впритык к гейтхаусам — резерв 18 блоков вокруг
+        // каждых ворот (под башни, мостовую и фонарную аллею).
+        for (int[] c : corners) {
+            if (WorldGenerator.distanceToNearestGate(c[0], c[1]) < 22.0) return false;
+        }
         ElikiumCity.Footprint candidate = new ElikiumCity.Footprint(x1, z1, x2, z2);
         for (ElikiumCity.Footprint f : ctx.occupied) {
             if (candidate.overlaps(f, 2)) return false;

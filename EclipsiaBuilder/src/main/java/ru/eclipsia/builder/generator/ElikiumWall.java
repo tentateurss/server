@@ -173,22 +173,27 @@ public final class ElikiumWall {
         // стрельчатой аркой и надписью «ELIKIUM» (южные ворота — главный
         // вход, для них особо плотный декор).
         ElikiumGateHouse gh = new ElikiumGateHouse(plugin, painter);
-        // SOUTH — главный вход; через него игрок приходит с Берега.
+        // v31: все 4 ворот строятся в полном «mainEntry» стиле — статуи,
+        // фонарная аллея, мостовая-«ковёр», парящий «Глаз». Раньше
+        // только южные были богато декорированы, остальные были голые.
         gh.build(WorldGenerator.SOUTH_GATE[0], WorldGenerator.SOUTH_GATE[1],
                 /*horizontal=*/ true,
                 /*signTitle=*/   "ELIKIUM",
-                /*hoverTitle=*/  "§5§l~ Эликий ~",
+                /*hoverTitle=*/  "§5§l✦ ELIKIUM ✦",
                 /*hoverSubtitle=*/ "§7Город под Всевидящим Оком",
                 /*mainEntry=*/   true);
         gatesBuilt++;
         gh.build(WorldGenerator.NORTH_GATE[0], WorldGenerator.NORTH_GATE[1],
-                true, "NORD", "§5§lСеверные ворота", "§7Эликий", false);
+                true, "ELIKIUM",
+                "§5§l✦ Северные врата ✦", "§7Эликий — Стороны Полуночи", true);
         gatesBuilt++;
         gh.build(WorldGenerator.EAST_GATE[0], WorldGenerator.EAST_GATE[1],
-                false, "EST", "§5§lВосточные ворота", "§7Эликий", false);
+                false, "ELIKIUM",
+                "§5§l✦ Восточные врата ✦", "§7Эликий — Сторона Зари", true);
         gatesBuilt++;
         gh.build(WorldGenerator.WEST_GATE[0], WorldGenerator.WEST_GATE[1],
-                false, "WEST", "§5§lЗападные ворота", "§7Эликий", false);
+                false, "ELIKIUM",
+                "§5§l✦ Западные врата ✦", "§7Эликий — Сторона Заката", true);
         gatesBuilt++;
 
         plugin.getLogger().info("ElikiumWall: периметр (" + wallSegments

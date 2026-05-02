@@ -88,6 +88,31 @@ public final class FloatingText {
     }
 
     /**
+     * Гигантская вывеска — TextDisplay с увеличенным масштабом (×{@code scale}).
+     * Используется для названий городских ворот, чтобы надпись «ELIKIUM»
+     * читалась издалека. Если Paper-версия не поддерживает Transformation
+     * — тихо откатывается на стандартный размер.
+     */
+    public static TextDisplay createGiantTitle(Plugin plugin, World world,
+                                               double x, double y, double z,
+                                               String title, String subtitle,
+                                               float scale) {
+        TextDisplay td = create(plugin, world, x, y, z, title, subtitle);
+        try {
+            org.bukkit.util.Transformation t = td.getTransformation();
+            org.joml.Vector3f translation = t.getTranslation();
+            org.joml.Quaternionf leftRot = t.getLeftRotation();
+            org.joml.Quaternionf rightRot = t.getRightRotation();
+            org.joml.Vector3f newScale = new org.joml.Vector3f(scale, scale, scale);
+            td.setTransformation(new org.bukkit.util.Transformation(
+                    translation, leftRot, newScale, rightRot));
+        } catch (Throwable ignored) {
+            // нет Transformation API — оставим обычный размер
+        }
+        return td;
+    }
+
+    /**
      * Одно-строчная вывеска (например, у дома: «Таверна»).
      */
     public static TextDisplay createSign(Plugin plugin, World world,

@@ -192,11 +192,18 @@ public final class WorldMountains {
         // Стенки каньона особенно высоки — обрывистые скалы по бокам корридора.
         double canyonBoost = canyonWallBoost(x, z);
 
+        // v31: усилить рваность гор — несколько слоёв шума разной частоты,
+        //      ridge с возведением в степень для острых хребтов.
+        double sharpRidge = ridge * ridge * ridge; // острые пики
+        double midDetail = detail.noise(x * 1.7, z * 1.7, 0.5, 0.5, true);
+        double fineJitter = noise.noise(x * 3.1, z * 3.1, 0.5, 0.5, true);
+
         double height = skirtRise
-                      + n01 * peakAmp * 0.5
-                      + ridge * peakAmp * 0.5
+                      + n01 * peakAmp * 0.35
+                      + sharpRidge * peakAmp * 0.65
                       + canyonBoost
-                      + detail.noise(x, z, 0.5, 0.5, true) * 4.0;
+                      + midDetail * 7.0
+                      + fineJitter * 3.5;
 
         // Шумовые «ущелья» внутри гор — местами пропускаем столб (низина).
         if (n01 < 0.16 && skirtT > 0.5 && canyonBoost < 1.0) return Y_BASE;
