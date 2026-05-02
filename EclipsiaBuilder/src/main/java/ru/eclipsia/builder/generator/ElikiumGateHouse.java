@@ -149,7 +149,10 @@ public final class ElikiumGateHouse {
      */
     private void bulldozeArea(int gx, int gz, boolean horizontal) {
         int radAlong = OPENING_HALF + TOWER_HALF * 2 + 4;  // 5+8+4 = 17
-        int radAcross = TOWER_HALF + 8;                    // 4+8 = 12
+        // v32: расширили across с 12 до 18 — ворота N/E/W были утоплены
+        // в горы снаружи; теперь бульдозер сносит всё на 18 блоков
+        // вперёд/назад, освобождая вид на арку.
+        int radAcross = TOWER_HALF + 14;                   // 4+14 = 18
         int yMax = Y_BASE + TOWER_HEIGHT + 8;
         for (int dAlong = -radAlong; dAlong <= radAlong; dAlong++) {
             for (int dAcross = -radAcross; dAcross <= radAcross; dAcross++) {
@@ -169,7 +172,10 @@ public final class ElikiumGateHouse {
      */
     private void stampFloor(int gx, int gz, boolean horizontal) {
         int radAlong = OPENING_HALF + TOWER_HALF * 2 + 2;  // 5+8+2 = 15
-        int radAcross = TOWER_HALF + 4;                    // 4+4 = 8
+        // v32: расширили across с 8 до 16 — POLISHED_DEEPSLATE-платформа
+        // расползается и внутрь города, и наружу на 16 блоков, чтобы
+        // ворота не выглядели утопленными в землю/гравий.
+        int radAcross = TOWER_HALF + 12;                   // 4+12 = 16
         for (int dAlong = -radAlong; dAlong <= radAlong; dAlong++) {
             for (int dAcross = -radAcross; dAcross <= radAcross; dAcross++) {
                 int x = horizontal ? gx + dAlong : gx + dAcross;

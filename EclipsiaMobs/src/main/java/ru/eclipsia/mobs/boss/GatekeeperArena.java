@@ -58,16 +58,20 @@ public final class GatekeeperArena implements Listener {
      * силуэт собора (центр (45, -15)). Координаты согласованы с
      * {@code WorldGenerator.SPAWN_X/Y/Z}.
      */
-    public static final double ELIKIUM_SPAWN_X = 0.5;
-    public static final double ELIKIUM_SPAWN_Y = 75.0;
+    // v32: спавн перенесён в боковой грот (-25, 70..78, 132..148).
+    //      Игрок появляется внутри пещеры лицом на восток, идёт через
+    //      туннель и выходит в каньон через большую арку на x=-10.
+    public static final double ELIKIUM_SPAWN_X = -22.5;
+    public static final double ELIKIUM_SPAWN_Y = 71.0;
     /**
-     * z=130.5 — синхронизировано с {@code WorldGenerator.SPAWN_Z=130} (v29).
+     * z=140.5 — обновлено в v32: центр нового бокового грота
+     * в западной стене каньона. v29: z=130.5 (в чистом каньоне).
      * Раньше z=118.5 — но это попадало внутрь толщины стены (z=116..124),
      * игрок появлялся в блоке. После выравнивания ворот на полигоне
      * (см. WorldGenerator.SOUTH_GATE) спавн перенесён на 12 блоков южнее
      * — в южный каньон, перед аркой ворот.
      */
-    public static final double ELIKIUM_SPAWN_Z = 130.5;
+    public static final double ELIKIUM_SPAWN_Z = 140.5;
 
     public static final int ARENA_X = 0;
     /** floorY арены в BeachGenerator = GROUND_Y(4) + 8 = 12. Спавним на +1. */
