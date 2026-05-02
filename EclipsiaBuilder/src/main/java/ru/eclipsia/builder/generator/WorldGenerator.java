@@ -215,7 +215,7 @@ public final class WorldGenerator {
      *   <li>Декоративные крокеты END_ROD по конькам нефа и трансепта.</li>
      * </ul>
      */
-    public static final String GENERATED_FLAG = "eclipsia_world_generated_v19";
+    public static final String GENERATED_FLAG = "eclipsia_world_generated_v20";
 
     // =========================================================================
     // ГЕОМЕТРИЯ ГОРОДА
@@ -292,6 +292,9 @@ public final class WorldGenerator {
 
     private final Plugin plugin;
     private final World world;
+
+    /** Заполняется в фазе 5; читается фазой 7 для расстановки FloatingText. */
+    private ElikiumCity city;
 
     public WorldGenerator(Plugin plugin, World world) {
         this.plugin = plugin;
@@ -444,8 +447,9 @@ public final class WorldGenerator {
     // =========================================================================
 
     private void phase5PointsOfInterest(RegionPainter p, Random rng) {
-        plugin.getLogger().info("WorldGenerator/phase5: интерьер города (улицы, площадь, дома, фонари).");
-        new ElikiumCity(plugin, p, rng).build();
+        plugin.getLogger().info("WorldGenerator/phase5: интерьер города (улицы, площади, POI, дома, декор).");
+        this.city = new ElikiumCity(plugin, p, rng);
+        this.city.build();
     }
 
     // =========================================================================
@@ -472,7 +476,23 @@ public final class WorldGenerator {
     // =========================================================================
 
     private void phase7FloatingText(Random rng) {
-        plugin.getLogger().info("WorldGenerator/phase7: FloatingText — TODO в PR 5.");
+        if (city == null) {
+            plugin.getLogger().info("WorldGenerator/phase7: FloatingText — нет POI (город не построен).");
+            return;
+        }
+        int placed = 0;
+        for (ElikiumCity.POI poi : city.getPois()) {
+            try {
+                FloatingText.createLocationTitle(plugin, world,
+                        poi.x + 0.5, poi.y + 0.1, poi.z + 0.5,
+                        poi.title, poi.subtitle);
+                placed++;
+            } catch (Throwable t) {
+                plugin.getLogger().warning("WorldGenerator/phase7: не удалось спавнить FloatingText '"
+                        + poi.title + "': " + t.getMessage());
+            }
+        }
+        plugin.getLogger().info("WorldGenerator/phase7: размещено " + placed + " FloatingText.");
     }
 
     // =========================================================================
