@@ -51,15 +51,15 @@ public final class ElikiumStreets {
         long count = 0;
 
         // 4 главные дуги от ворот → собор/рынок (с control-точкой для кривизны)
-        count += buildBezierStreet(WorldGenerator.SOUTH_GATE,  new int[]{15, 80},  PLAZA_CATHEDRAL,  3);
-        count += buildBezierStreet(WorldGenerator.NORTH_GATE,  new int[]{-25, -75}, new int[]{-30, -10}, 3);
-        count += buildBezierStreet(WorldGenerator.EAST_GATE,   new int[]{105, 30}, new int[]{52, 38},   3);
-        count += buildBezierStreet(WorldGenerator.WEST_GATE,   new int[]{-80, 0},  PLAZA_MARKET,        3);
+        count += buildBezierStreet(WorldGenerator.SOUTH_GATE,  new int[]{15, 80},  PLAZA_CATHEDRAL,  2);
+        count += buildBezierStreet(WorldGenerator.NORTH_GATE,  new int[]{-25, -75}, new int[]{-30, -10}, 2);
+        count += buildBezierStreet(WorldGenerator.EAST_GATE,   new int[]{105, 30}, new int[]{52, 38},   2);
+        count += buildBezierStreet(WorldGenerator.WEST_GATE,   new int[]{-80, 0},  PLAZA_MARKET,        2);
 
         // Соединительные дуги между главными
-        count += buildBezierStreet(new int[]{-30, -10}, new int[]{-30, 10}, PLAZA_MARKET,            2);
-        count += buildBezierStreet(PLAZA_MARKET,        new int[]{0, 60},   PLAZA_CATHEDRAL,         2);
-        count += buildBezierStreet(new int[]{52, 38},   new int[]{75, 0},   new int[]{105, -25},     2);
+        count += buildBezierStreet(new int[]{-30, -10}, new int[]{-30, 10}, PLAZA_MARKET,            1);
+        count += buildBezierStreet(PLAZA_MARKET,        new int[]{0, 60},   PLAZA_CATHEDRAL,         1);
+        count += buildBezierStreet(new int[]{52, 38},   new int[]{75, 0},   new int[]{105, -25},     1);
 
         // Узкие переулки (проходят насквозь)
         count += buildAlley(new int[]{-60, -20}, new int[]{-40, 10});
@@ -130,9 +130,10 @@ public final class ElikiumStreets {
             double zd = oneT * oneT * a[1] + 2 * oneT * t * c[1] + t * t * b[1];
             int nx = (int) Math.round(xd);
             int nz = (int) Math.round(zd);
-            // Модуляция ширины синусом 0.5..1.5 от base
-            double widthMod = 1.0 + 0.5 * Math.sin(t * Math.PI * 2);
-            int halfWidth = Math.max(2, (int) Math.round(baseHalfWidth * widthMod));
+            // Более узкая средневековая улица: ширина 5-7 для главных,
+            // 3 для соединительных. Убираем избыточные расплывы.
+            double widthMod = 1.08 + 0.25 * Math.sin(t * Math.PI * 2);
+            int halfWidth = Math.max(baseHalfWidth, (int) Math.round(baseHalfWidth * widthMod));
             count += paveSegment(prevX, prevZ, nx, nz, halfWidth, true);
             accDist += Math.hypot(nx - prevX, nz - prevZ);
             if (accDist >= nextLamp) {
@@ -168,14 +169,17 @@ public final class ElikiumStreets {
                     Material mat;
                     if (main) {
                         if (cheb == halfWidth) {
-                            mat = Material.DEEPSLATE_TILES;
-                        } else if (((x + z) & 1) == 0) {
-                            mat = Material.POLISHED_DEEPSLATE;
+                            mat = Material.DEEPSLATE_BRICKS;
                         } else {
-                            mat = Material.ANDESITE;
+                            int bucket = Math.floorMod(x * 31 + z * 17, 9);
+                            if (bucket <= 1) mat = Material.POLISHED_BLACKSTONE_BRICKS;
+                            else if (bucket <= 4) mat = Material.POLISHED_DEEPSLATE;
+                            else mat = Material.COBBLED_DEEPSLATE;
                         }
                     } else {
-                        mat = ((x + z) & 1) == 0 ? Material.COBBLESTONE : Material.ANDESITE;
+                        mat = ((x + z) & 1) == 0
+                                ? Material.COBBLED_DEEPSLATE
+                                : Material.DEEPSLATE_BRICKS;
                     }
                     painter.place(x, Y_BASE, z, mat);
                     ctx.streetCells.add(ElikiumCity.packCoord(x, z));

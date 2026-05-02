@@ -128,60 +128,77 @@ public final class ElikiumPlazas {
         placeBench(CATH_PLAZA_CX - 6, CATH_PLAZA_CZ - 6, "east");
         placeBench(CATH_PLAZA_CX + 5, CATH_PLAZA_CZ + 5, "west");
         count += 8;
-        // Колокол по центру северной стороны (ближе к собору)
+        // Колокол по центру северной стороны — небольшая звонница 3×1
         int bellX = CATH_PLAZA_CX, bellZ = CATH_PLAZA_CZ - CATH_PLAZA_HALF_Z + 1;
-        for (int dy = 1; dy <= 4; dy++) {
-            painter.place(bellX, Y_BASE + dy, bellZ, Material.OAK_FENCE);
+        for (int dy = 1; dy <= 5; dy++) {
+            painter.place(bellX - 1, Y_BASE + dy, bellZ, Material.DARK_OAK_LOG);
+            painter.place(bellX + 1, Y_BASE + dy, bellZ, Material.DARK_OAK_LOG);
         }
-        painter.place(bellX, Y_BASE + 5, bellZ, Material.OAK_PLANKS);
+        painter.place(bellX, Y_BASE + 5, bellZ, Material.DARK_OAK_LOG);
         painter.place(bellX, Y_BASE + 4, bellZ, Material.BELL);
-        count += 6;
+        painter.place(bellX, Y_BASE + 6, bellZ, Material.PURPLE_BANNER);
+        count += 13;
+
+        // 4 тёмных статуи/пьедестала по углам площади
+        for (int[] p : new int[][]{
+                {CATH_PLAZA_CX - 5, CATH_PLAZA_CZ - 8},
+                {CATH_PLAZA_CX + 5, CATH_PLAZA_CZ - 8},
+                {CATH_PLAZA_CX - 5, CATH_PLAZA_CZ + 8},
+                {CATH_PLAZA_CX + 5, CATH_PLAZA_CZ + 8}}) {
+            painter.place(p[0], Y_BASE + 1, p[1], Material.POLISHED_BLACKSTONE_BRICKS);
+            painter.place(p[0], Y_BASE + 2, p[1], Material.DEEPSLATE_BRICK_WALL);
+            painter.place(p[0], Y_BASE + 3, p[1], Material.SOUL_LANTERN);
+            count += 3;
+        }
         return count;
     }
 
     private long buildMarketPlaza() {
         long count = 0;
-        // Мощение
+        // Мощение — тёмная рваная брусчатка, без светлых полос
         for (int dx = -MARKET_PLAZA_HALF_X; dx <= MARKET_PLAZA_HALF_X; dx++) {
             for (int dz = -MARKET_PLAZA_HALF_Z; dz <= MARKET_PLAZA_HALF_Z; dz++) {
                 int x = MARKET_PLAZA_CX + dx, z = MARKET_PLAZA_CZ + dz;
                 if (!WorldGenerator.isInsideCityPolygon(x, z)) continue;
-                Material mat;
                 int cheb = Math.max(Math.abs(dx), Math.abs(dz));
+                int bucket = Math.floorMod(x * 13 + z * 17, 11);
+                Material mat;
                 if (cheb == MARKET_PLAZA_HALF_X || cheb == MARKET_PLAZA_HALF_Z) {
-                    mat = Material.DEEPSLATE_TILES;
-                } else if (((x + z) & 1) == 0) {
+                    mat = Material.DEEPSLATE_BRICKS;
+                } else if (bucket <= 2) {
+                    mat = Material.POLISHED_BLACKSTONE_BRICKS;
+                } else if (bucket <= 6) {
                     mat = Material.POLISHED_DEEPSLATE;
                 } else {
-                    mat = Material.ANDESITE;
+                    mat = Material.COBBLED_DEEPSLATE;
                 }
                 painter.place(x, Y_BASE, z, mat);
                 count++;
             }
         }
-        // Центральный фонтан 3×3
+        // Центральный фонтан-столб 5×5 с тёмным основанием
         int fx = MARKET_PLAZA_CX, fz = MARKET_PLAZA_CZ;
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                if (Math.abs(dx) == 1 || Math.abs(dz) == 1) {
-                    painter.place(fx + dx, Y_BASE + 1, fz + dz, Material.STONE_BRICKS);
-                    painter.place(fx + dx, Y_BASE + 2, fz + dz, Material.STONE_BRICK_WALL);
-                }
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dz = -2; dz <= 2; dz++) {
+                int cheb = Math.max(Math.abs(dx), Math.abs(dz));
+                if (cheb == 2) painter.place(fx + dx, Y_BASE + 1, fz + dz, Material.POLISHED_BLACKSTONE_BRICKS);
+                else painter.place(fx + dx, Y_BASE + 1, fz + dz, Material.WATER);
             }
         }
-        painter.place(fx, Y_BASE + 1, fz, Material.SEA_LANTERN);
-        painter.place(fx, Y_BASE + 2, fz, Material.WATER);
-        count += 17;
-        // 5 прилавков расставлены по полукругу
+        painter.place(fx, Y_BASE + 2, fz, Material.POLISHED_BLACKSTONE_BRICKS);
+        painter.place(fx, Y_BASE + 3, fz, Material.POLISHED_BLACKSTONE_BRICKS);
+        painter.place(fx, Y_BASE + 4, fz, Material.SOUL_LANTERN);
+        count += 28;
+        // 5 прилавков — крупнее и разложены по периметру площади
         int[][] stallOffsets = {
-                {-5, -6}, {5, -6},
-                {-5, 6}, {5, 6},
-                {-5, 0},
+                {-6, -7}, {2, -7},
+                {-6, 6}, {3, 6},
+                {6, -1},
         };
         Material[] stallWools = {
-                Material.YELLOW_WOOL, Material.WHITE_WOOL,
-                Material.PURPLE_WOOL, Material.LIME_WOOL,
-                Material.RED_WOOL,
+                Material.YELLOW_WOOL, Material.RED_WOOL,
+                Material.PURPLE_WOOL, Material.GREEN_WOOL,
+                Material.WHITE_WOOL,
         };
         Material[] stallItems = {
                 Material.BREAD, Material.IRON_SWORD,
@@ -192,10 +209,14 @@ public final class ElikiumPlazas {
             int sz = MARKET_PLAZA_CZ + stallOffsets[i][1];
             count += buildStall(sx, sz, stallWools[i], stallItems[i]);
         }
-        // 2 лавочки
-        placeBench(MARKET_PLAZA_CX - 4, MARKET_PLAZA_CZ + 3, "east");
-        placeBench(MARKET_PLAZA_CX + 3, MARKET_PLAZA_CZ - 3, "west");
-        count += 4;
+        // 2 лавочки и 4 бочки на площади
+        placeBench(MARKET_PLAZA_CX - 1, MARKET_PLAZA_CZ + 4, "east");
+        placeBench(MARKET_PLAZA_CX + 4, MARKET_PLAZA_CZ - 3, "west");
+        painter.place(MARKET_PLAZA_CX - 2, Y_BASE + 1, MARKET_PLAZA_CZ - 6, Material.BARREL);
+        painter.place(MARKET_PLAZA_CX + 4, Y_BASE + 1, MARKET_PLAZA_CZ - 5, Material.BARREL);
+        painter.place(MARKET_PLAZA_CX - 5, Y_BASE + 1, MARKET_PLAZA_CZ + 4, Material.BARREL);
+        painter.place(MARKET_PLAZA_CX + 5, Y_BASE + 1, MARKET_PLAZA_CZ + 3, Material.BARREL);
+        count += 8;
         return count;
     }
 
@@ -228,39 +249,38 @@ public final class ElikiumPlazas {
 
     private long buildStall(int cx, int cz, Material woolColor, Material item) {
         long count = 0;
-        // 2×2 прилавок: OAK_SLAB поверхность на y+1
-        for (int dx = 0; dx <= 1; dx++) {
+        // 3×2 прилавок: массивнее, с задней стойкой и тентом
+        for (int dx = 0; dx <= 2; dx++) {
             for (int dz = 0; dz <= 1; dz++) {
                 BlockData slab = Material.OAK_SLAB.createBlockData("[type=top]");
                 painter.placeData(cx + dx, Y_BASE + 1, cz + dz, slab);
                 count++;
             }
         }
-        // 4 столба OAK_FENCE
-        for (int dx = 0; dx <= 1; dx++) {
-            for (int dz = 0; dz <= 1; dz++) {
-                painter.place(cx + dx, Y_BASE + 2, cz + dz, Material.OAK_FENCE);
-                painter.place(cx + dx, Y_BASE + 3, cz + dz, Material.OAK_FENCE);
-                count += 2;
-            }
+        // Передние и задние столбы
+        for (int dx = 0; dx <= 2; dx += 2) {
+            painter.place(cx + dx, Y_BASE + 2, cz, Material.OAK_FENCE);
+            painter.place(cx + dx, Y_BASE + 3, cz, Material.OAK_FENCE);
+            painter.place(cx + dx, Y_BASE + 2, cz + 1, Material.OAK_FENCE);
+            painter.place(cx + dx, Y_BASE + 3, cz + 1, Material.OAK_FENCE);
+            count += 4;
         }
-        // Навес — 2×2 шерсти
-        for (int dx = 0; dx <= 1; dx++) {
-            for (int dz = 0; dz <= 1; dz++) {
-                painter.place(cx + dx, Y_BASE + 4, cz + dz, woolColor);
-                count++;
-            }
+        // Наклонный тент 3×2: перед низкий, зад высокий
+        for (int dx = 0; dx <= 2; dx++) {
+            painter.place(cx + dx, Y_BASE + 4, cz, woolColor);
+            painter.place(cx + dx, Y_BASE + 5, cz + 1, woolColor);
+            count += 2;
         }
-        // Декоративный товар: блок-плоскость лежит на прилавке
+        // Товар + ящик/бочка
         Material platter = item;
-        // Некоторые товары не блоки — заменяем плоским аналогом
         if (item == Material.BREAD) platter = Material.HAY_BLOCK;
         else if (item == Material.IRON_SWORD) platter = Material.IRON_BLOCK;
         else if (item == Material.EMERALD) platter = Material.EMERALD_BLOCK;
         else if (item == Material.BOOK) platter = Material.LECTERN;
         else if (item == Material.AMETHYST_SHARD) platter = Material.AMETHYST_BLOCK;
-        painter.place(cx, Y_BASE + 2, cz, platter);
-        count++;
+        painter.place(cx + 1, Y_BASE + 2, cz, platter);
+        painter.place(cx + 1, Y_BASE + 1, cz + 2, rng.nextBoolean() ? Material.BARREL : Material.CHEST);
+        count += 2;
         return count;
     }
 }
