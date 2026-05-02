@@ -167,6 +167,20 @@ public final class WorldMountains {
             return Y_BASE;
         }
 
+        // 1b) v32: «полка» вокруг каждых ворот — плоская зона радиуса 28
+        //     блоков снаружи города, чтобы N/E/W ворота не были утоплены
+        //     в горы. Внутри полки даём чуть приподнятый край (rampUp)
+        //     чтобы переход к скалам не был резким.
+        double distToGate = WorldGenerator.distanceToNearestGate(x, z);
+        if (distToGate <= 22.0) {
+            return Y_BASE;
+        }
+        if (distToGate <= 32.0) {
+            // плавный подъём: 0..6 блоков на 10 блоках (22..32)
+            double t = (distToGate - 22.0) / 10.0;
+            return Y_BASE + (int) Math.round(t * 6.0);
+        }
+
         // 2) Южный каньон — плоское дно, скалы только за стенками.
         if (insideSouthCanyon(x, z, distToWall)) {
             return Y_BASE; // плоская канва каньона

@@ -217,7 +217,7 @@ public final class WorldGenerator {
      *   <li>Декоративные крокеты END_ROD по конькам нефа и трансепта.</li>
      * </ul>
      */
-    public static final String GENERATED_FLAG = "eclipsia_world_generated_v31";
+    public static final String GENERATED_FLAG = "eclipsia_world_generated_v32";
 
     // =========================================================================
     // ГЕОМЕТРИЯ ГОРОДА
@@ -275,14 +275,16 @@ public final class WorldGenerator {
      * <p>Сюда же телепортирует {@code GatekeeperArena} после убийства
      * Хранителя — координаты должны совпадать.
      */
-    public static final int SPAWN_X = 0;
-    public static final int SPAWN_Y = CITY_FLOOR_Y + 5; // 75
+    // v32: спавн перенесён в боковой грот (см. buildSpawnCave) —
+    // игрок появляется внутри пещеры, не в чистом каньоне.
+    public static final int SPAWN_X = -22;
+    public static final int SPAWN_Y = CITY_FLOOR_Y + 1; // 71
     /**
      * z=130 — 10 блоков южнее вершины полигона/гейтхауса (0, 120),
      * в южном каньоне. Игрок стоит лицом к северу, перед ним арка
      * южных ворот, по бокам — стенки каньона из {@link WorldMountains}.
      */
-    public static final int SPAWN_Z = 130;
+    public static final int SPAWN_Z = 140;
 
     // =========================================================================
     // КООРДИНАТЫ ШПИЛЯ (для SpireParticles)
@@ -620,7 +622,8 @@ public final class WorldGenerator {
 
                 int groundY = getCityHeight(x, z);
                 boolean canal = isCanal(x, z) && !isBridge(x)
-                        && !insideCathedralZone(x, z);
+                        && !insideCathedralZone(x, z)
+                        && !insidePlazaZone(x, z);
 
                 if (canal) {
                     // Канал: каменное дно + 4 блока воды (y=67..70)
@@ -654,7 +657,8 @@ public final class WorldGenerator {
         for (int x = -150; x <= 150; x++) {
             for (int z = -150; z <= 126; z++) {
                 if (!isInsideCityPolygon(x, z)) continue;
-                if (!isCanal(x, z) || isBridge(x) || insideCathedralZone(x, z)) continue;
+                if (!isCanal(x, z) || isBridge(x) || insideCathedralZone(x, z)
+                        || insidePlazaZone(x, z)) continue;
                 for (int[] off : new int[][]{{0, 1}, {0, -1}, {1, 0}, {-1, 0}}) {
                     int nx = x + off[0], nz = z + off[1];
                     if (!isCanal(nx, nz) || isBridge(nx)) {
@@ -670,24 +674,27 @@ public final class WorldGenerator {
     }
 
     /**
-     * Пещера на точке спавна (0, 75, 130). Открыта на север (в сторону
-     * ворот) — игрок выходит из неё и идёт по каньону к арке Эликиума.
-     * Сама пещера — куполовидный грот 14×8×8 с порталом-аркой на севере,
-     * подсветкой SOUL_LANTERN и аметистовыми вкраплениями.
+     * v32: Пещера-грот в БОКОВОЙ скале каньона (запад, x≈-25), открытая
+     * НА ВОСТОК в каньон через большую готическую арку. Игрок выходит
+     * из недр горы и идёт на север к арке Эликиума, а не появляется
+     * в чистом поле посреди дороги.
+     *
+     * <p>Точка телепорта (0, 75, 130) перенесена в GatekeeperArena
+     * на (-22, 75, 140) — внутрь грота. Вне грота, у выхода в каньон,
+     * стоит большая арка в стиле берегового портала.
      */
     private void buildSpawnCave(RegionPainter p) {
-        int cx = 0, cz = 138; // центр купола чуть к югу от спавна (130)
+        int cx = -25, cz = 140; // центр купола в западной стене каньона
         int yFloor = CITY_FLOOR_Y; // 70
         int yCeil = CITY_FLOOR_Y + 8; // 78
 
-        // 1) Выкапываем грот: 14 (x) × 12 (z) × 8 (y) с куполом.
-        int radX = 7;
-        int radZ = 8;
+        // 1) Эллипсоидный грот 16×14×8 с куполом.
+        int radX = 8;
+        int radZ = 7;
         int radY = 8;
         for (int dx = -radX; dx <= radX; dx++) {
             for (int dz = -radZ; dz <= radZ; dz++) {
                 for (int dy = 0; dy <= radY; dy++) {
-                    // Эллипсоид — внутри полость, на оболочке — стены.
                     double ex = (double) dx / radX;
                     double ez = (double) dz / radZ;
                     double ey = (double) dy / radY;
@@ -697,7 +704,6 @@ public final class WorldGenerator {
                     int z = cz + dz;
                     int y = yFloor + dy;
                     if (r > 0.85) {
-                        // оболочка — рваный готический камень
                         int hash = (x * 7 + z * 13 + y * 31);
                         Material shell = (hash & 7) == 0 ? Material.BLACKSTONE
                                 : (hash & 7) == 1 ? Material.TUFF
@@ -705,30 +711,45 @@ public final class WorldGenerator {
                                 : Material.DEEPSLATE;
                         p.place(x, y, z, shell);
                     } else {
-                        // полость
                         p.place(x, y, z, Material.AIR);
                     }
                 }
             }
         }
 
-        // 2) Северный «выход» — арочный портал в стене, направленный к каньону.
-        for (int dx = -3; dx <= 3; dx++) {
-            for (int dy = 0; dy <= 5; dy++) {
-                int absDx = Math.abs(dx);
-                if (absDx == 3 && dy >= 4) continue; // скруглить углы
-                p.place(cx + dx, yFloor + dy, cz - radZ, Material.AIR);
-                p.place(cx + dx, yFloor + dy, cz - radZ - 1, Material.AIR);
+        // 2) Восточный «выход» — большая стрельчатая арка в восточной
+        //    стене (x = cx + radX = -17). Открывает 7×6 проём в каньон.
+        int archX = cx + radX; // -17
+        for (int dz = -3; dz <= 3; dz++) {
+            for (int dy = 0; dy <= 6; dy++) {
+                int absDz = Math.abs(dz);
+                // Стрельчатый профиль (заострение наверху).
+                if (absDz == 3 && dy >= 5) continue;
+                if (absDz == 2 && dy >= 6) continue;
+                // Очистить 4 блока в глубину наружу — туннель к каньону.
+                for (int dxOut = 0; dxOut <= 4; dxOut++) {
+                    p.place(archX + dxOut, yFloor + dy, cz + dz, Material.AIR);
+                }
             }
         }
-        // Верхняя кромка арки — POLISHED_BLACKSTONE с GILDED-акцентами.
-        for (int dx = -3; dx <= 3; dx++) {
-            int absDx = Math.abs(dx);
-            int dy = absDx == 3 ? 4 : 5;
-            p.place(cx + dx, yFloor + dy + 1, cz - radZ,
-                    absDx == 0 ? Material.GILDED_BLACKSTONE
-                               : Material.POLISHED_BLACKSTONE);
+        // 2a) Каменная кромка арки снаружи — GILDED_BLACKSTONE-замковый камень.
+        for (int dz = -4; dz <= 4; dz++) {
+            int absDz = Math.abs(dz);
+            int topDy = absDz <= 1 ? 7 : (absDz <= 2 ? 6 : (absDz <= 3 ? 5 : 4));
+            for (int dy = 0; dy <= topDy; dy++) {
+                if (dy < topDy && absDz < 4) continue; // только кромка
+                Material edge;
+                if (dy == topDy && absDz == 0) edge = Material.GILDED_BLACKSTONE;
+                else if (dy == topDy) edge = Material.POLISHED_BLACKSTONE;
+                else edge = Material.DEEPSLATE_BRICKS;
+                p.place(archX + 4, yFloor + dy, cz + dz, edge);
+            }
         }
+        // 2b) Замковый «глаз» AMETHYST_BLOCK + LANTERN над аркой.
+        p.place(archX + 4, yFloor + 8, cz, Material.AMETHYST_BLOCK);
+        p.place(archX + 4, yFloor + 9, cz, Material.LIGHTNING_ROD);
+        p.place(archX + 4, yFloor + 8, cz - 1, Material.SOUL_LANTERN);
+        p.place(archX + 4, yFloor + 8, cz + 1, Material.SOUL_LANTERN);
 
         // 3) Пол грота — POLISHED_DEEPSLATE с GILDED-кругом в центре.
         for (int dx = -radX; dx <= radX; dx++) {
@@ -747,23 +768,72 @@ public final class WorldGenerator {
                 p.place(x, yFloor, z, floor);
             }
         }
+        // Дорожка-«коврик» от центра грота к выходной арке.
+        for (int dx = 0; dx <= radX + 3; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                Material mat = dz == 0 ? Material.GILDED_BLACKSTONE
+                        : Material.POLISHED_DEEPSLATE;
+                p.place(cx + dx, yFloor, cz + dz, mat);
+            }
+        }
 
         // 4) Подсветка — SOUL_LANTERN на цепях у потолка по кругу.
         for (int[] off : new int[][]{
-                {-4, -3}, {4, -3}, {-4, 3}, {4, 3}, {0, -5}, {0, 5}}) {
+                {-5, -3}, {3, -3}, {-5, 3}, {3, 3}, {-7, 0}, {2, 0}}) {
             int x = cx + off[0];
             int z = cz + off[1];
             p.place(x, yCeil - 1, z, Material.CHAIN);
             p.place(x, yCeil - 2, z, Material.SOUL_LANTERN);
         }
 
-        // 5) Аметистовые «друзы» по стенам (4 куста по бокам).
+        // 5) Аметистовые «друзы» по стенам.
         for (int[] off : new int[][]{
-                {-6, 0}, {6, 0}, {-5, 5}, {5, 5}, {-5, -5}, {5, -5}}) {
+                {-7, 0}, {-6, 5}, {-6, -5}, {-3, 6}, {-3, -6}}) {
             int x = cx + off[0];
             int z = cz + off[1];
             p.place(x, yFloor + 1, z, Material.AMETHYST_CLUSTER);
         }
+
+        // 6) Туннель снаружи арки до каньона — расчищаем коридор
+        //    от x = archX+5 до x = -10 (вход в каньон, |x|<=30).
+        for (int x = archX + 5; x <= -10; x++) {
+            for (int dz = -2; dz <= 2; dz++) {
+                for (int dy = 0; dy <= 5; dy++) {
+                    p.place(x, yFloor + dy, cz + dz, Material.AIR);
+                }
+                // мостовая POLISHED_DEEPSLATE по дну туннеля
+                p.place(x, yFloor - 1, cz + dz, Material.DEEPSLATE);
+                Material floor = dz == 0 ? Material.GILDED_BLACKSTONE
+                        : Material.POLISHED_DEEPSLATE;
+                p.place(x, yFloor, cz + dz, floor);
+            }
+            // потолок
+            for (int dz = -2; dz <= 2; dz++) {
+                p.place(x, yFloor + 6, cz + dz,
+                        Math.abs(dz) == 2 ? Material.COBBLED_DEEPSLATE
+                                : Material.POLISHED_DEEPSLATE);
+            }
+        }
+
+        // 7) Большая «береговая» арка на ВЫХОДЕ туннеля в каньон (x=-10).
+        //    Стилизована под портал на пляже — DARK_OAK_LOG колонны
+        //    + STONE_BRICKS перекрытие + 4 SEA_LANTERN.
+        int gateX = -10;
+        for (int dy = 0; dy <= 6; dy++) {
+            p.place(gateX, yFloor + dy, cz - 3, Material.POLISHED_BLACKSTONE_BRICKS);
+            p.place(gateX, yFloor + dy, cz + 3, Material.POLISHED_BLACKSTONE_BRICKS);
+        }
+        for (int dz = -3; dz <= 3; dz++) {
+            p.place(gateX, yFloor + 7, cz + dz,
+                    Math.abs(dz) == 0 ? Material.GILDED_BLACKSTONE
+                            : Material.POLISHED_BLACKSTONE_BRICKS);
+        }
+        p.place(gateX, yFloor + 8, cz, Material.AMETHYST_BLOCK);
+        p.place(gateX, yFloor + 9, cz, Material.LIGHTNING_ROD);
+        p.place(gateX - 1, yFloor + 6, cz - 2, Material.SEA_LANTERN);
+        p.place(gateX - 1, yFloor + 6, cz + 2, Material.SEA_LANTERN);
+        p.place(gateX + 1, yFloor + 6, cz - 2, Material.SEA_LANTERN);
+        p.place(gateX + 1, yFloor + 6, cz + 2, Material.SEA_LANTERN);
     }
 
     /**
@@ -924,6 +994,19 @@ public final class WorldGenerator {
     public static boolean insideCathedralZone(int x, int z) {
         return x >= CATHEDRAL_X - 34 && x <= CATHEDRAL_X + 34
             && z >= CATHEDRAL_Z - 46 && z <= CATHEDRAL_Z + 46;
+    }
+
+    /**
+     * v32: исключение для канала — городские площади. Канал проходил
+     * по краю Соборной площади (x∈[35..55], z∈[25..51]) и Рыночной
+     * площади, выглядело как «постройка через канаву». Исключаем.
+     */
+    public static boolean insidePlazaZone(int x, int z) {
+        // Соборная площадь ElikiumPlazas.CATH_PLAZA — расширим запас на 4 блока.
+        if (x >= 35 - 4 && x <= 55 + 4 && z >= 25 - 4 && z <= 51 + 4) return true;
+        // Рыночная площадь ElikiumPlazas.MARKET_PLAZA — расширим запас на 4 блока.
+        if (x >= -39 - 4 && x <= -21 + 4 && z >= 54 - 4 && z <= 76 + 4) return true;
+        return false;
     }
 
     public static boolean isInsideCityPolygon(int px, int pz) {
