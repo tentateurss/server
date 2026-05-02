@@ -35,28 +35,54 @@ public final class ElikiumDecor {
     public long build() {
         long count = 0;
 
-        // Телеги у рыночной площади
-        count += buildCart(-22, 35, "X");
-        count += buildCart(-38, 55, "Z");
+        // Телеги — 5 шт, разбросаны по городу
+        count += buildCart(-22, 35, "X");                                                 // у рынка
+        count += buildCart(-38, 55, "Z");                                                 // у рынка
+        count += buildCart(WorldGenerator.SOUTH_GATE[0] - 4, WorldGenerator.SOUTH_GATE[1] - 8, "Z"); // у южных ворот
+        count += buildCart(WorldGenerator.NORTH_GATE[0] + 6, WorldGenerator.NORTH_GATE[1] + 8, "Z"); // у северных ворот
+        count += buildCart(70, 0, "X");                                                   // на восточной улице
 
-        // Телега у южных ворот
-        count += buildCart(WorldGenerator.SOUTH_GATE[0] - 4, WorldGenerator.SOUTH_GATE[1] - 8, "Z");
-
-        // Стопки дров вдоль главных улиц (несколько кучек)
+        // Стопки дров вдоль улиц
         for (int[] pos : new int[][]{
                 {0, 60}, {20, 0}, {-50, 10},
-                {60, 20}, {-20, 70}, {80, -20}}) {
+                {60, 20}, {-20, 70}, {80, -20},
+                {110, 50}, {115, 48}, {-15, -50}, {-65, -25}}) {
             count += buildLogStack(pos[0], pos[1]);
         }
 
         // Стопки сена
         for (int[] pos : new int[][]{
-                {-95, 10}, {-92, -5}, // у склада
-                {-30, -30}}) { // у таверны
+                {-95, 10}, {-92, -5},  // у склада
+                {-30, -30},            // у таверны
+                {0, 80}, {-5, 80}}) {  // юг
             for (int i = 0; i < 3; i++) {
                 painter.place(pos[0] + i, Y_BASE + 2, pos[1], Material.HAY_BLOCK);
                 count++;
             }
+        }
+
+        // Оружейная стойка снаружи кузницы (105,55)
+        count += buildWeaponRack(108, 60);
+
+        // Уличные скамейки (OAK_STAIRS) — несколько вдоль улиц
+        for (int[] s : new int[][]{
+                {-25, 50, 1},   // {x,z,facing} — у рынка
+                {-35, 50, 0},
+                {30, 25, 1},    // у соборной площади
+                {60, 25, 0},
+                {-60, 0, 0},    // у перекрёстка
+                {30, -30, 1}}) {
+            count += buildBench(s[0], s[1], s[2]);
+        }
+
+        // Кусты цветочных горшков — у соборной/рыночной площади
+        for (int[] p : new int[][]{
+                {38, 25}, {52, 25}, {38, 51}, {52, 51},     // соборная
+                {-38, 36}, {-22, 36}, {-38, 54}, {-22, 54}, // рыночная
+                {0, 110}, {-5, 110}}) {                      // юг (у спавна)
+            painter.place(p[0], Y_BASE + 1, p[1], Material.STONE_BRICKS);
+            painter.place(p[0], Y_BASE + 2, p[1], Material.FLOWER_POT);
+            count += 2;
         }
 
         // Водостоки IRON_BARS на перекрёстках
@@ -119,6 +145,53 @@ public final class ElikiumDecor {
             painter.place(cx + 1, Y_BASE + 2, cz + 4, Material.OAK_FENCE);
             painter.place(cx, Y_BASE + 3, cz, Material.CHEST);
             count += 9;
+        }
+        return count;
+    }
+
+    /**
+     * Оружейная стойка: DARK_OAK_FENCE столбы + IRON_BARS поперечина +
+     * 3 ITEM_FRAME с IRON_SWORD/IRON_AXE/IRON_HOE имитациями.
+     */
+    private long buildWeaponRack(int cx, int cz) {
+        long count = 0;
+        // 2 столба DARK_OAK_FENCE
+        for (int dy = 1; dy <= 3; dy++) {
+            painter.place(cx, Y_BASE + dy, cz, Material.DARK_OAK_FENCE);
+            painter.place(cx + 3, Y_BASE + dy, cz, Material.DARK_OAK_FENCE);
+            count += 2;
+        }
+        // Поперечина IRON_BARS на верхушке
+        for (int dx = 1; dx <= 2; dx++) {
+            painter.place(cx + dx, Y_BASE + 3, cz, Material.IRON_BARS);
+            count++;
+        }
+        // 2 ANVIL под стойкой
+        painter.place(cx + 1, Y_BASE + 1, cz - 1, Material.ANVIL);
+        painter.place(cx + 2, Y_BASE + 1, cz - 1, Material.GRINDSTONE);
+        count += 2;
+        return count;
+    }
+
+    /**
+     * Уличная скамейка из OAK_STAIRS: 3 ступеньки в ряд, направленные на
+     * указанную сторону. {@code dir}: 0=+X, 1=+Z, 2=-X, 3=-Z.
+     */
+    private long buildBench(int cx, int cz, int dir) {
+        long count = 0;
+        String facingStr;
+        int dx = 0, dz = 0;
+        switch (dir) {
+            case 0: facingStr = "east";  dz = 1; break;
+            case 1: facingStr = "south"; dx = 1; break;
+            case 2: facingStr = "west";  dz = 1; break;
+            default: facingStr = "north"; dx = 1; break;
+        }
+        BlockData stair = Material.OAK_STAIRS.createBlockData(
+                "[facing=" + facingStr + ",half=bottom]");
+        for (int i = 0; i < 3; i++) {
+            painter.placeData(cx + dx * i, Y_BASE + 1, cz + dz * i, stair);
+            count++;
         }
         return count;
     }

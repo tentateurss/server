@@ -61,23 +61,68 @@ public final class ElikiumStreets {
         count += buildBezierStreet(PLAZA_MARKET,        new int[]{0, 60},   PLAZA_CATHEDRAL,         2);
         count += buildBezierStreet(new int[]{52, 38},   new int[]{75, 0},   new int[]{105, -25},     2);
 
-        // Узкие переулки
+        // Узкие переулки (проходят насквозь)
         count += buildAlley(new int[]{-60, -20}, new int[]{-40, 10});
         count += buildAlley(new int[]{-90, 20},  new int[]{-50, 50});
         count += buildAlley(new int[]{90, 50},   new int[]{120, 20});
         count += buildAlley(new int[]{100, -30}, new int[]{80, -60});
         count += buildAlley(new int[]{-50, -50}, new int[]{-70, -30});
 
+        // Тупиковые переулки с мини-двориками в конце
+        count += buildDeadEndAlley(new int[]{-110, -60}, new int[]{-130, -75});
+        count += buildDeadEndAlley(new int[]{-115,  85}, new int[]{-135, 105});
+        count += buildDeadEndAlley(new int[]{ 110, -90}, new int[]{ 135, -105});
+        count += buildDeadEndAlley(new int[]{  60,  90}, new int[]{  35, 115});
+
         plugin.getLogger().info("ElikiumStreets: " + ctx.streetCells.size()
                 + " клеток мощения, ~" + count + " блок-операций.");
         return count;
     }
 
-    /** Квадратичная Безье от a через c к b с переменной шириной. */
+    /**
+     * Тупиковый переулок: узкий (halfWidth=1, ширина 3) +
+     * мини-дворик 3×3 в конце с BARREL+CHEST+колодцем.
+     */
+    private long buildDeadEndAlley(int[] from, int[] to) {
+        long count = paveSegment(from[0], from[1], to[0], to[1], 1, false);
+        // Мини-двор 3×3 в точке to
+        int ex = to[0], ez = to[1];
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                if (!WorldGenerator.isInsideCityPolygon(ex + dx, ez + dz)) continue;
+                if (ElikiumCity.insideCathedralZone(ex + dx, ez + dz)) continue;
+                painter.place(ex + dx, Y_BASE, ez + dz, Material.STONE_BRICKS);
+                ctx.streetCells.add(ElikiumCity.packCoord(ex + dx, ez + dz));
+                count++;
+            }
+        }
+        // Колодец 1×1 (в обвязке из STONE_BRICK_WALL)
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                if (Math.abs(dx) + Math.abs(dz) != 1) continue;
+                painter.place(ex + dx, Y_BASE + 1, ez + dz, Material.STONE_BRICK_WALL);
+            }
+        }
+        painter.place(ex, Y_BASE + 1, ez, Material.WATER);
+        // Бочки и ящик в углу
+        painter.place(ex - 1, Y_BASE + 2, ez - 1, Material.BARREL);
+        painter.place(ex + 1, Y_BASE + 2, ez + 1, Material.BARREL);
+        painter.place(ex + 1, Y_BASE + 2, ez - 1, Material.OAK_PLANKS);
+        // Настенный фонарь рядом
+        painter.place(ex, Y_BASE + 4, ez - 2, Material.SOUL_LANTERN);
+        return count + 7;
+    }
+
+    /**
+     * Квадратичная Безье от a через c к b с переменной шириной. Фонари
+     * ставятся по накопленной длине (каждые ~10 блоков) — равномернее.
+     */
     private long buildBezierStreet(int[] a, int[] c, int[] b, int baseHalfWidth) {
         long count = 0;
         int prevX = a[0], prevZ = a[1];
         int steps = 40;
+        double accDist = 0;
+        double nextLamp = 8 + rng.nextDouble() * 4;
         for (int i = 1; i <= steps; i++) {
             double t = i / (double) steps;
             double oneT = 1 - t;
@@ -89,9 +134,11 @@ public final class ElikiumStreets {
             double widthMod = 1.0 + 0.5 * Math.sin(t * Math.PI * 2);
             int halfWidth = Math.max(2, (int) Math.round(baseHalfWidth * widthMod));
             count += paveSegment(prevX, prevZ, nx, nz, halfWidth, true);
-            // Фонарь каждые ~14 шагов
-            if (i % 4 == 0 && rng.nextDouble() > 0.3) {
-                count += placeLamppost(nx + halfWidth + 1, nz);
+            accDist += Math.hypot(nx - prevX, nz - prevZ);
+            if (accDist >= nextLamp) {
+                count += placeLamppost(nx + halfWidth + 2, nz);
+                accDist = 0;
+                nextLamp = 8 + rng.nextDouble() * 6;
             }
             prevX = nx;
             prevZ = nz;
