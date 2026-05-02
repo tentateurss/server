@@ -169,19 +169,21 @@ public final class ElikiumStreets {
                     int cheb = Math.max(Math.abs(ox), Math.abs(oz));
                     Material mat;
                     if (main) {
-                        if (cheb == halfWidth) {
+                        if (cheb >= halfWidth - 1) {
+                            // Широкая тёмная бордюрная полоса (2 блока)
                             mat = Material.DEEPSLATE_BRICKS;
                         } else {
-                            // Узор POLISHED_DEEPSLATE + ANDESITE
-                            int bucket = Math.floorMod(x * 31 + z * 17, 9);
-                            if (bucket <= 2) mat = Material.ANDESITE;
-                            else if (bucket <= 5) mat = Material.POLISHED_DEEPSLATE;
-                            else mat = Material.COBBLED_DEEPSLATE;
+                            // Контрастное мощение STONE_BRICKS + COBBLESTONE
+                            int bucket = Math.floorMod(x * 31 + z * 17, 7);
+                            if (bucket <= 2) mat = Material.STONE_BRICKS;
+                            else if (bucket <= 4) mat = Material.COBBLESTONE;
+                            else mat = Material.ANDESITE;
                         }
                     } else {
+                        // Переулки: STONE_BRICKS + COBBLESTONE (контрастнее)
                         mat = ((x + z) & 1) == 0
-                                ? Material.COBBLESTONE
-                                : Material.ANDESITE;
+                                ? Material.STONE_BRICKS
+                                : Material.COBBLESTONE;
                     }
                     painter.place(x, Y_BASE, z, mat);
                     ctx.streetCells.add(ElikiumCity.packCoord(x, z));

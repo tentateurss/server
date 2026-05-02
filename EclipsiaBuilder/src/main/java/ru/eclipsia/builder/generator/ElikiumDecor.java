@@ -136,10 +136,82 @@ public final class ElikiumDecor {
         }
 
         // === КОВРЫ PURPLE_CARPET у важных зданий ===
-        painter.place(-30, Y_BASE + 1, -18, Material.PURPLE_CARPET); // таверна
-        painter.place(-30, Y_BASE + 1, 29, Material.PURPLE_CARPET);  // лавка
-        painter.place(105, Y_BASE + 1, -43, Material.PURPLE_CARPET); // гильдия
+        painter.place(-30, Y_BASE + 1, -18, Material.PURPLE_CARPET);
+        painter.place(-30, Y_BASE + 1, 29, Material.PURPLE_CARPET);
+        painter.place(105, Y_BASE + 1, -43, Material.PURPLE_CARPET);
         count += 3;
+
+        // === РЫНОЧНЫЕ ПАЛАТКИ — навесы с товарами ===
+        count += buildMarketStall(-25, 48, "X");
+        count += buildMarketStall(-15, 48, "X");
+        count += buildMarketStall(-35, 48, "X");
+        count += buildMarketStall(35, 30, "Z");
+        count += buildMarketStall(40, 30, "Z");
+        count += buildMarketStall(-5, 65, "X");
+        count += buildMarketStall(5, 65, "X");
+        count += buildMarketStall(-45, 0, "Z");
+        count += buildMarketStall(55, -5, "Z");
+        count += buildMarketStall(-20, -35, "X");
+        count += buildMarketStall(85, 35, "X");
+        count += buildMarketStall(-85, 60, "Z");
+
+        // === ДОПОЛНИТЕЛЬНЫЕ БОЧКИ (ещё 20) ===
+        for (int[] pos : new int[][]{
+                {-15, 20}, {15, -20}, {-60, -30}, {60, 30},
+                {-95, 50}, {95, -50}, {-35, 90}, {35, -90},
+                {-75, -15}, {75, 15}, {-5, -35}, {5, 35},
+                {-110, -10}, {110, 10}, {-55, 70}, {55, -70},
+                {-25, -55}, {25, 55}, {-85, 85}, {85, -85}}) {
+            if (WorldGenerator.isInsideCityPolygon(pos[0], pos[1])
+                    && !ElikiumCity.insideCathedralZone(pos[0], pos[1])) {
+                painter.place(pos[0], Y_BASE + 1, pos[1], Material.BARREL);
+                if (rng.nextBoolean()) {
+                    painter.place(pos[0], Y_BASE + 2, pos[1], Material.BARREL);
+                }
+                count += 2;
+            }
+        }
+
+        // === ДОПОЛНИТЕЛЬНЫЕ ЦВЕТОЧНЫЕ ГОРШКИ (ещё 16) ===
+        for (int[] p : new int[][]{
+                {-70, 20}, {70, -20}, {-30, 50}, {30, -50},
+                {-95, -30}, {95, 30}, {-45, 75}, {45, -75},
+                {-15, -65}, {15, 65}, {-110, 45}, {110, -45},
+                {-55, -85}, {55, 85}, {-80, 110}, {80, -110}}) {
+            if (WorldGenerator.isInsideCityPolygon(p[0], p[1])
+                    && !ElikiumCity.insideCathedralZone(p[0], p[1])) {
+                painter.place(p[0], Y_BASE + 1, p[1], Material.STONE_BRICKS);
+                painter.place(p[0], Y_BASE + 2, p[1], Material.FLOWER_POT);
+                count += 2;
+            }
+        }
+
+        // === ДОПОЛНИТЕЛЬНЫЕ ФОНАРИ (ещё 20) ===
+        for (int[] pos : new int[][]{
+                {-25, 10}, {25, -10}, {-55, 40}, {55, -40},
+                {-85, -20}, {85, 20}, {-15, 75}, {15, -75},
+                {-105, 60}, {105, -60}, {-65, -50}, {65, 50},
+                {-35, 95}, {35, -95}, {-75, 30}, {75, -30},
+                {-115, -40}, {115, 40}, {-45, 110}, {45, -110}}) {
+            if (WorldGenerator.isInsideCityPolygon(pos[0], pos[1])
+                    && !ElikiumCity.insideCathedralZone(pos[0], pos[1])) {
+                painter.place(pos[0], Y_BASE + 4, pos[1], Material.SOUL_LANTERN);
+                count++;
+            }
+        }
+
+        // === ЯЩИКИ (CHEST) и CRAFTING_TABLE по городу ===
+        for (int[] pos : new int[][]{
+                {-40, 15}, {40, -15}, {-70, 45}, {70, -45},
+                {-100, -25}, {100, 25}, {-20, 85}, {20, -85},
+                {-55, -55}, {55, 55}}) {
+            if (WorldGenerator.isInsideCityPolygon(pos[0], pos[1])
+                    && !ElikiumCity.insideCathedralZone(pos[0], pos[1])) {
+                painter.place(pos[0], Y_BASE + 1, pos[1],
+                        rng.nextBoolean() ? Material.CHEST : Material.CRAFTING_TABLE);
+                count++;
+            }
+        }
 
         // === УКАЗАТЕЛИ на перекрёстках (через POI) ===
         ctx.pois.add(new ElikiumCity.POI("§f→ Собор", "§7прямо",
@@ -149,6 +221,82 @@ public final class ElikiumDecor {
         ctx.pois.add(new ElikiumCity.POI("§f↑ Таверна", "§7направо",
                 -20, Y_BASE + 5, -10));
 
+        return count;
+    }
+
+    /**
+     * Рыночная палатка: 4 столба DARK_OAK_FENCE + навес из PURPLE_WOOL +
+     * прилавок SPRUCE_STAIRS + товары (BARREL, MELON, PUMPKIN, LANTERN).
+     */
+    private long buildMarketStall(int cx, int cz, String axis) {
+        long count = 0;
+        if (!WorldGenerator.isInsideCityPolygon(cx, cz)) return 0;
+        if (ElikiumCity.insideCathedralZone(cx, cz)) return 0;
+        int len = 3, width = 2;
+        // 4 столба
+        for (int dy = 1; dy <= 4; dy++) {
+            if ("X".equals(axis)) {
+                painter.place(cx - len, Y_BASE + dy, cz - width, Material.DARK_OAK_FENCE);
+                painter.place(cx + len, Y_BASE + dy, cz - width, Material.DARK_OAK_FENCE);
+                painter.place(cx - len, Y_BASE + dy, cz + width, Material.DARK_OAK_FENCE);
+                painter.place(cx + len, Y_BASE + dy, cz + width, Material.DARK_OAK_FENCE);
+            } else {
+                painter.place(cx - width, Y_BASE + dy, cz - len, Material.DARK_OAK_FENCE);
+                painter.place(cx + width, Y_BASE + dy, cz - len, Material.DARK_OAK_FENCE);
+                painter.place(cx - width, Y_BASE + dy, cz + len, Material.DARK_OAK_FENCE);
+                painter.place(cx + width, Y_BASE + dy, cz + len, Material.DARK_OAK_FENCE);
+            }
+            count += 4;
+        }
+        // Навес из шерсти
+        Material wool = rng.nextBoolean() ? Material.PURPLE_WOOL : Material.GRAY_WOOL;
+        if ("X".equals(axis)) {
+            for (int dx = -len; dx <= len; dx++) {
+                for (int dz = -width; dz <= width; dz++) {
+                    painter.place(cx + dx, Y_BASE + 5, cz + dz, wool);
+                    count++;
+                }
+            }
+        } else {
+            for (int dx = -width; dx <= width; dx++) {
+                for (int dz = -len; dz <= len; dz++) {
+                    painter.place(cx + dx, Y_BASE + 5, cz + dz, wool);
+                    count++;
+                }
+            }
+        }
+        // Прилавок (столешница из ступенек)
+        BlockData slab = Material.SPRUCE_SLAB.createBlockData("[type=top]");
+        if ("X".equals(axis)) {
+            for (int dx = -len + 1; dx <= len - 1; dx++) {
+                painter.placeData(cx + dx, Y_BASE + 1, cz, slab);
+                count++;
+            }
+        } else {
+            for (int dz = -len + 1; dz <= len - 1; dz++) {
+                painter.placeData(cx, Y_BASE + 1, cz + dz, slab);
+                count++;
+            }
+        }
+        // Товары на прилавке
+        Material[] goods = {Material.MELON, Material.PUMPKIN, Material.BARREL,
+                Material.LANTERN, Material.CAKE};
+        if ("X".equals(axis)) {
+            for (int dx = -1; dx <= 1; dx++) {
+                Material item = goods[rng.nextInt(goods.length)];
+                painter.place(cx + dx, Y_BASE + 2, cz, item);
+                count++;
+            }
+        } else {
+            for (int dz = -1; dz <= 1; dz++) {
+                Material item = goods[rng.nextInt(goods.length)];
+                painter.place(cx, Y_BASE + 2, cz + dz, item);
+                count++;
+            }
+        }
+        // Фонарь
+        painter.place(cx, Y_BASE + 4, cz, Material.SOUL_LANTERN);
+        count++;
         return count;
     }
 

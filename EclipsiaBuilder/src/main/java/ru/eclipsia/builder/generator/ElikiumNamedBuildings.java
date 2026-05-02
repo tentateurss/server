@@ -41,7 +41,7 @@ public final class ElikiumNamedBuildings {
         count += buildArtifactShop(-30, 25);
         count += buildGuildhall(105, -50);
         count += buildWarehouse(-100, 5);
-        count += buildAllGateBooths();
+        // Будки стражи убраны — ворота встроены в стену (ElikiumWall)
         return count;
     }
 
@@ -249,20 +249,26 @@ public final class ElikiumNamedBuildings {
                     Material.DARK_OAK_PLANKS, Material.DARK_OAK_LOG);
         }
 
-        // Витрины PURPLE_STAINED_GLASS на 1-м этаже (от пола до высоты 3)
-        for (int x = xMin + 1; x <= xMax - 1; x++) {
+        // Витрины — небольшие окна PURPLE_STAINED_GLASS, не сплошные
+        for (int x = xMin + 2; x <= xMax - 2; x += 3) {
             painter.place(x, Y_BASE + 3, zMax, Material.PURPLE_STAINED_GLASS_PANE);
             painter.place(x, Y_BASE + 4, zMax, Material.PURPLE_STAINED_GLASS_PANE);
-            painter.place(x, Y_BASE + 5, zMax, Material.PURPLE_STAINED_GLASS_PANE);
             painter.place(x, Y_BASE + 3, zMin, Material.PURPLE_STAINED_GLASS_PANE);
             painter.place(x, Y_BASE + 4, zMin, Material.PURPLE_STAINED_GLASS_PANE);
-            painter.place(x, Y_BASE + 5, zMin, Material.PURPLE_STAINED_GLASS_PANE);
         }
-        // За витринами — AMETHYST_BLOCK подсветка
-        painter.place(cx, Y_BASE + 3, zMax - 1, Material.AMETHYST_BLOCK);
-        painter.place(cx - 2, Y_BASE + 3, zMax - 1, Material.AMETHYST_BLOCK);
-        painter.place(cx + 2, Y_BASE + 3, zMax - 1, Material.AMETHYST_BLOCK);
-        count += 3;
+        // 2-й этаж — окна поменьше
+        for (int x = xMin + 3; x <= xMax - 3; x += 4) {
+            painter.place(x, Y_BASE + 7, zMax, Material.PURPLE_STAINED_GLASS_PANE);
+            painter.place(x, Y_BASE + 7, zMin, Material.PURPLE_STAINED_GLASS_PANE);
+        }
+        // Внутри — витрина с аметистами на полках SPRUCE_SLAB
+        painter.place(cx, Y_BASE + 2, cz, Material.SPRUCE_SLAB);
+        painter.place(cx, Y_BASE + 3, cz, Material.AMETHYST_BLOCK);
+        painter.place(cx - 2, Y_BASE + 2, cz, Material.SPRUCE_SLAB);
+        painter.place(cx - 2, Y_BASE + 3, cz, Material.AMETHYST_CLUSTER);
+        painter.place(cx + 2, Y_BASE + 2, cz, Material.SPRUCE_SLAB);
+        painter.place(cx + 2, Y_BASE + 3, cz, Material.AMETHYST_CLUSTER);
+        count += 6;
 
         // Крыша DARK_OAK_STAIRS
         count += buildGableRoof(xMin, zMin, xMax, zMax, Y_BASE + 10, false,

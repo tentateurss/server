@@ -49,35 +49,46 @@ public final class ElikiumHouses {
      * друг к другу. Перекрытия с POI/площадями отбраковываются.
      */
     private static final int[][] BLOCKS = {
-            // Запад — 6 зон
+            // Запад — 7 зон (плотно)
             {-145, -120, -50, -75},
             {-145, -72, -50, -20},
             {-145, -18, -50,  35},
             {-145,  38, -50,  80},
             {-145,  82, -50, 125},
             {-112, -15, -52,  30},
-            // Восток — 6 зон
+            {-120,  35, -55,  78},
+            // Восток — 7 зон (плотно)
             {  80, -120, 145, -70},
             {  80,  -68, 145, -15},
             {  80,  -13, 145,  35},
             {  80,   38, 145,  80},
             {  80,   82, 145, 125},
             {  70,   25, 140,  70},
-            // Север (выше собора) — 4 зоны
+            {  75, -65, 135,  -20},
+            // Север — 6 зон
             { -60, -145, -5, -85},
             {   0, -145,  70, -85},
             { -50, -83,  10, -50},
             {  15, -83,  85, -50},
-            // Юг (ниже собора и площадей) — 4 зоны
+            { -40, -120,  -5, -88},
+            {  72, -120, 140, -85},
+            // Юг — 6 зон
             { -55,   50,  10, 125},
             {  15,   50,  85, 125},
             { -40,   30,  88,  48},
             {  -5,   85,  65, 120},
-            // Центральная полоса — 4 зоны
+            { -55,   82, -10, 120},
+            {  85,   50, 135, 100},
+            // Центр — много зон вокруг собора (x=11..79, z=-61..31)
             { -50,  -48,  -8, -10},
             {  10,  -48,  75, -10},
-            { -50,   55,  -8,  82},
-            {  10,   55,  75,  82},
+            { -50,   32,  -8,  82},
+            {  10,   32,  75,  82},
+            // Заполнение центральных пустот
+            { -50,  -8,   8,  30},
+            { -45,  -58, -12, -48},
+            {  80,  -48, 130, -15},
+            { -48,   10, -12,  30},
     };
 
     /**
@@ -87,6 +98,8 @@ public final class ElikiumHouses {
     private static final int[][] COURTYARDS = {
             {-90, -25}, {-90, 95}, {55, -90}, {115, 0},
             {-70, 50}, {70, 60}, {-80, -70}, {100, -70},
+            {-110, 40}, {110, -40}, {-30, -75}, {30, 100},
+            {-65, -100}, {95, 90},
     };
 
     public long build() {
@@ -117,12 +130,12 @@ public final class ElikiumHouses {
      */
     private int fillBlock(int xMin, int zMin, int xMax, int zMax) {
         int placed = 0;
-        int step = 14;
+        int step = 11;
         boolean offsetRow = false;
-        for (int z = zMin + 7; z + 7 <= zMax; z += step) {
+        for (int z = zMin + 5; z + 5 <= zMax; z += step) {
             int rowOffset = offsetRow ? step / 2 : 0;
             offsetRow = !offsetRow;
-            for (int x = xMin + 7 + rowOffset; x + 7 <= xMax; x += step) {
+            for (int x = xMin + 5 + rowOffset; x + 5 <= xMax; x += step) {
                 int w = 12 + rng.nextInt(5);  // 12..16
                 int d = 14 + rng.nextInt(5); // 14..18
                 int cx = x + rng.nextInt(3) - 1;
@@ -393,8 +406,18 @@ public final class ElikiumHouses {
                 break;
         }
 
-        // 7. ДЫМОХОД (60% шанс)
-        if (hr.nextDouble() < 0.6) {
+        // 7. БАЛКОН на 2-м этаже (40% шанс, только если 3 этажа)
+        if (floors >= 3 && hr.nextDouble() < 0.4) {
+            buildBalcony(cx, cz, xMin, xMax, zMin, zMax, facing, hr);
+        }
+
+        // 8. ЦВЕТОЧНЫЕ ЯЩИКИ под окнами (50% шанс)
+        if (hr.nextDouble() < 0.5) {
+            addFlowerBoxes(xMin, xMax, zMin, zMax, Y_BASE + 3, hr);
+        }
+
+        // 9. ДЫМОХОД (85% шанс)
+        if (hr.nextDouble() < 0.85) {
             int chOffsetX = (hr.nextBoolean() ? -1 : +1) * (w / 2 - 2);
             int chX = cx + chOffsetX;
             int chZ = cz - 1;
@@ -405,18 +428,97 @@ public final class ElikiumHouses {
             painter.place(chX, chTop + 1, chZ, Material.CAMPFIRE);
         }
 
-        // 8. ВНУТРЕННЕЕ освещение (на каждом этаже)
+        // 10. ВНУТРЕННЕЕ освещение (на каждом этаже)
         for (int floor = 0; floor < floors; floor++) {
             painter.place(cx, Y_BASE + 2 + floor * floorH + floorH - 1, cz, Material.LANTERN);
         }
 
-        // 9. ЛОЗЫ на 30% домов
-        if (hr.nextDouble() < 0.3) {
-            int vineX = (hr.nextBoolean() ? xMin - 1 : xMax + 1);
-            int vineZ = cz + (hr.nextInt(d) - d / 2);
-            for (int dy = 0; dy < 6; dy++) {
-                painter.place(vineX, Y_BASE + 3 + dy, vineZ, Material.VINE);
+        // 11. ЛОЗЫ на 55% домов (2-3 полосы)
+        if (hr.nextDouble() < 0.55) {
+            int vineCount = 1 + hr.nextInt(3);
+            for (int v = 0; v < vineCount; v++) {
+                int vineX, vineZ;
+                if (hr.nextBoolean()) {
+                    vineX = (hr.nextBoolean() ? xMin - 1 : xMax + 1);
+                    vineZ = zMin + 1 + hr.nextInt(Math.max(1, d - 2));
+                } else {
+                    vineX = xMin + 1 + hr.nextInt(Math.max(1, w - 2));
+                    vineZ = (hr.nextBoolean() ? zMin - 1 : zMax + 1);
+                }
+                for (int dy = 0; dy < 4 + hr.nextInt(5); dy++) {
+                    painter.place(vineX, Y_BASE + 3 + dy, vineZ, Material.VINE);
+                }
             }
+        }
+    }
+
+    /** Балкон на 2-м этаже: выступ STAIRS + забор-перила. */
+    private void buildBalcony(int cx, int cz, int xMin, int xMax,
+                               int zMin, int zMax, int facing, Random hr) {
+        int balY = Y_BASE + 2 + 5; // 2-й этаж
+        int bLen = 3 + hr.nextInt(3); // 3-5 блоков
+        switch (facing) {
+            case 0: // N — балкон на юг
+                for (int dx = -bLen / 2; dx <= bLen / 2; dx++) {
+                    int bx = cx + dx;
+                    if (bx < xMin || bx > xMax) continue;
+                    painter.place(bx, balY, zMax + 1, Material.SPRUCE_PLANKS);
+                    painter.place(bx, balY + 1, zMax + 1, Material.DARK_OAK_FENCE);
+                    painter.place(bx, balY, zMax + 2, Material.SPRUCE_SLAB);
+                    painter.place(bx, balY + 1, zMax + 2, Material.DARK_OAK_FENCE);
+                }
+                break;
+            case 2: // S — балкон на север
+                for (int dx = -bLen / 2; dx <= bLen / 2; dx++) {
+                    int bx = cx + dx;
+                    if (bx < xMin || bx > xMax) continue;
+                    painter.place(bx, balY, zMin - 1, Material.SPRUCE_PLANKS);
+                    painter.place(bx, balY + 1, zMin - 1, Material.DARK_OAK_FENCE);
+                    painter.place(bx, balY, zMin - 2, Material.SPRUCE_SLAB);
+                    painter.place(bx, balY + 1, zMin - 2, Material.DARK_OAK_FENCE);
+                }
+                break;
+            case 1: // E — балкон на запад
+                for (int dz = -bLen / 2; dz <= bLen / 2; dz++) {
+                    int bz = cz + dz;
+                    if (bz < zMin || bz > zMax) continue;
+                    painter.place(xMin - 1, balY, bz, Material.SPRUCE_PLANKS);
+                    painter.place(xMin - 1, balY + 1, bz, Material.DARK_OAK_FENCE);
+                    painter.place(xMin - 2, balY, bz, Material.SPRUCE_SLAB);
+                    painter.place(xMin - 2, balY + 1, bz, Material.DARK_OAK_FENCE);
+                }
+                break;
+            default: // W — балкон на восток
+                for (int dz = -bLen / 2; dz <= bLen / 2; dz++) {
+                    int bz = cz + dz;
+                    if (bz < zMin || bz > zMax) continue;
+                    painter.place(xMax + 1, balY, bz, Material.SPRUCE_PLANKS);
+                    painter.place(xMax + 1, balY + 1, bz, Material.DARK_OAK_FENCE);
+                    painter.place(xMax + 2, balY, bz, Material.SPRUCE_SLAB);
+                    painter.place(xMax + 2, balY + 1, bz, Material.DARK_OAK_FENCE);
+                }
+                break;
+        }
+    }
+
+    /** Цветочные ящики: TRAPDOOR-подвес + FLOWER_POT под окнами. */
+    private void addFlowerBoxes(int xMin, int xMax, int zMin, int zMax,
+                                 int yBase, Random hr) {
+        Material[] flowers = {Material.FLOWER_POT, Material.POTTED_RED_TULIP,
+                Material.POTTED_CORNFLOWER, Material.POTTED_ALLIUM};
+        // Южная стена
+        for (int x = xMin + 2; x <= xMax - 2; x += 3) {
+            BlockData td = Material.SPRUCE_TRAPDOOR.createBlockData(
+                    "[facing=north,half=top,open=true]");
+            painter.placeData(x, yBase - 1, zMax + 1, td);
+            painter.place(x, yBase, zMax + 1, flowers[hr.nextInt(flowers.length)]);
+        }
+        // Северная стена
+        for (int x = xMin + 2; x <= xMax - 2; x += 3) {
+            BlockData td = Material.SPRUCE_TRAPDOOR.createBlockData(
+                    "[facing=south,half=top,open=true]");
+            painter.placeData(x, yBase - 1, zMin - 1, td);
+            painter.place(x, yBase, zMin - 1, flowers[hr.nextInt(flowers.length)]);
         }
     }
 
