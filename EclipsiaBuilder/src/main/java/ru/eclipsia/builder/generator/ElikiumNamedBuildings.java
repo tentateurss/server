@@ -7,25 +7,16 @@ import org.bukkit.plugin.Plugin;
 import java.util.Random;
 
 /**
- * 5 уникальных POI-зданий Эликия + 4 будки стражи у ворот.
+ * 5 уникальных POI-зданий Эликия v2 + 4 будки стражи у ворот.
  *
  * <p>Каждое здание имеет фиксированную координату (выбраны вне зоны
  * собора и площадей), отличается материалом и декором, регистрирует
- * свой footprint в {@link ElikiumCity#occupied} (чтобы дома не наезжали)
- * и POI-якорь в {@link ElikiumCity#pois} (для FloatingText вывески).
+ * свой footprint в {@link ElikiumCity#occupied} и POI-якорь в
+ * {@link ElikiumCity#pois} (для FloatingText).
  *
- * <ol>
- *   <li><b>Таверна «Золотая кружка»</b> (-30, -25), 16×14, фахверк
- *       OAK_PLANKS+DARK_OAK_LOG, балкон 2-го этажа, дымоход с CAMPFIRE;</li>
- *   <li><b>Кузница</b> (105, 50), 13×11, COBBLESTONE+POLISHED_BLACKSTONE,
- *       массивный дымоход с LAVA, ANVIL+FURNACE+CAULDRON+GRINDSTONE;</li>
- *   <li><b>Лавка артефактов</b> (-30, 30), 11×9, DARK_OAK+PURPLE_GLASS
- *       витрины, башенка 3×3 на крыше;</li>
- *   <li><b>Гильдия искателей</b> (105, -50), 18×14, STONE_BRICKS+DARK_OAK,
- *       угловая башня с PURPLE_BANNER, MOB_HEAD трофеи;</li>
- *   <li><b>Склад</b> (-105, 5), 13×11, POLISHED_BLACKSTONE+DARK_OAK,
- *       пандус, BARREL+CHEST+HAY_BALE снаружи.</li>
- * </ol>
+ * <p>v2: улучшены пропорции, добавлен декор снаружи (бочки, горшки,
+ * SOUL_TORCH на стенах), балконы, дымоходы с CAMPFIRE/LAVA, более
+ * крупные вывески.
  */
 public final class ElikiumNamedBuildings {
 
@@ -55,7 +46,7 @@ public final class ElikiumNamedBuildings {
     }
 
     // =========================================================================
-    // ТАВЕРНА — 16×14, фахверк, балкон, дымоход
+    // ТАВЕРНА "Золотая кружка" — 16×14, фахверк, балкон, дымоход
     // =========================================================================
 
     private long buildTavern(int cx, int cz) {
@@ -63,9 +54,9 @@ public final class ElikiumNamedBuildings {
         int w = 16, d = 14;
         int xMin = cx - w / 2, xMax = cx + w / 2;
         int zMin = cz - d / 2, zMax = cz + d / 2;
-        ctx.occupied.add(new ElikiumCity.Footprint(xMin, zMin, xMax, zMax));
+        ctx.occupied.add(new ElikiumCity.Footprint(xMin - 2, zMin, xMax + 2, zMax + 2));
 
-        // Фундамент — COBBLED_DEEPSLATE
+        // Фундамент
         for (int x = xMin; x <= xMax; x++) {
             for (int z = zMin; z <= zMax; z++) {
                 painter.place(x, Y_BASE + 1, z, Material.COBBLED_DEEPSLATE);
@@ -73,25 +64,35 @@ public final class ElikiumNamedBuildings {
             }
         }
 
-        // 1-й этаж (5 блоков высотой) — фахверк OAK_PLANKS со столбами DARK_OAK_LOG
+        // 1-й этаж (5 блоков) — OAK_PLANKS + DARK_OAK_LOG фахверк
         count += buildFloor(xMin, zMin, xMax, zMax, Y_BASE + 2, 5,
                 Material.OAK_PLANKS, Material.DARK_OAK_LOG);
-        // Большие окна YELLOW_STAINED_GLASS на 1-м этаже
+        // Большие окна YELLOW_STAINED_GLASS
         placeWindowRow(xMin, xMax, zMax, Y_BASE + 4, Material.YELLOW_STAINED_GLASS, 2);
         placeWindowRow(xMin, xMax, zMin, Y_BASE + 4, Material.YELLOW_STAINED_GLASS, 2);
 
         // 2-й этаж — фахверк
+        // Перекрытие
+        for (int x = xMin; x <= xMax; x++) {
+            for (int z = zMin; z <= zMax; z++) {
+                painter.place(x, Y_BASE + 7, z, Material.OAK_PLANKS);
+            }
+        }
         count += buildFloor(xMin, zMin, xMax, zMax, Y_BASE + 7, 4,
                 Material.OAK_PLANKS, Material.DARK_OAK_LOG);
-        // Меньшие окна 2-го этажа
         placeWindowRow(xMin, xMax, zMax, Y_BASE + 9, Material.GLASS_PANE, 3);
         placeWindowRow(xMin, xMax, zMin, Y_BASE + 9, Material.GLASS_PANE, 3);
 
-        // 3-й этаж (мансарда) — короткий
+        // 3-й этаж (мансарда) — уже
+        for (int x = xMin + 2; x <= xMax - 2; x++) {
+            for (int z = zMin + 2; z <= zMax - 2; z++) {
+                painter.place(x, Y_BASE + 11, z, Material.OAK_PLANKS);
+            }
+        }
         count += buildFloor(xMin + 2, zMin + 2, xMax - 2, zMax - 2, Y_BASE + 11, 3,
                 Material.DARK_OAK_PLANKS, Material.DARK_OAK_LOG);
 
-        // Крыша двускатная DARK_OAK_STAIRS вдоль X
+        // Крыша двускатная DARK_OAK_STAIRS
         count += buildGableRoof(xMin, zMin, xMax, zMax, Y_BASE + 11, true,
                 Material.DARK_OAK_STAIRS, Material.DARK_OAK_PLANKS);
 
@@ -101,26 +102,35 @@ public final class ElikiumNamedBuildings {
             painter.place(x, Y_BASE + 8, zMax + 1, Material.OAK_FENCE);
             count += 2;
         }
+        // Перила балкона с TRAPDOOR
         painter.place(xMin + 4, Y_BASE + 8, zMax + 1, Material.OAK_FENCE);
         painter.place(xMax - 4, Y_BASE + 8, zMax + 1, Material.OAK_FENCE);
 
-        // Дымоход на крыше
+        // Дымоход с CAMPFIRE (высота 6 над крышей)
         int chX = xMin + 3, chZ = zMin + 2;
-        for (int dy = 0; dy <= 6; dy++) {
-            painter.place(chX, Y_BASE + 11 + dy, chZ, Material.COBBLESTONE);
+        for (int dy = 0; dy <= 8; dy++) {
+            painter.place(chX, Y_BASE + 11 + dy, chZ, Material.COBBLESTONE_WALL);
         }
-        painter.place(chX, Y_BASE + 18, chZ, Material.CAMPFIRE);
-        count += 8;
+        painter.place(chX, Y_BASE + 20, chZ, Material.CAMPFIRE);
+        count += 10;
 
-        // Дверь — главный вход на южной стене
+        // Дверь
         carveDoor(cx, zMax, "north");
         // Фонарь над входом
         painter.place(cx, Y_BASE + 5, zMax, Material.SOUL_LANTERN);
-        // Внутреннее освещение
+        // Освещение внутри
         painter.place(cx, Y_BASE + 5, cz, Material.LANTERN);
-        count += 2;
+        painter.place(cx, Y_BASE + 9, cz, Material.LANTERN);
+        count += 3;
 
-        // POI-якорь (вывеска)
+        // Декор перед входом: 2 бочки + лавка
+        painter.place(cx - 2, Y_BASE + 1, zMax + 1, Material.BARREL);
+        painter.place(cx - 3, Y_BASE + 1, zMax + 1, Material.BARREL);
+        BlockData bench = Material.OAK_STAIRS.createBlockData("[facing=north,half=bottom]");
+        painter.placeData(cx + 2, Y_BASE + 1, zMax + 1, bench);
+        painter.placeData(cx + 3, Y_BASE + 1, zMax + 1, bench);
+        count += 4;
+
         ctx.pois.add(new ElikiumCity.POI("§6Золотая Кружка",
                 "таверна и постоялый двор",
                 cx, Y_BASE + 7, zMax + 2));
@@ -128,15 +138,15 @@ public final class ElikiumNamedBuildings {
     }
 
     // =========================================================================
-    // КУЗНИЦА — 13×11, COBBLESTONE+BLACKSTONE, дымоход с LAVA
+    // КУЗНИЦА — 12×10, COBBLESTONE+BLACKSTONE, дымоход с LAVA
     // =========================================================================
 
     private long buildSmithy(int cx, int cz) {
         long count = 0;
-        int w = 13, d = 11;
+        int w = 12, d = 10;
         int xMin = cx - w / 2, xMax = cx + w / 2;
         int zMin = cz - d / 2, zMax = cz + d / 2;
-        ctx.occupied.add(new ElikiumCity.Footprint(xMin, zMin, xMax, zMax));
+        ctx.occupied.add(new ElikiumCity.Footprint(xMin - 2, zMin, xMax + 2, zMax + 3));
 
         // Фундамент
         for (int x = xMin; x <= xMax; x++) {
@@ -146,15 +156,15 @@ public final class ElikiumNamedBuildings {
             }
         }
 
-        // Стены: COBBLESTONE с POLISHED_BLACKSTONE столбами по углам
+        // Стены: COBBLESTONE + POLISHED_BLACKSTONE, 8 блоков высотой
         count += buildFloor(xMin, zMin, xMax, zMax, Y_BASE + 2, 8,
                 Material.COBBLESTONE, Material.POLISHED_BLACKSTONE);
 
-        // Крыша smithy — низкая массивная blackstone двускатная вместо коробки
+        // Крыша BLACKSTONE_STAIRS
         count += buildGableRoof(xMin - 1, zMin, xMax + 1, zMax, Y_BASE + 9, false,
                 Material.POLISHED_BLACKSTONE_BRICK_STAIRS, Material.POLISHED_BLACKSTONE_BRICKS);
 
-        // Большой дымоход на крыше с LAVA внутри
+        // Массивный дымоход с LAVA внутри
         int chX = xMin + 2, chZ = zMin + 2;
         for (int dy = 0; dy <= 8; dy++) {
             painter.place(chX, Y_BASE + 10 + dy, chZ, Material.COBBLESTONE_WALL);
@@ -164,30 +174,41 @@ public final class ElikiumNamedBuildings {
         }
         count += 36;
 
-        // Большие открытые ворота на южной стене (3×3)
+        // Большие открытые ворота 3 блока шириной (OAK_FENCE_GATE)
         for (int dx = -1; dx <= 1; dx++) {
             for (int dy = 0; dy <= 2; dy++) {
                 painter.place(cx + dx, Y_BASE + 2 + dy, zMax, Material.AIR);
             }
         }
-        // Над воротами — аркой DARK_OAK_LOG
-        painter.place(cx - 2, Y_BASE + 5, zMax, Material.DARK_OAK_LOG);
-        painter.place(cx + 2, Y_BASE + 5, zMax, Material.DARK_OAK_LOG);
-        for (int dx = -1; dx <= 1; dx++) {
+        // Арка над воротами DARK_OAK_LOG
+        for (int dx = -2; dx <= 2; dx++) {
             painter.place(cx + dx, Y_BASE + 5, zMax, Material.DARK_OAK_LOG);
         }
         count += 5;
 
-        // Внутри: ANVIL, FURNACE, CAULDRON с LAVA
-        painter.place(cx - 3, Y_BASE + 2, cz, Material.ANVIL);
-        painter.place(cx + 3, Y_BASE + 2, cz, Material.FURNACE);
-        painter.place(cx - 3, Y_BASE + 2, cz - 2, Material.LAVA_CAULDRON);
-        // Снаружи: GRINDSTONE + дрова
-        painter.place(xMax - 1, Y_BASE + 2, zMax + 2, Material.GRINDSTONE);
+        // ANVIL, FURNACE, GRINDSTONE снаружи
+        painter.place(cx - 3, Y_BASE + 2, zMax + 1, Material.ANVIL);
+        painter.place(cx + 3, Y_BASE + 2, zMax + 1, Material.FURNACE);
+        painter.place(cx - 3, Y_BASE + 2, zMax + 2, Material.GRINDSTONE);
+        // Дрова (OAK_LOG) у стены
         for (int i = 0; i < 4; i++) {
             painter.place(xMin - 1, Y_BASE + 2 + i, zMin + 2, Material.OAK_LOG);
         }
-        count += 7;
+        for (int i = 0; i < 3; i++) {
+            painter.place(xMin - 1, Y_BASE + 2 + i, zMin + 3, Material.OAK_LOG);
+        }
+        // Внутри: LAVA_CAULDRON + FURNACE
+        painter.place(cx - 3, Y_BASE + 2, cz, Material.ANVIL);
+        painter.place(cx + 3, Y_BASE + 2, cz, Material.FURNACE);
+        painter.place(cx - 3, Y_BASE + 2, cz - 2, Material.LAVA_CAULDRON);
+        count += 13;
+
+        // SOUL_TORCH на стенах
+        painter.place(xMin, Y_BASE + 5, cz, Material.SOUL_TORCH);
+        painter.place(xMax, Y_BASE + 5, cz, Material.SOUL_TORCH);
+        // Освещение
+        painter.place(cx, Y_BASE + 8, cz, Material.LANTERN);
+        count += 3;
 
         ctx.pois.add(new ElikiumCity.POI("§7Кузница Эликия",
                 "доспехи, оружие, ремонт",
@@ -196,15 +217,15 @@ public final class ElikiumNamedBuildings {
     }
 
     // =========================================================================
-    // ЛАВКА АРТЕФАКТОВ — 11×9, витрины PURPLE_GLASS, башенка
+    // ЛАВКА АРТЕФАКТОВ — 10×8, витрины PURPLE_GLASS, башенка
     // =========================================================================
 
     private long buildArtifactShop(int cx, int cz) {
         long count = 0;
-        int w = 11, d = 9;
+        int w = 10, d = 8;
         int xMin = cx - w / 2, xMax = cx + w / 2;
         int zMin = cz - d / 2, zMax = cz + d / 2;
-        ctx.occupied.add(new ElikiumCity.Footprint(xMin, zMin, xMax, zMax));
+        ctx.occupied.add(new ElikiumCity.Footprint(xMin - 1, zMin, xMax + 1, zMax + 2));
 
         // Фундамент
         for (int x = xMin; x <= xMax; x++) {
@@ -214,30 +235,40 @@ public final class ElikiumNamedBuildings {
             }
         }
 
-        // 1-й этаж — DARK_OAK_PLANKS с витринами PURPLE_STAINED_GLASS
+        // 2 этажа DARK_OAK_PLANKS
         for (int floor = 0; floor < 2; floor++) {
             int yBase = Y_BASE + 2 + floor * 4;
+            if (floor > 0) {
+                for (int x = xMin; x <= xMax; x++) {
+                    for (int z = zMin; z <= zMax; z++) {
+                        painter.place(x, yBase - 1, z, Material.DARK_OAK_PLANKS);
+                    }
+                }
+            }
             count += buildFloor(xMin, zMin, xMax, zMax, yBase, 4,
                     Material.DARK_OAK_PLANKS, Material.DARK_OAK_LOG);
         }
-        // Витрины PURPLE_STAINED_GLASS на 1-м этаже (большие)
+
+        // Витрины PURPLE_STAINED_GLASS на 1-м этаже (от пола до высоты 3)
         for (int x = xMin + 1; x <= xMax - 1; x++) {
-            painter.place(x, Y_BASE + 3, zMax, Material.PURPLE_STAINED_GLASS);
-            painter.place(x, Y_BASE + 4, zMax, Material.PURPLE_STAINED_GLASS);
-            painter.place(x, Y_BASE + 3, zMin, Material.PURPLE_STAINED_GLASS);
-            painter.place(x, Y_BASE + 4, zMin, Material.PURPLE_STAINED_GLASS);
+            painter.place(x, Y_BASE + 3, zMax, Material.PURPLE_STAINED_GLASS_PANE);
+            painter.place(x, Y_BASE + 4, zMax, Material.PURPLE_STAINED_GLASS_PANE);
+            painter.place(x, Y_BASE + 5, zMax, Material.PURPLE_STAINED_GLASS_PANE);
+            painter.place(x, Y_BASE + 3, zMin, Material.PURPLE_STAINED_GLASS_PANE);
+            painter.place(x, Y_BASE + 4, zMin, Material.PURPLE_STAINED_GLASS_PANE);
+            painter.place(x, Y_BASE + 5, zMin, Material.PURPLE_STAINED_GLASS_PANE);
         }
-        // Внутри витрин — AMETHYST_BLOCK подсветка
+        // За витринами — AMETHYST_BLOCK подсветка
         painter.place(cx, Y_BASE + 3, zMax - 1, Material.AMETHYST_BLOCK);
         painter.place(cx - 2, Y_BASE + 3, zMax - 1, Material.AMETHYST_BLOCK);
         painter.place(cx + 2, Y_BASE + 3, zMax - 1, Material.AMETHYST_BLOCK);
         count += 3;
 
-        // Крыша
+        // Крыша DARK_OAK_STAIRS
         count += buildGableRoof(xMin, zMin, xMax, zMax, Y_BASE + 10, false,
                 Material.DARK_OAK_STAIRS, Material.DARK_OAK_PLANKS);
 
-        // Башенка на крыше 3×3, высота 4
+        // Башенка 3×3 на крыше, высота 4+
         int tx = cx, tz = cz;
         for (int dy = 0; dy <= 5; dy++) {
             for (int dx = -1; dx <= 1; dx++) {
@@ -253,16 +284,22 @@ public final class ElikiumNamedBuildings {
         // Окно башенки
         painter.place(tx, Y_BASE + 16, tz - 1, Material.PURPLE_STAINED_GLASS);
         painter.place(tx, Y_BASE + 16, tz + 1, Material.PURPLE_STAINED_GLASS);
-        // Шпиль башенки END_ROD
+        // Шпиль башенки
         painter.place(tx, Y_BASE + 20, tz, Material.AMETHYST_BLOCK);
         painter.place(tx, Y_BASE + 21, tz, Material.END_ROD);
 
         // Дверь
         carveDoor(cx, zMax, "north");
         painter.place(cx, Y_BASE + 5, zMax, Material.PURPLE_CARPET);
-        // Внутреннее освещение
+        // Освещение
         painter.place(cx, Y_BASE + 4, cz, Material.LANTERN);
-        count += 5;
+        painter.place(cx, Y_BASE + 8, cz, Material.LANTERN);
+        count += 6;
+
+        // Бочка и горшок у входа
+        painter.place(cx + 2, Y_BASE + 1, zMax + 1, Material.BARREL);
+        painter.place(cx - 2, Y_BASE + 1, zMax + 1, Material.FLOWER_POT);
+        count += 2;
 
         ctx.pois.add(new ElikiumCity.POI("§dАртефакты Эликия",
                 "редкости и реликвии",
@@ -279,7 +316,7 @@ public final class ElikiumNamedBuildings {
         int w = 18, d = 14;
         int xMin = cx - w / 2, xMax = cx + w / 2;
         int zMin = cz - d / 2, zMax = cz + d / 2;
-        ctx.occupied.add(new ElikiumCity.Footprint(xMin - 4, zMin, xMax, zMax));
+        ctx.occupied.add(new ElikiumCity.Footprint(xMin - 4, zMin, xMax, zMax + 2));
 
         // Фундамент
         for (int x = xMin; x <= xMax; x++) {
@@ -289,13 +326,21 @@ public final class ElikiumNamedBuildings {
             }
         }
 
-        // 3 этажа STONE_BRICKS с DARK_OAK столбами
+        // 3 этажа STONE_BRICKS + DARK_OAK столбы
         for (int floor = 0; floor < 3; floor++) {
             int yBase = Y_BASE + 2 + floor * 4;
+            if (floor > 0) {
+                for (int x = xMin; x <= xMax; x++) {
+                    for (int z = zMin; z <= zMax; z++) {
+                        painter.place(x, yBase - 1, z, Material.OAK_PLANKS);
+                    }
+                }
+            }
             count += buildFloor(xMin, zMin, xMax, zMax, yBase, 4,
                     Material.STONE_BRICKS, Material.DARK_OAK_LOG);
         }
-        // Окна с IRON_BARS решёткой
+
+        // Окна с IRON_BARS решёткой на всех этажах
         for (int x = xMin + 2; x <= xMax - 2; x += 4) {
             painter.place(x, Y_BASE + 4, zMax, Material.IRON_BARS);
             painter.place(x, Y_BASE + 5, zMax, Material.IRON_BARS);
@@ -303,15 +348,17 @@ public final class ElikiumNamedBuildings {
             painter.place(x, Y_BASE + 5, zMin, Material.IRON_BARS);
             painter.place(x, Y_BASE + 8, zMax, Material.IRON_BARS);
             painter.place(x, Y_BASE + 8, zMin, Material.IRON_BARS);
+            painter.place(x, Y_BASE + 12, zMax, Material.IRON_BARS);
+            painter.place(x, Y_BASE + 12, zMin, Material.IRON_BARS);
         }
 
         // Многоскатная крыша
         count += buildGableRoof(xMin, zMin, xMax, zMax, Y_BASE + 14, true,
                 Material.DARK_OAK_STAIRS, Material.STONE_BRICKS);
 
-        // Угловая башня 5×5 на западном углу
+        // Угловая башня 5×5 на западном углу, высота 8 над крышей
         int btx = xMin - 2, btz = zMin + 2;
-        for (int dy = 0; dy < 14; dy++) {
+        for (int dy = 0; dy < 16; dy++) {
             for (int dx = -2; dx <= 2; dx++) {
                 for (int dz = -2; dz <= 2; dz++) {
                     boolean perim = (Math.abs(dx) == 2 || Math.abs(dz) == 2);
@@ -324,31 +371,42 @@ public final class ElikiumNamedBuildings {
         }
         // Зубцы башни
         for (int dx = -2; dx <= 2; dx += 2) {
-            painter.place(btx + dx, Y_BASE + 16, btz - 2, Material.STONE_BRICK_WALL);
-            painter.place(btx + dx, Y_BASE + 16, btz + 2, Material.STONE_BRICK_WALL);
+            painter.place(btx + dx, Y_BASE + 18, btz - 2, Material.STONE_BRICK_WALL);
+            painter.place(btx + dx, Y_BASE + 18, btz + 2, Material.STONE_BRICK_WALL);
         }
         for (int dz = -2; dz <= 2; dz += 2) {
-            painter.place(btx - 2, Y_BASE + 16, btz + dz, Material.STONE_BRICK_WALL);
-            painter.place(btx + 2, Y_BASE + 16, btz + dz, Material.STONE_BRICK_WALL);
+            painter.place(btx - 2, Y_BASE + 18, btz + dz, Material.STONE_BRICK_WALL);
+            painter.place(btx + 2, Y_BASE + 18, btz + dz, Material.STONE_BRICK_WALL);
         }
         // Флаг PURPLE_BANNER на верху башни
-        painter.place(btx, Y_BASE + 17, btz, Material.PURPLE_BANNER);
+        painter.place(btx, Y_BASE + 19, btz, Material.PURPLE_BANNER);
+        // Окна башни
+        painter.place(btx, Y_BASE + 8, btz - 2, Material.IRON_BARS);
+        painter.place(btx, Y_BASE + 12, btz - 2, Material.IRON_BARS);
 
-        // Двойная дверь на южной стене
+        // Двойная дверь на южной стене + арка над входом
         carveDoor(cx - 1, zMax, "north");
         carveDoor(cx, zMax, "north");
-        // Над дверью — арка
         for (int dx = -2; dx <= 1; dx++) {
             painter.place(cx + dx, Y_BASE + 5, zMax, Material.POLISHED_BLACKSTONE);
         }
         count += 4;
 
-        // Трофеи на стенах: SKELETON_SKULL и WITHER_SKELETON_SKULL на DARK_OAK_FENCE
+        // Трофеи на стенах
         painter.place(xMin + 3, Y_BASE + 6, zMax + 1, Material.SKELETON_SKULL);
         painter.place(xMax - 3, Y_BASE + 6, zMax + 1, Material.WITHER_SKELETON_SKULL);
-        // Внутреннее освещение
+        // Освещение
         painter.place(cx, Y_BASE + 5, cz, Material.LANTERN);
         painter.place(cx, Y_BASE + 9, cz, Material.LANTERN);
+        painter.place(cx, Y_BASE + 13, cz, Material.LANTERN);
+
+        // Декор снаружи: бочки, горшки
+        painter.place(cx + 3, Y_BASE + 1, zMax + 1, Material.BARREL);
+        painter.place(cx - 3, Y_BASE + 1, zMax + 1, Material.FLOWER_POT);
+        // SOUL_TORCH на стенах
+        painter.place(xMin, Y_BASE + 5, cz, Material.SOUL_TORCH);
+        painter.place(xMax, Y_BASE + 5, cz, Material.SOUL_TORCH);
+        count += 6;
 
         ctx.pois.add(new ElikiumCity.POI("§6Гильдия Искателей",
                 "квесты и снаряжение",
@@ -357,15 +415,15 @@ public final class ElikiumNamedBuildings {
     }
 
     // =========================================================================
-    // СКЛАД — 13×11, BLACKSTONE+DARK_OAK, пандус, внешний инвентарь
+    // СКЛАД — 12×10, BLACKSTONE+DARK_OAK, пандус, внешний инвентарь
     // =========================================================================
 
     private long buildWarehouse(int cx, int cz) {
         long count = 0;
-        int w = 13, d = 11;
+        int w = 12, d = 10;
         int xMin = cx - w / 2, xMax = cx + w / 2;
         int zMin = cz - d / 2, zMax = cz + d / 2;
-        ctx.occupied.add(new ElikiumCity.Footprint(xMin, zMin - 3, xMax + 4, zMax));
+        ctx.occupied.add(new ElikiumCity.Footprint(xMin - 2, zMin - 3, xMax + 4, zMax));
 
         // Фундамент
         for (int x = xMin; x <= xMax; x++) {
@@ -375,10 +433,10 @@ public final class ElikiumNamedBuildings {
             }
         }
 
-        // Высокие стены (7) BLACKSTONE с DARK_OAK столбами
+        // Высокие стены (7) POLISHED_BLACKSTONE + DARK_OAK столбы
         count += buildFloor(xMin, zMin, xMax, zMax, Y_BASE + 2, 7,
                 Material.POLISHED_BLACKSTONE, Material.DARK_OAK_LOG);
-        // Маленькие окна под крышей
+        // Маленькие окна под крышей (IRON_BARS)
         for (int x = xMin + 2; x <= xMax - 2; x += 3) {
             painter.place(x, Y_BASE + 7, zMax, Material.IRON_BARS);
             painter.place(x, Y_BASE + 7, zMin, Material.IRON_BARS);
@@ -399,7 +457,7 @@ public final class ElikiumNamedBuildings {
                 "[half=upper,facing=west,hinge=left]");
         painter.placeData(xMax, Y_BASE + 2, cz, door);
         painter.placeData(xMax, Y_BASE + 3, cz, doorTop);
-        // Пандус
+        // Пандус DARK_OAK_SLAB у входа
         for (int dz = -2; dz <= 1; dz++) {
             painter.place(xMax + 1, Y_BASE + 1, cz + dz, Material.DARK_OAK_SLAB);
         }
@@ -416,8 +474,12 @@ public final class ElikiumNamedBuildings {
         }
         count += 13;
 
-        // Внутреннее освещение
+        // Освещение
         painter.place(cx, Y_BASE + 8, cz, Material.LANTERN);
+        // SOUL_TORCH на стенах
+        painter.place(xMin, Y_BASE + 5, cz, Material.SOUL_TORCH);
+        painter.place(xMax, Y_BASE + 5, cz - 3, Material.SOUL_TORCH);
+        count += 3;
 
         ctx.pois.add(new ElikiumCity.POI("§8Склад",
                 "товары и припасы",
@@ -426,12 +488,11 @@ public final class ElikiumNamedBuildings {
     }
 
     // =========================================================================
-    // БУДКИ СТРАЖИ У ВОРОТ
+    // БУДКИ СТРАЖИ У ВОРОТ — 3×3 OAK_PLANKS с крышей
     // =========================================================================
 
     private long buildAllGateBooths() {
         long count = 0;
-        // South gate
         count += buildGateBooth(WorldGenerator.SOUTH_GATE[0] + 6,
                 WorldGenerator.SOUTH_GATE[1] - 6, "Южные ворота");
         count += buildGateBooth(WorldGenerator.NORTH_GATE[0] - 6,
@@ -447,7 +508,7 @@ public final class ElikiumNamedBuildings {
         long count = 0;
         int xMin = cx - 1, xMax = cx + 1;
         int zMin = cz - 1, zMax = cz + 1;
-        ctx.occupied.add(new ElikiumCity.Footprint(xMin, zMin, xMax, zMax));
+        ctx.occupied.add(new ElikiumCity.Footprint(xMin - 1, zMin - 1, xMax + 1, zMax + 1));
 
         // Стены OAK_PLANKS высотой 4
         for (int x = xMin; x <= xMax; x++) {
@@ -469,18 +530,18 @@ public final class ElikiumNamedBuildings {
                 }
             }
         }
-        // Крыша будки — маленькая двускатная, чтобы не выглядела коробкой
+        // Крыша будки — двускатная
         count += buildGableRoof(xMin, zMin, xMax, zMax, Y_BASE + 5,
                 false, Material.DARK_OAK_STAIRS, Material.DARK_OAK_PLANKS);
-        // Дверь по центру
+        // Дверь
         painter.place(cx, Y_BASE + 1, zMax, Material.AIR);
         painter.place(cx, Y_BASE + 2, zMax, Material.AIR);
-        BlockData door = Material.DARK_OAK_DOOR.createBlockData(
+        BlockData boothDoor = Material.DARK_OAK_DOOR.createBlockData(
                 "[half=lower,facing=north,hinge=left]");
-        BlockData doorTop = Material.DARK_OAK_DOOR.createBlockData(
+        BlockData boothDoorTop = Material.DARK_OAK_DOOR.createBlockData(
                 "[half=upper,facing=north,hinge=left]");
-        painter.placeData(cx, Y_BASE + 1, zMax, door);
-        painter.placeData(cx, Y_BASE + 2, zMax, doorTop);
+        painter.placeData(cx, Y_BASE + 1, zMax, boothDoor);
+        painter.placeData(cx, Y_BASE + 2, zMax, boothDoorTop);
         // Окошко
         painter.place(cx, Y_BASE + 3, zMax - 2, Material.GLASS_PANE);
         // SOUL_TORCH на крыше
@@ -499,7 +560,6 @@ public final class ElikiumNamedBuildings {
     // ОБЩИЕ УТИЛИТЫ
     // =========================================================================
 
-    /** Этаж: периметр заполняется wallMat, углы и каждые 4 блока — pillarMat. */
     private long buildFloor(int xMin, int zMin, int xMax, int zMax,
                              int yBase, int height,
                              Material wallMat, Material pillarMat) {
@@ -516,7 +576,7 @@ public final class ElikiumNamedBuildings {
                 }
             }
         }
-        // Промежуточные столбы каждые 4 блока (только на длинных стенах)
+        // Промежуточные столбы каждые 4 блока
         for (int x = xMin + 4; x <= xMax - 4; x += 4) {
             for (int dy = 0; dy < height; dy++) {
                 painter.place(x, yBase + dy, zMin, pillarMat);
@@ -527,7 +587,6 @@ public final class ElikiumNamedBuildings {
         return count;
     }
 
-    /** Двускатная крыша вдоль оси Z (если roofAlongZ) или X. */
     private long buildGableRoof(int xMin, int zMin, int xMax, int zMax,
                                  int yBase, boolean roofAlongZ,
                                  Material stairMat, Material fillMat) {

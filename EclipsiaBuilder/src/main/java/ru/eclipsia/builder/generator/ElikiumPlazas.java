@@ -7,16 +7,15 @@ import org.bukkit.plugin.Plugin;
 import java.util.Random;
 
 /**
- * Площади Эликия — соборная (15×21 перед собором) и рыночная (12×15
- * на западе). Обе помечают зону как occupied, чтобы дома не наезжали.
+ * Площади Эликия v2 — увеличенная соборная (17×23 перед собором) и
+ * рыночная (15×19 на западе). Обе помечают зону как occupied.
  *
  * <p><b>Соборная площадь</b> (центр (45, 38)):
  * <ul>
  *   <li>Концентрические кольца мощения: GILDED_BLACKSTONE центр →
- *       POLISHED_BLACKSTONE_BRICKS кольцо → POLISHED_BLACKSTONE кольцо
- *       → DEEPSLATE_TILES обод;</li>
- *   <li>Золотой крест 7×7 из GOLD_BLOCK по оси Z;</li>
- *   <li>4 высоких фонарных столба (OAK_FENCE+SOUL_LANTERN);</li>
+ *       POLISHED_BLACKSTONE_BRICKS → POLISHED_BLACKSTONE → DEEPSLATE_TILES;</li>
+ *   <li>Золотой крест 7×7 из GOLD_BLOCK;</li>
+ *   <li>4 высоких фонарных столба (OAK_FENCE 5 + SOUL_LANTERN);</li>
  *   <li>2 клумбы 3×2 с ALLIUM/LILAC;</li>
  *   <li>4 скамейки (OAK_STAIRS);</li>
  *   <li>Колокол на OAK_FENCE столбе 5 высотой;</li>
@@ -25,28 +24,26 @@ import java.util.Random;
  * <p><b>Рыночная площадь</b> (центр (-30, 45)):
  * <ul>
  *   <li>Мощение POLISHED_DEEPSLATE+ANDESITE;</li>
- *   <li>5 прилавков (OAK_SLAB + WOOL навес на OAK_FENCE);</li>
- *   <li>На прилавках ITEM_FRAME с товарами через NamedItemStack
- *       (BREAD, IRON_SWORD, EMERALD, BOOK, AMETHYST_SHARD);</li>
+ *   <li>5 прилавков с навесами;</li>
  *   <li>Центральный фонтан 3×3 (STONE_BRICKS + WATER + SEA_LANTERN);</li>
- *   <li>2 лавочки.</li>
+ *   <li>4 лавочки, бочки;</li>
  * </ul>
  */
 public final class ElikiumPlazas {
 
     private static final int Y_BASE = ElikiumCity.Y_BASE;
 
-    /** Соборная площадь. */
+    /** Соборная площадь — увеличенная. */
     static final int CATH_PLAZA_CX = 45;
     static final int CATH_PLAZA_CZ = 38;
-    static final int CATH_PLAZA_HALF_X = 8;  // 17 wide
-    static final int CATH_PLAZA_HALF_Z = 11; // 23 deep
+    static final int CATH_PLAZA_HALF_X = 10;  // 21 wide
+    static final int CATH_PLAZA_HALF_Z = 13;  // 27 deep
 
-    /** Рыночная площадь. */
+    /** Рыночная площадь — увеличенная. */
     static final int MARKET_PLAZA_CX = -30;
     static final int MARKET_PLAZA_CZ = 45;
-    static final int MARKET_PLAZA_HALF_X = 7;  // 15 wide
-    static final int MARKET_PLAZA_HALF_Z = 9;  // 19 deep
+    static final int MARKET_PLAZA_HALF_X = 9;  // 19 wide
+    static final int MARKET_PLAZA_HALF_Z = 11; // 23 deep
 
     private final Plugin plugin;
     private final RegionPainter painter;
@@ -64,7 +61,7 @@ public final class ElikiumPlazas {
         long count = 0;
         count += buildCathedralPlaza();
         count += buildMarketPlaza();
-        // Регистрируем footprint-ы чтобы дома не наезжали
+        // Регистрируем footprint-ы
         ctx.occupied.add(new ElikiumCity.Footprint(
                 CATH_PLAZA_CX - CATH_PLAZA_HALF_X - 1,
                 CATH_PLAZA_CZ - CATH_PLAZA_HALF_Z - 1,
@@ -87,12 +84,12 @@ public final class ElikiumPlazas {
 
     private long buildCathedralPlaza() {
         long count = 0;
-        // Мощение
+        // Мощение — концентрические кольца
         for (int dx = -CATH_PLAZA_HALF_X; dx <= CATH_PLAZA_HALF_X; dx++) {
             for (int dz = -CATH_PLAZA_HALF_Z; dz <= CATH_PLAZA_HALF_Z; dz++) {
                 int x = CATH_PLAZA_CX + dx, z = CATH_PLAZA_CZ + dz;
                 if (ElikiumCity.insideCathedralZone(x, z)) continue;
-                int cheb = Math.max(Math.abs(dx) * 11 / 8, Math.abs(dz));
+                int cheb = Math.max(Math.abs(dx) * 13 / 10, Math.abs(dz));
                 Material mat;
                 if (cheb >= CATH_PLAZA_HALF_Z) mat = Material.DEEPSLATE_TILES;
                 else if (cheb >= CATH_PLAZA_HALF_Z - 3) mat = Material.POLISHED_BLACKSTONE;
@@ -111,25 +108,31 @@ public final class ElikiumPlazas {
             painter.place(CATH_PLAZA_CX + dx, Y_BASE, CATH_PLAZA_CZ, Material.GOLD_BLOCK);
         }
         count += 9;
-        // 4 фонарных столба по углам
-        int hx = CATH_PLAZA_HALF_X - 1;
-        int hz = CATH_PLAZA_HALF_Z - 1;
+
+        // 4 фонарных столба по углам (высокие, 5 блоков)
+        int hx = CATH_PLAZA_HALF_X - 2;
+        int hz = CATH_PLAZA_HALF_Z - 2;
         for (int sx : new int[]{-1, +1}) {
             for (int sz : new int[]{-1, +1}) {
                 count += buildLamppost(CATH_PLAZA_CX + sx * hx, CATH_PLAZA_CZ + sz * hz, true);
             }
         }
-        // 2 клумбы (ALLIUM/LILAC) по бокам креста
-        count += buildFlowerBed(CATH_PLAZA_CX - 5, CATH_PLAZA_CZ - 4, Material.ALLIUM);
-        count += buildFlowerBed(CATH_PLAZA_CX + 4, CATH_PLAZA_CZ + 2, Material.LILAC);
+
+        // 2 клумбы (ALLIUM/LILAC) по бокам креста — увеличенные
+        count += buildFlowerBed(CATH_PLAZA_CX - 6, CATH_PLAZA_CZ - 5, Material.ALLIUM);
+        count += buildFlowerBed(CATH_PLAZA_CX + 5, CATH_PLAZA_CZ + 3, Material.LILAC);
+        count += buildFlowerBed(CATH_PLAZA_CX - 6, CATH_PLAZA_CZ + 3, Material.ALLIUM);
+        count += buildFlowerBed(CATH_PLAZA_CX + 5, CATH_PLAZA_CZ - 5, Material.LILAC);
+
         // 4 скамейки (OAK_STAIRS) — обращены к центру
-        placeBench(CATH_PLAZA_CX - 6, CATH_PLAZA_CZ + 3, "east");
-        placeBench(CATH_PLAZA_CX + 5, CATH_PLAZA_CZ - 3, "west");
-        placeBench(CATH_PLAZA_CX - 6, CATH_PLAZA_CZ - 6, "east");
-        placeBench(CATH_PLAZA_CX + 5, CATH_PLAZA_CZ + 5, "west");
+        placeBench(CATH_PLAZA_CX - 7, CATH_PLAZA_CZ + 3, "east");
+        placeBench(CATH_PLAZA_CX + 6, CATH_PLAZA_CZ - 3, "west");
+        placeBench(CATH_PLAZA_CX - 7, CATH_PLAZA_CZ - 7, "east");
+        placeBench(CATH_PLAZA_CX + 6, CATH_PLAZA_CZ + 6, "west");
         count += 8;
-        // Колокол по центру северной стороны — небольшая звонница 3×1
-        int bellX = CATH_PLAZA_CX, bellZ = CATH_PLAZA_CZ - CATH_PLAZA_HALF_Z + 1;
+
+        // Колокол по центру северной стороны — звонница 3×1
+        int bellX = CATH_PLAZA_CX, bellZ = CATH_PLAZA_CZ - CATH_PLAZA_HALF_Z + 2;
         for (int dy = 1; dy <= 5; dy++) {
             painter.place(bellX - 1, Y_BASE + dy, bellZ, Material.DARK_OAK_LOG);
             painter.place(bellX + 1, Y_BASE + dy, bellZ, Material.DARK_OAK_LOG);
@@ -141,21 +144,28 @@ public final class ElikiumPlazas {
 
         // 4 тёмных статуи/пьедестала по углам площади
         for (int[] p : new int[][]{
-                {CATH_PLAZA_CX - 5, CATH_PLAZA_CZ - 8},
-                {CATH_PLAZA_CX + 5, CATH_PLAZA_CZ - 8},
-                {CATH_PLAZA_CX - 5, CATH_PLAZA_CZ + 8},
-                {CATH_PLAZA_CX + 5, CATH_PLAZA_CZ + 8}}) {
+                {CATH_PLAZA_CX - 6, CATH_PLAZA_CZ - 10},
+                {CATH_PLAZA_CX + 6, CATH_PLAZA_CZ - 10},
+                {CATH_PLAZA_CX - 6, CATH_PLAZA_CZ + 10},
+                {CATH_PLAZA_CX + 6, CATH_PLAZA_CZ + 10}}) {
             painter.place(p[0], Y_BASE + 1, p[1], Material.POLISHED_BLACKSTONE_BRICKS);
             painter.place(p[0], Y_BASE + 2, p[1], Material.DEEPSLATE_BRICK_WALL);
             painter.place(p[0], Y_BASE + 3, p[1], Material.SOUL_LANTERN);
             count += 3;
         }
+
+        // Дополнительные бочки и горшки по периметру
+        painter.place(CATH_PLAZA_CX - 8, Y_BASE + 1, CATH_PLAZA_CZ, Material.BARREL);
+        painter.place(CATH_PLAZA_CX + 8, Y_BASE + 1, CATH_PLAZA_CZ, Material.BARREL);
+        painter.place(CATH_PLAZA_CX, Y_BASE + 1, CATH_PLAZA_CZ + 10, Material.FLOWER_POT);
+        count += 3;
+
         return count;
     }
 
     private long buildMarketPlaza() {
         long count = 0;
-        // Мощение — тёмная рваная брусчатка, без светлых полос
+        // Мощение — тёмная рваная брусчатка
         for (int dx = -MARKET_PLAZA_HALF_X; dx <= MARKET_PLAZA_HALF_X; dx++) {
             for (int dz = -MARKET_PLAZA_HALF_Z; dz <= MARKET_PLAZA_HALF_Z; dz++) {
                 int x = MARKET_PLAZA_CX + dx, z = MARKET_PLAZA_CZ + dz;
@@ -166,7 +176,7 @@ public final class ElikiumPlazas {
                 if (cheb == MARKET_PLAZA_HALF_X || cheb == MARKET_PLAZA_HALF_Z) {
                     mat = Material.DEEPSLATE_BRICKS;
                 } else if (bucket <= 2) {
-                    mat = Material.POLISHED_BLACKSTONE_BRICKS;
+                    mat = Material.ANDESITE;
                 } else if (bucket <= 6) {
                     mat = Material.POLISHED_DEEPSLATE;
                 } else {
@@ -176,24 +186,35 @@ public final class ElikiumPlazas {
                 count++;
             }
         }
-        // Центральный фонтан-столб 5×5 с тёмным основанием
+
+        // Центральный фонтан 3×3 с STONE_BRICKS + WATER + SEA_LANTERN
         int fx = MARKET_PLAZA_CX, fz = MARKET_PLAZA_CZ;
-        for (int dx = -2; dx <= 2; dx++) {
-            for (int dz = -2; dz <= 2; dz++) {
-                int cheb = Math.max(Math.abs(dx), Math.abs(dz));
-                if (cheb == 2) painter.place(fx + dx, Y_BASE + 1, fz + dz, Material.POLISHED_BLACKSTONE_BRICKS);
-                else painter.place(fx + dx, Y_BASE + 1, fz + dz, Material.WATER);
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                painter.place(fx + dx, Y_BASE + 1, fz + dz, Material.STONE_BRICKS);
             }
         }
-        painter.place(fx, Y_BASE + 2, fz, Material.POLISHED_BLACKSTONE_BRICKS);
-        painter.place(fx, Y_BASE + 3, fz, Material.POLISHED_BLACKSTONE_BRICKS);
+        painter.place(fx, Y_BASE + 1, fz, Material.WATER);
+        painter.place(fx, Y_BASE, fz, Material.SEA_LANTERN);
+        // Бортики фонтана
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dz = -2; dz <= 2; dz++) {
+                if (Math.abs(dx) == 2 || Math.abs(dz) == 2) {
+                    painter.place(fx + dx, Y_BASE + 1, fz + dz, Material.STONE_BRICK_WALL);
+                }
+            }
+        }
+        // Столб фонтана
+        painter.place(fx, Y_BASE + 2, fz, Material.STONE_BRICKS);
+        painter.place(fx, Y_BASE + 3, fz, Material.STONE_BRICKS);
         painter.place(fx, Y_BASE + 4, fz, Material.SOUL_LANTERN);
-        count += 28;
+        count += 30;
+
         // 5 прилавков — крупнее и разложены по периметру площади
         int[][] stallOffsets = {
-                {-6, -7}, {2, -7},
-                {-6, 6}, {3, 6},
-                {6, -1},
+                {-7, -8}, {3, -8},
+                {-7, 7}, {4, 7},
+                {7, -1},
         };
         Material[] stallWools = {
                 Material.YELLOW_WOOL, Material.RED_WOOL,
@@ -209,14 +230,28 @@ public final class ElikiumPlazas {
             int sz = MARKET_PLAZA_CZ + stallOffsets[i][1];
             count += buildStall(sx, sz, stallWools[i], stallItems[i]);
         }
-        // 2 лавочки и 4 бочки на площади
-        placeBench(MARKET_PLAZA_CX - 1, MARKET_PLAZA_CZ + 4, "east");
-        placeBench(MARKET_PLAZA_CX + 4, MARKET_PLAZA_CZ - 3, "west");
-        painter.place(MARKET_PLAZA_CX - 2, Y_BASE + 1, MARKET_PLAZA_CZ - 6, Material.BARREL);
-        painter.place(MARKET_PLAZA_CX + 4, Y_BASE + 1, MARKET_PLAZA_CZ - 5, Material.BARREL);
-        painter.place(MARKET_PLAZA_CX - 5, Y_BASE + 1, MARKET_PLAZA_CZ + 4, Material.BARREL);
-        painter.place(MARKET_PLAZA_CX + 5, Y_BASE + 1, MARKET_PLAZA_CZ + 3, Material.BARREL);
-        count += 8;
+
+        // 4 лавочки
+        placeBench(MARKET_PLAZA_CX - 2, MARKET_PLAZA_CZ + 5, "east");
+        placeBench(MARKET_PLAZA_CX + 5, MARKET_PLAZA_CZ - 4, "west");
+        placeBench(MARKET_PLAZA_CX - 2, MARKET_PLAZA_CZ - 5, "east");
+        placeBench(MARKET_PLAZA_CX + 5, MARKET_PLAZA_CZ + 4, "west");
+
+        // 6 бочек вокруг площади
+        painter.place(MARKET_PLAZA_CX - 3, Y_BASE + 1, MARKET_PLAZA_CZ - 8, Material.BARREL);
+        painter.place(MARKET_PLAZA_CX + 5, Y_BASE + 1, MARKET_PLAZA_CZ - 7, Material.BARREL);
+        painter.place(MARKET_PLAZA_CX - 6, Y_BASE + 1, MARKET_PLAZA_CZ + 5, Material.BARREL);
+        painter.place(MARKET_PLAZA_CX + 6, Y_BASE + 1, MARKET_PLAZA_CZ + 4, Material.BARREL);
+        painter.place(MARKET_PLAZA_CX - 4, Y_BASE + 1, MARKET_PLAZA_CZ + 8, Material.BARREL);
+        painter.place(MARKET_PLAZA_CX + 3, Y_BASE + 1, MARKET_PLAZA_CZ + 8, Material.BARREL);
+        count += 10;
+
+        // 4 фонарных столба
+        count += buildLamppost(MARKET_PLAZA_CX - 6, MARKET_PLAZA_CZ - 6, false);
+        count += buildLamppost(MARKET_PLAZA_CX + 6, MARKET_PLAZA_CZ - 6, false);
+        count += buildLamppost(MARKET_PLAZA_CX - 6, MARKET_PLAZA_CZ + 6, false);
+        count += buildLamppost(MARKET_PLAZA_CX + 6, MARKET_PLAZA_CZ + 6, false);
+
         return count;
     }
 
@@ -249,7 +284,7 @@ public final class ElikiumPlazas {
 
     private long buildStall(int cx, int cz, Material woolColor, Material item) {
         long count = 0;
-        // 3×2 прилавок: массивнее, с задней стойкой и тентом
+        // 3×2 прилавок
         for (int dx = 0; dx <= 2; dx++) {
             for (int dz = 0; dz <= 1; dz++) {
                 BlockData slab = Material.OAK_SLAB.createBlockData("[type=top]");
@@ -265,13 +300,13 @@ public final class ElikiumPlazas {
             painter.place(cx + dx, Y_BASE + 3, cz + 1, Material.OAK_FENCE);
             count += 4;
         }
-        // Наклонный тент 3×2: перед низкий, зад высокий
+        // Наклонный тент 3×2
         for (int dx = 0; dx <= 2; dx++) {
             painter.place(cx + dx, Y_BASE + 4, cz, woolColor);
             painter.place(cx + dx, Y_BASE + 5, cz + 1, woolColor);
             count += 2;
         }
-        // Товар + ящик/бочка
+        // Товар
         Material platter = item;
         if (item == Material.BREAD) platter = Material.HAY_BLOCK;
         else if (item == Material.IRON_SWORD) platter = Material.IRON_BLOCK;
