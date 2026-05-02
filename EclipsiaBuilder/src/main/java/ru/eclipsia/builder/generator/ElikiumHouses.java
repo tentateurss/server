@@ -7,28 +7,25 @@ import org.bukkit.plugin.Plugin;
 import java.util.Random;
 
 /**
- * Жилые дома Эликия v3 — массивные «средневековые» дома по эталонному стилю
- * с НАСТОЯЩИМИ скатными крышами из STAIRS, каменным фундаментом, козырьком
- * над дверью, ставнями TRAPDOOR на окнах и ступеньками от двери к улице.
+ * Жилые дома Эликия v4 — массивные 2-3 этажные средневековые дома с
+ * ПЛОТНОЙ застройкой (вплотную друг к другу, промежутки — только узкие
+ * арки 2 блока шириной).
  *
- * <p><b>Размеры</b>: 11×9 .. 14×10. Один этаж + чердак с мансардными окнами.
+ * <p><b>Размеры</b>: 8×10 .. 12×14. Высота 2-3 этажа (12-18 блоков).
  *
- * <p><b>Структура снизу вверх</b>:
- * <ol>
- *   <li>Y_BASE: COBBLED_DEEPSLATE цоколь, выдвинут на 1 блок наружу для
- *       визуального основания;</li>
- *   <li>Y_BASE+1: каменное основание STONE_BRICKS/COBBLED_DEEPSLATE по
- *       периметру дома;</li>
- *   <li>Y_BASE+2..+5: первый этаж — стены wallA, угловые столбы pillar,
- *       окна GLASS_PANE/YELLOW_STAINED_GLASS, дверь по facing;</li>
- *   <li>Y_BASE+6: карниз — STAIRS перевёрнутые наружу (eaves overhang);</li>
- *   <li>Y_BASE+7+: скатная крыша из STAIRS до вершины + DEEPSLATE_BRICKS
- *       гребень.</li>
- * </ol>
+ * <p><b>4 материальные семьи</b>:
+ * <ul>
+ *   <li>40% — OAK_PLANKS + DARK_OAK_LOG (фахверк)</li>
+ *   <li>30% — DARK_OAK_PLANKS + STONE_BRICKS</li>
+ *   <li>20% — STONE_BRICKS + SPRUCE_LOG</li>
+ *   <li>10% — POLISHED_BLACKSTONE + DARK_OAK (богатые)</li>
+ * </ul>
  *
- * <p><b>Декор у входа</b>: каждый дом получает 2-блочную лестницу OAK_STAIRS,
- * 2-блочный козырёк STAIRS на 2 столбах OAK_FENCE, цепь+LANTERN над дверью,
- * горшок с цветком слева, бочку справа, ставни OAK_TRAPDOOR у окон.
+ * <p><b>4 типа крыш</b>: двускатная, четырёхскатная, с башенкой, с
+ * мансардным окном — все разные.
+ *
+ * <p><b>Дворы-колодцы</b>: 4 дома вокруг 3×3 дворика с фонтаном или
+ * деревом в кадке, лавочка, горшки с цветами, SOUL_LANTERN.
  */
 public final class ElikiumHouses {
 
@@ -47,36 +44,44 @@ public final class ElikiumHouses {
     }
 
     /**
-     * Кварталы — широкие зоны для плотной застройки. Перекрытия с POI/площадями
-     * автоматически отбраковываются {@link #isFreeFootprint}.
+     * Кварталы — широкие зоны для плотной застройки. Плотный шаг (10-11)
+     * обеспечивает здания вплотную друг к другу. Перекрытия с POI/площадями
+     * автоматически отбраковываются.
      */
     private static final int[][] BLOCKS = {
             // Запад
-            {-145, -110, -50, -55},   // 0: W-N
-            {-145,  -45, -50, -15},   // 1: W-C-N
-            {-145,   30, -50,  62},   // 2: W-C-S
-            {-145,   80, -50, 120},   // 3: W-S
-            {-112,  -10, -52,  24},   // 4: W-inner gap
+            {-145, -110, -50, -55},
+            {-145,  -45, -50, -15},
+            {-145,   30, -50,  62},
+            {-145,   80, -50, 120},
+            {-112,  -10, -52,  24},
             // Восток
-            {  90, -115, 145, -65},   // 5: E-N
-            {  90,  -25, 145,  25},   // 6: E-C
-            {  90,   70, 145, 120},   // 7: E-S
-            {  80,   28, 145,  64},   // 8: E-inner gap
+            {  90, -115, 145, -65},
+            {  90,  -25, 145,  25},
+            {  90,   70, 145, 120},
+            {  80,   28, 145,  64},
             // Север (выше собора)
-            { -55, -145,  10, -90},   // 9: N-W
-            {  15, -145,  80, -90},   // 10: N-C
-            { -45,  -88,  90, -66},   // 11: north ring
+            { -55, -145,  10, -90},
+            {  15, -145,  80, -90},
+            { -45,  -88,  90, -66},
             // Юг (ниже собора и площадей)
-            { -50,   55,   8, 120},   // 12: S-W
-            {  15,   55,  80, 120},   // 13: S-C
-            { -40,   34,  88,  54},   // 14: south ring
+            { -50,   55,   8, 120},
+            {  15,   55,  80, 120},
+            { -40,   34,  88,  54},
+            // Дополнительные зоны для плотности
+            { -45,  -60,  -8, -30},
+            {  10,  -60,  75, -30},
+            { -45,   62,  -8,  80},
+            {  10,   62,  75,  80},
     };
 
     /**
      * Дворы-колодцы: 4 дома вокруг 3×3 центра с фонтаном.
+     * Больше дворов для заполнения пространства.
      */
     private static final int[][] COURTYARDS = {
             {-90, -25}, {-90, 95}, {55, -90}, {115, 0},
+            {-70, 50}, {70, 60}, {-80, -70}, {100, -70},
     };
 
     public long build() {
@@ -101,26 +106,25 @@ public final class ElikiumHouses {
     }
 
     /**
-     * Плотно заполнить квартал домами. Шаг 13-14 (под массивные дома 11×9).
-     * Каждый дом получает рандомный сдвиг ±1 блок чтобы убрать визуальную сетку.
+     * Плотно заполнить квартал домами. Шаг 10-11 (вплотную).
+     * Каждый дом получает рандомный сдвиг ±1 блок чтобы убрать
+     * визуальную сетку, но сохранить плотность.
      */
     private int fillBlock(int xMin, int zMin, int xMax, int zMax) {
         int placed = 0;
-        int step = 13;
+        int step = 11;
         boolean offsetRow = false;
-        for (int z = zMin + 6; z + 6 <= zMax; z += step) {
+        for (int z = zMin + 5; z + 5 <= zMax; z += step) {
             int rowOffset = offsetRow ? step / 2 : 0;
             offsetRow = !offsetRow;
-            for (int x = xMin + 6 + rowOffset; x + 6 <= xMax; x += step) {
-                // Случайные размеры
-                int w = 13 + rng.nextInt(4); // 13..16
-                int d = 10 + rng.nextInt(3); // 10..12
-                // Случайный сдвиг ±1
+            for (int x = xMin + 5 + rowOffset; x + 5 <= xMax; x += step) {
+                int w = 8 + rng.nextInt(5);  // 8..12
+                int d = 10 + rng.nextInt(5); // 10..14
                 int cx = x + rng.nextInt(3) - 1;
                 int cz = z + rng.nextInt(3) - 1;
                 int hxMin = cx - w / 2, hxMax = cx + w / 2;
                 int hzMin = cz - d / 2, hzMax = cz + d / 2;
-                if (!isFreeFootprint(hxMin - 2, hzMin - 2, hxMax + 2, hzMax + 2)) {
+                if (!isFreeFootprint(hxMin - 1, hzMin - 1, hxMax + 1, hzMax + 1)) {
                     continue;
                 }
                 int doorFacing = pickDoorFacing(cx, cz, xMin, zMin, xMax, zMax);
@@ -134,11 +138,11 @@ public final class ElikiumHouses {
 
     /**
      * Двор-колодец: 4 дома по сторонам света вокруг центрального
-     * 3×3 фонтана/колодца.
+     * 3×3 фонтана/колодца. Дома стоят вплотную (расстояние 6 от центра).
      */
     private boolean buildCourtyard(int cx, int cz) {
-        int extXMin = cx - 10, extXMax = cx + 10;
-        int extZMin = cz - 10, extZMax = cz + 10;
+        int extXMin = cx - 12, extXMax = cx + 12;
+        int extZMin = cz - 12, extZMax = cz + 12;
         if (!isFreeFootprint(extXMin, extZMin, extXMax, extZMax)) return false;
         if (!WorldGenerator.isInsideCityPolygon(extXMin, extZMin)
                 || !WorldGenerator.isInsideCityPolygon(extXMax, extZMax)
@@ -148,17 +152,17 @@ public final class ElikiumHouses {
                 || ElikiumCity.insideCathedralZone(extXMax, extZMax)) return false;
 
         int[][] houseSpots = {
-                {cx,       cz - 7},
-                {cx + 7,   cz},
-                {cx,       cz + 7},
-                {cx - 7,   cz},
+                {cx,       cz - 8},
+                {cx + 8,   cz},
+                {cx,       cz + 8},
+                {cx - 8,   cz},
         };
         int[] facings = {2, 3, 0, 1};
         int built = 0;
         for (int i = 0; i < 4; i++) {
             int hx = houseSpots[i][0];
             int hz = houseSpots[i][1];
-            int hw = 9, hd = 7;
+            int hw = 10, hd = 8;
             int hxMin = hx - hw / 2, hxMax = hx + hw / 2;
             int hzMin = hz - hd / 2, hzMax = hz + hd / 2;
             buildHouse(hx, hz, hw, hd, rng.nextInt(), facings[i]);
@@ -166,30 +170,33 @@ public final class ElikiumHouses {
             built++;
         }
 
-        // Центральный 3×3 двор: каменное мощение + 1×1 колодец + дерево/фонарь
+        // Центральный 3×3 двор: каменное мощение + колодец/фонтан
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
                 painter.place(cx + dx, Y_BASE, cz + dz, Material.COBBLESTONE);
             }
         }
-        // Колодец 1×1 со стенками STONE_BRICK_WALL и крышей-балкой
+        // Колодец 1×1 со стенками STONE_BRICK_WALL
         for (int[] off : new int[][]{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}) {
             painter.place(cx + off[0], Y_BASE + 1, cz + off[1], Material.STONE_BRICK_WALL);
         }
         painter.place(cx, Y_BASE + 1, cz, Material.WATER);
-        // Балка над колодцем
+        // Балка над колодцем + фонарь
         painter.place(cx - 1, Y_BASE + 3, cz, Material.OAK_LOG);
         painter.place(cx + 1, Y_BASE + 3, cz, Material.OAK_LOG);
         painter.place(cx, Y_BASE + 3, cz, Material.OAK_LOG);
         painter.place(cx, Y_BASE + 2, cz, Material.CHAIN);
         painter.place(cx, Y_BASE + 4, cz, Material.LANTERN);
 
-        // Цветочные горшки в углах двора
-        BlockData pot = Material.FLOWER_POT.createBlockData();
-        painter.placeData(cx - 1, Y_BASE + 1, cz - 1, pot);
-        painter.placeData(cx + 1, Y_BASE + 1, cz - 1, pot);
-        painter.placeData(cx - 1, Y_BASE + 1, cz + 1, pot);
-        painter.placeData(cx + 1, Y_BASE + 1, cz + 1, pot);
+        // Цветочные горшки и SOUL_LANTERN в углах двора
+        painter.place(cx - 1, Y_BASE + 1, cz - 1, Material.FLOWER_POT);
+        painter.place(cx + 1, Y_BASE + 1, cz - 1, Material.FLOWER_POT);
+        painter.place(cx - 1, Y_BASE + 1, cz + 1, Material.FLOWER_POT);
+        painter.place(cx + 1, Y_BASE + 1, cz + 1, Material.SOUL_LANTERN);
+
+        // Лавочка в углу
+        BlockData bench = Material.OAK_STAIRS.createBlockData("[facing=east,half=bottom]");
+        painter.placeData(cx + 1, Y_BASE + 1, cz, bench);
 
         ctx.pois.add(new ElikiumCity.POI("§7Двор", "§8...", cx, Y_BASE + 6, cz));
         return built >= 3;
@@ -218,12 +225,9 @@ public final class ElikiumHouses {
         for (ElikiumCity.Footprint f : ctx.occupied) {
             if (candidate.overlaps(f, 1)) return false;
         }
-        // Не накрыть улицу — проверяем КАЖДУЮ клетку (раньше каждую вторую).
         int streetCount = 0;
-        int total = 0;
         for (int x = x1; x <= x2; x++) {
             for (int z = z1; z <= z2; z++) {
-                total++;
                 if (ctx.streetCells.contains(ElikiumCity.packCoord(x, z))) streetCount++;
             }
         }
@@ -232,8 +236,8 @@ public final class ElikiumHouses {
     }
 
     /**
-     * Построить ОДИН качественный средневековый дом с фундаментом, ставнями,
-     * STAIRS-крышей, козырьком и лестницей у двери.
+     * Построить ОДИН качественный средневековый дом 2-3 этажа с
+     * фундаментом, ставнями, скатной крышей, козырьком и лестницей.
      *
      * @param facing 0=N, 1=E, 2=S, 3=W — куда смотрит дверь
      */
@@ -273,65 +277,83 @@ public final class ElikiumHouses {
         Material roofMat = (family == 0) ? Material.OAK_STAIRS : Material.DARK_OAK_STAIRS;
         Material roofFill = (family == 0) ? Material.OAK_PLANKS : Material.DARK_OAK_PLANKS;
 
-        // 1. ЦОКОЛЬ (Y_BASE) — выдвинут на 1 блок наружу для визуальной базы
+        // Количество этажей: 2-3 (больше у крупных домов)
+        int floors = (w >= 11 || d >= 12 || family == 3) ? 3 : 2;
+        if (hr.nextDouble() < 0.3) floors = 3; // 30% шанс 3 этажа даже для мелких
+        int floorH = 4;
+
+        // 1. ЦОКОЛЬ (Y_BASE)
         for (int x = xMin - 1; x <= xMax + 1; x++) {
             for (int z = zMin - 1; z <= zMax + 1; z++) {
                 if (x < xMin || x > xMax || z < zMin || z > zMax) {
-                    // Только периметр (чуть выходит за пределы)
                     painter.place(x, Y_BASE, z, foundation);
                 }
             }
         }
-        // 2. ОСНОВАНИЕ (Y_BASE+1) — каменный фундамент по периметру и заливка пола
+        // 2. ОСНОВАНИЕ (Y_BASE+1) — каменный фундамент
         for (int x = xMin; x <= xMax; x++) {
             for (int z = zMin; z <= zMax; z++) {
                 painter.place(x, Y_BASE + 1, z, foundation);
             }
         }
 
-        // 3. СТЕНЫ ПЕРВОГО ЭТАЖА (Y_BASE+2..+5)
-        int floorH = 4;
-        int wallTopY = Y_BASE + 1 + floorH;
-        for (int x = xMin; x <= xMax; x++) {
-            for (int z = zMin; z <= zMax; z++) {
-                boolean perim = (x == xMin || x == xMax || z == zMin || z == zMax);
-                if (!perim) continue;
-                boolean corner = (x == xMin || x == xMax) && (z == zMin || z == zMax);
-                Material mat = corner ? pillar : wallA;
-                for (int dy = 1; dy <= floorH; dy++) {
-                    painter.place(x, Y_BASE + 1 + dy, z, mat);
+        // 3. СТЕНЫ ВСЕХ ЭТАЖЕЙ
+        for (int floor = 0; floor < floors; floor++) {
+            int yBase = Y_BASE + 2 + floor * floorH;
+            Material floorWall = (floor == 0) ? wallA : wallB;
+            if (floor >= 2) floorWall = wallA; // чередование
+
+            // Перекрытие между этажами (пол)
+            if (floor > 0) {
+                for (int x = xMin; x <= xMax; x++) {
+                    for (int z = zMin; z <= zMax; z++) {
+                        painter.place(x, yBase - 1, z, Material.OAK_PLANKS);
+                    }
                 }
             }
-        }
-        // Промежуточные fахверк-столбы (только семьи 0 и 1)
-        if (family == 0 || family == 1) {
-            for (int x = xMin + 4; x <= xMax - 4; x += 4) {
-                for (int dy = 1; dy <= floorH; dy++) {
-                    painter.place(x, Y_BASE + 1 + dy, zMin, pillar);
-                    painter.place(x, Y_BASE + 1 + dy, zMax, pillar);
+
+            for (int x = xMin; x <= xMax; x++) {
+                for (int z = zMin; z <= zMax; z++) {
+                    boolean perim = (x == xMin || x == xMax || z == zMin || z == zMax);
+                    if (!perim) continue;
+                    boolean corner = (x == xMin || x == xMax) && (z == zMin || z == zMax);
+                    Material mat = corner ? pillar : floorWall;
+                    for (int dy = 0; dy < floorH; dy++) {
+                        painter.place(x, yBase + dy, z, mat);
+                    }
                 }
             }
-            for (int z = zMin + 4; z <= zMax - 4; z += 4) {
-                for (int dy = 1; dy <= floorH; dy++) {
-                    painter.place(xMin, Y_BASE + 1 + dy, z, pillar);
-                    painter.place(xMax, Y_BASE + 1 + dy, z, pillar);
+            // Промежуточные фахверк-столбы (только семьи 0 и 1)
+            if (family == 0 || family == 1) {
+                for (int x = xMin + 4; x <= xMax - 4; x += 4) {
+                    for (int dy = 0; dy < floorH; dy++) {
+                        painter.place(x, yBase + dy, zMin, pillar);
+                        painter.place(x, yBase + dy, zMax, pillar);
+                    }
+                }
+                for (int z = zMin + 4; z <= zMax - 4; z += 4) {
+                    for (int dy = 0; dy < floorH; dy++) {
+                        painter.place(xMin, yBase + dy, z, pillar);
+                        painter.place(xMax, yBase + dy, z, pillar);
+                    }
                 }
             }
+
+            // ОКНА на каждом этаже
+            Material winMat = (family == 3)
+                    ? Material.PURPLE_STAINED_GLASS_PANE
+                    : (hr.nextDouble() < 0.7 ? Material.YELLOW_STAINED_GLASS_PANE : Material.GLASS_PANE);
+            placeWindowsOnWall(xMin, xMax, zMin, yBase + 1, winMat, "south", true, hr);
+            placeWindowsOnWall(xMin, xMax, zMax, yBase + 1, winMat, "north", true, hr);
+            placeWindowsOnSide(zMin, zMax, xMin, yBase + 1, winMat, "east", false, hr);
+            placeWindowsOnSide(zMin, zMax, xMax, yBase + 1, winMat, "west", false, hr);
         }
 
-        // 4. ОКНА — по 1 на каждой стене, по 2-3 на длинной
-        Material winMat = (family == 3)
-                ? Material.PURPLE_STAINED_GLASS_PANE
-                : (hr.nextDouble() < 0.7 ? Material.YELLOW_STAINED_GLASS_PANE : Material.GLASS_PANE);
-        placeWindowsOnWall(xMin, xMax, zMin, Y_BASE + 3, winMat, "south", true, hr);
-        placeWindowsOnWall(xMin, xMax, zMax, Y_BASE + 3, winMat, "north", true, hr);
-        placeWindowsOnSide(zMin, zMax, xMin, Y_BASE + 3, winMat, "east", false, hr);
-        placeWindowsOnSide(zMin, zMax, xMax, Y_BASE + 3, winMat, "west", false, hr);
-
-        // 5. ДВЕРЬ + СТУПЕНЬКИ + КОЗЫРЁК
+        // 4. ДВЕРЬ + СТУПЕНЬКИ + КОЗЫРЁК (только 1-й этаж)
         placeDoorWithPorch(cx, cz, xMin, xMax, zMin, zMax, facing, family, hr, roofMat);
 
-        // 6. КАРНИЗ (Y_BASE+6) — STAIRS перевёрнутые свесом наружу
+        // 5. КАРНИЗ — STAIRS перевёрнутые свесом наружу
+        int wallTopY = Y_BASE + 1 + floors * floorH;
         int eaveY = wallTopY + 1;
         BlockData eaveN = roofMat.createBlockData("[facing=south,half=top,shape=straight]");
         BlockData eaveS = roofMat.createBlockData("[facing=north,half=top,shape=straight]");
@@ -346,32 +368,108 @@ public final class ElikiumHouses {
             painter.placeData(xMax + 1, eaveY, z, eaveE);
         }
 
-        // 7. СКАТНАЯ КРЫША из STAIRS (двускатная вдоль длинной оси)
+        // 6. КРЫША — выбор из 4 типов
+        int roofType = hr.nextInt(4);
         boolean alongZ = d >= w;
-        buildStairsRoof(xMin, zMin, xMax, zMax, eaveY, alongZ, roofMat, roofFill);
+        switch (roofType) {
+            case 0: // Двускатная
+                buildStairsRoof(xMin, zMin, xMax, zMax, eaveY, alongZ, roofMat, roofFill);
+                break;
+            case 1: // Четырёхскатная (hip)
+                buildHipRoof(xMin, zMin, xMax, zMax, eaveY, roofMat, roofFill);
+                break;
+            case 2: // С башенкой 3×3
+                buildStairsRoof(xMin, zMin, xMax, zMax, eaveY, alongZ, roofMat, roofFill);
+                buildRoofTower(cx, cz, eaveY + 3, roofFill, pillar);
+                break;
+            default: // С мансардным окном
+                buildStairsRoof(xMin, zMin, xMax, zMax, eaveY, alongZ, roofMat, roofFill);
+                buildDormerWindow(cx, zMax, eaveY + 1, roofMat, roofFill, hr);
+                break;
+        }
 
-        // 8. ДЫМОХОД (60% шанс)
+        // 7. ДЫМОХОД (60% шанс)
         if (hr.nextDouble() < 0.6) {
             int chOffsetX = (hr.nextBoolean() ? -1 : +1) * (w / 2 - 2);
             int chX = cx + chOffsetX;
             int chZ = cz - 1;
-            int chTop = wallTopY + 7;
+            int chTop = eaveY + 5;
             for (int y = wallTopY; y <= chTop; y++) {
                 painter.place(chX, y, chZ, Material.COBBLESTONE);
             }
             painter.place(chX, chTop + 1, chZ, Material.CAMPFIRE);
         }
 
-        // 9. ВНУТРЕННЕЕ освещение
-        painter.place(cx, Y_BASE + 1 + floorH, cz, Material.LANTERN);
+        // 8. ВНУТРЕННЕЕ освещение (на каждом этаже)
+        for (int floor = 0; floor < floors; floor++) {
+            painter.place(cx, Y_BASE + 2 + floor * floorH + floorH - 1, cz, Material.LANTERN);
+        }
 
-        // 10. ЛОЗЫ на 30% домов (на одной из боковых стен)
+        // 9. ЛОЗЫ на 30% домов
         if (hr.nextDouble() < 0.3) {
             int vineX = (hr.nextBoolean() ? xMin - 1 : xMax + 1);
             int vineZ = cz + (hr.nextInt(d) - d / 2);
-            for (int dy = 0; dy < 4; dy++) {
+            for (int dy = 0; dy < 6; dy++) {
                 painter.place(vineX, Y_BASE + 3 + dy, vineZ, Material.VINE);
             }
+        }
+    }
+
+    /** Четырёхскатная крыша (hip roof). */
+    private void buildHipRoof(int xMin, int zMin, int xMax, int zMax,
+                               int eaveY, Material roofMat, Material fillMat) {
+        int spanX = xMax - xMin;
+        int spanZ = zMax - zMin;
+        int maxRise = Math.min(spanX, spanZ) / 2 + 1;
+        for (int rise = 0; rise <= maxRise; rise++) {
+            int y = eaveY + rise;
+            int xl = xMin + rise, xr = xMax - rise;
+            int zn = zMin + rise, zs = zMax - rise;
+            if (xl > xr || zn > zs) break;
+            // Заполнить текущий уровень
+            for (int x = xl; x <= xr; x++) {
+                for (int z = zn; z <= zs; z++) {
+                    painter.place(x, y, z, fillMat);
+                }
+            }
+        }
+    }
+
+    /** Башенка 3×3 на крыше. */
+    private void buildRoofTower(int cx, int cz, int yBase, Material fill, Material pillar) {
+        for (int dy = 0; dy <= 4; dy++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    boolean perim = (Math.abs(dx) == 1 || Math.abs(dz) == 1);
+                    if (!perim && dy < 4) continue;
+                    painter.place(cx + dx, yBase + dy, cz + dz,
+                            (Math.abs(dx) == 1 && Math.abs(dz) == 1) ? pillar : fill);
+                }
+            }
+        }
+        // Шпиль
+        painter.place(cx, yBase + 5, cz, fill);
+        painter.place(cx, yBase + 6, cz, Material.END_ROD);
+        // Окошко
+        painter.place(cx, yBase + 2, cz - 1, Material.GLASS_PANE);
+        painter.place(cx, yBase + 2, cz + 1, Material.GLASS_PANE);
+    }
+
+    /** Мансардное окно (dormer window) на крыше. */
+    private void buildDormerWindow(int cx, int zMax, int yBase, Material roofMat,
+                                    Material fill, Random hr) {
+        // Маленький выступ 3×2 на южной стороне крыши
+        for (int dx = -1; dx <= 1; dx++) {
+            painter.place(cx + dx, yBase, zMax + 1, fill);
+            painter.place(cx + dx, yBase + 1, zMax + 1, fill);
+            painter.place(cx + dx, yBase + 2, zMax + 1, fill);
+        }
+        // Окно в центре выступа
+        painter.place(cx, yBase + 1, zMax + 1, Material.GLASS_PANE);
+        // Маленькая крышка
+        BlockData dormerRoof = roofMat.createBlockData("[facing=north,half=bottom]");
+        for (int dx = -1; dx <= 1; dx++) {
+            painter.placeData(cx + dx, yBase + 3, zMax + 1, dormerRoof);
         }
     }
 
@@ -383,7 +481,7 @@ public final class ElikiumHouses {
                                     int facing, int family, Random hr, Material roofMat) {
         int dx = cx, dz = cz;
         String facingStr;
-        int outDx = 0, outDz = 0;  // направление наружу
+        int outDx = 0, outDz = 0;
         switch (facing) {
             case 0: dz = zMin; facingStr = "south"; outDz = -1; break;
             case 1: dx = xMax; facingStr = "west";  outDx = +1; break;
@@ -400,47 +498,44 @@ public final class ElikiumHouses {
         painter.placeData(dx, Y_BASE + 2, dz, door);
         painter.placeData(dx, Y_BASE + 3, dz, doorTop);
 
-        // 2. Ступенька OAK_STAIRS перед дверью (1 блок снаружи)
+        // 2. Ступенька OAK_STAIRS перед дверью
         BlockData stairOut = Material.OAK_STAIRS.createBlockData(
                 "[facing=" + invertFacing(facingStr) + ",half=bottom]");
         painter.placeData(dx + outDx, Y_BASE + 1, dz + outDz, stairOut);
 
         // 3. КОЗЫРЁК — 2 OAK_FENCE-столба + STAIRS навес над дверью
-        // Столбы:
         int p1Dx = outDx * 2, p1Dz = outDz * 2;
         int leftDx, leftDz;
         if (outDx != 0) { leftDx = 0; leftDz = -1; } else { leftDx = -1; leftDz = 0; }
         int rightDx = -leftDx, rightDz = -leftDz;
-        // 2 столба фланкируют козырёк
         for (int dy = 1; dy <= 4; dy++) {
             painter.place(dx + p1Dx + leftDx, Y_BASE + dy, dz + p1Dz + leftDz, Material.OAK_FENCE);
             painter.place(dx + p1Dx + rightDx, Y_BASE + dy, dz + p1Dz + rightDz, Material.OAK_FENCE);
         }
-        // Балка-перекладина
         painter.place(dx + p1Dx + leftDx, Y_BASE + 4, dz + p1Dz + leftDz, Material.OAK_LOG);
         painter.place(dx + p1Dx + rightDx, Y_BASE + 4, dz + p1Dz + rightDz, Material.OAK_LOG);
-        // Навес — 3 OAK_STAIRS перевёрнутые наружу, на y+5 над крыльцом
         BlockData awningStair = Material.OAK_STAIRS.createBlockData(
                 "[facing=" + facingStr + ",half=top]");
         painter.placeData(dx + outDx, Y_BASE + 5, dz + outDz, awningStair);
         painter.placeData(dx + outDx + leftDx, Y_BASE + 5, dz + outDz + leftDz, awningStair);
         painter.placeData(dx + outDx + rightDx, Y_BASE + 5, dz + outDz + rightDz, awningStair);
-        // Подножка навеса (планка)
         painter.place(dx + p1Dx, Y_BASE + 5, dz + p1Dz, Material.OAK_PLANKS);
 
-        // 4. ЦЕПЬ + LANTERN, висящий с навеса над ступенькой
+        // 4. ЦЕПЬ + LANTERN
         painter.place(dx + outDx, Y_BASE + 4, dz + outDz, Material.CHAIN);
         painter.place(dx + outDx, Y_BASE + 3, dz + outDz, Material.LANTERN);
 
-        // 5. ДЕКОР: горшок слева, бочка справа (на крыльце)
+        // 5. ДЕКОР: горшок слева, бочка справа, SOUL_TORCH на стене
         painter.place(dx + outDx + leftDx, Y_BASE + 2, dz + outDz + leftDz, Material.FLOWER_POT);
         painter.place(dx + outDx + rightDx, Y_BASE + 2, dz + outDz + rightDz,
                 hr.nextBoolean() ? Material.BARREL : Material.OAK_PLANKS);
-        // Иногда коврик
+        // Коврик у важных зданий (10%)
         if (hr.nextDouble() < 0.4) {
             Material carpet = (family == 3) ? Material.PURPLE_CARPET : Material.RED_CARPET;
             painter.place(dx + outDx, Y_BASE + 2, dz + outDz, carpet);
         }
+        // Настенный SOUL_TORCH у двери
+        painter.place(dx + leftDx, Y_BASE + 4, dz + leftDz, Material.SOUL_TORCH);
     }
 
     private String invertFacing(String f) {
@@ -452,22 +547,16 @@ public final class ElikiumHouses {
         }
     }
 
-    /**
-     * Окна на стене (в направлении xMin..xMax). Окна 2 блока высотой,
-     * с TRAPDOOR-ставнями по бокам.
-     */
     private void placeWindowsOnWall(int xMin, int xMax, int z, int yBase, Material winMat,
                                      String shutterFacing, boolean longSide, Random hr) {
         int interval = longSide ? 3 : 4;
         for (int x = xMin + 2; x <= xMax - 2; x += interval) {
             painter.place(x, yBase, z, winMat);
             painter.place(x, yBase + 1, z, winMat);
-            // Ставни TRAPDOOR (открыты под углом)
             BlockData shutterL = Material.OAK_TRAPDOOR.createBlockData(
                     "[facing=" + shutterFacing + ",half=top,open=true]");
             BlockData shutterR = Material.OAK_TRAPDOOR.createBlockData(
                     "[facing=" + shutterFacing + ",half=top,open=true]");
-            // Слева/справа от окна
             painter.placeData(x - 1, yBase + 1, z, shutterL);
             painter.placeData(x + 1, yBase + 1, z, shutterR);
         }
@@ -487,16 +576,13 @@ public final class ElikiumHouses {
     }
 
     /**
-     * Двускатная крыша из STAIRS (настоящие скаты, а не плоские планки).
-     * Если alongZ=true — гребень идёт вдоль оси Z, если false — вдоль X.
+     * Двускатная крыша из STAIRS (настоящие скаты).
      */
     private void buildStairsRoof(int xMin, int zMin, int xMax, int zMax,
                                   int eaveY, boolean alongZ, Material roofMat, Material fillMat) {
         if (alongZ) {
-            // Гребень вдоль Z, скаты по X
             int span = xMax - xMin;
             int half = (span + 1) / 2;
-            int cx = (xMin + xMax) / 2;
             for (int rise = 0; rise <= half; rise++) {
                 int y = eaveY + rise;
                 int xL = xMin + rise;
@@ -506,21 +592,16 @@ public final class ElikiumHouses {
                 BlockData stairE = roofMat.createBlockData("[facing=west,half=bottom]");
                 for (int z = zMin - 1; z <= zMax + 1; z++) {
                     if (xL == xR) {
-                        // гребень
                         painter.place(xL, y, z, fillMat);
                     } else {
                         painter.placeData(xL, y, z, stairW);
                         painter.placeData(xR, y, z, stairE);
-                        // Заполнение между скатами на этом уровне (внутренность чердака)
                         for (int x = xL + 1; x < xR; x++) {
-                            painter.place(x, y - 1, z, Material.AIR); // расчистка чердака
+                            painter.place(x, y - 1, z, Material.AIR);
                         }
                     }
                 }
-                // Фронтон (gable triangle) — на торцах стены продлеваем вверх
-                int xL2 = Math.max(xL, xMin);
-                int xR2 = Math.min(xR, xMax);
-                for (int x = xL2; x <= xR2; x++) {
+                for (int x = Math.max(xL, xMin); x <= Math.min(xR, xMax); x++) {
                     painter.place(x, y, zMin, Material.DEEPSLATE_BRICKS);
                     painter.place(x, y, zMax, Material.DEEPSLATE_BRICKS);
                 }
@@ -528,7 +609,6 @@ public final class ElikiumHouses {
         } else {
             int span = zMax - zMin;
             int half = (span + 1) / 2;
-            int cz = (zMin + zMax) / 2;
             for (int rise = 0; rise <= half; rise++) {
                 int y = eaveY + rise;
                 int zN = zMin + rise;
@@ -544,9 +624,7 @@ public final class ElikiumHouses {
                         painter.placeData(x, y, zS, stairS);
                     }
                 }
-                int zN2 = Math.max(zN, zMin);
-                int zS2 = Math.min(zS, zMax);
-                for (int z = zN2; z <= zS2; z++) {
+                for (int z = Math.max(zN, zMin); z <= Math.min(zS, zMax); z++) {
                     painter.place(xMin, y, z, Material.DEEPSLATE_BRICKS);
                     painter.place(xMax, y, z, Material.DEEPSLATE_BRICKS);
                 }
