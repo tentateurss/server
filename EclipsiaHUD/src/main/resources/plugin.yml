@@ -1,0 +1,28 @@
+name: EclipsiaHUD
+version: 0.1.0
+main: ru.eclipsia.hud.EclipsiaHUD
+api-version: '1.20'
+depend: [EclipsiaCore]
+softdepend: [EclipsiaMobs, EclipsiaItems, EclipsiaPerks]
+author: EclipsiaTeam
+description: Server-side UI без ресурс-пака — sidebar, tablist, bossbar-реестр, titles, floating labels, damage numbers.
+
+commands:
+  hud:
+    description: Управление UI Eclipsia (sidebar, tablist, бары, метки).
+    usage: |
+      /hud sidebar          — переключить sidebar
+      /hud tablist          — переключить header/footer таблиста
+      /hud reload           — перечитать config.yml
+      /hud test <type>      — тестовый title/damage/label
+      /hud labels clear     — снять все плавающие метки
+    permission: eclipsia.hud.use
+    aliases: [eui]
+
+permissions:
+  eclipsia.hud.use:
+    description: Базовое использование команд HUD (toggle).
+    default: true
+  eclipsia.hud.admin:
+    description: Перезагрузка config.yml и debug-команды.
+    default: op

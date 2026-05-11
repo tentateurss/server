@@ -3,7 +3,7 @@
 **RPG-сервер для Minecraft 1.20.4 (Paper + кастомные плагины)**
 
 [![Status](https://img.shields.io/badge/Status-Bootstrap%20·%20UI%20Focus-yellow)]()
-[![Version](https://img.shields.io/badge/Version-1.1.0--bootstrap-blue)]()
+[![Version](https://img.shields.io/badge/Version-1.2.0--hud-blue)]()
 [![Minecraft](https://img.shields.io/badge/Minecraft-1.20.4-orange)]()
 [![Java](https://img.shields.io/badge/Java-17+-red)]()
 
@@ -72,9 +72,10 @@ Eclipsia — комплексный RPG-сервер с уникальной с�
 
 Подробная инструкция — [`TestServer/README.md`](TestServer/README.md).
 
-1. **Соберите плагины** из исходников:
+1. **Соберите плагины** из исходников. `EclipsiaCore` ставится в локальный maven-репозиторий первым — на него зависят остальные модули:
    ```bash
-   for m in EclipsiaCore EclipsiaItems EclipsiaSkills EclipsiaMobs EclipsiaPerks EclipsiaLobby EclipsiaTests; do
+   (cd EclipsiaCore && mvn -B install -DskipTests) || exit 1
+   for m in EclipsiaItems EclipsiaSkills EclipsiaMobs EclipsiaPerks EclipsiaLobby EclipsiaTests EclipsiaHUD; do
        (cd "$m" && mvn -B package -DskipTests) || exit 1
    done
    ```
@@ -147,6 +148,7 @@ server/
 ├── EclipsiaMobs/        — Кастомные мобы и боссы
 ├── EclipsiaPerks/       — Дерево перков
 ├── EclipsiaLobby/       — Лобби и выбор класса
+├── EclipsiaHUD/         — Серверный UI без ресурс-пака (sidebar, tablist, bossbar, titles, floating labels, damage numbers)
 ├── EclipsiaTests/       — Автотесты
 ├── TestServer/          — dev-площадка (миры в .gitignore)
 ├── resourcepack/        — Клиентский ресурс-пак (хотбар, классы, GUI)
