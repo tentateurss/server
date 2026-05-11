@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## Версия 1.2.1-hud-cleanup — 11.05.2026
+
+**Завершение HUD-интеграции: удаление мёртвого кода и soft-dep level-up.**
+
+### Изменения
+- 🗑️ Удалён `EclipsiaCore/src/main/java/ru/eclipsia/core/listener/RegionTitleListener.java` — миры `world`/`beach` отсутствуют с v1.1.0-bootstrap, листенер не работал. Функциональность переехала в `EclipsiaHUD/RegionEnterListener` (конфиг-реестр зон).
+- 🔧 `EclipsiaCore.java` — снята регистрация удалённого листенера, добавлен комментарий-указатель на новый модуль.
+- 🔄 `EclipsiaMobs/ExperienceManager.levelUp()` — теперь сначала пытается вызвать `EclipsiaHUDAPI.showLevelUp()` через рефлексию (soft-dep по образцу `givePerkPoint`). Если HUD-плагин не установлен или вернул `null`, отрабатывает старый fallback на deprecated `player.sendTitle(...)`. Никаких новых обязательных зависимостей.
+- 📋 Новый документ [`docs/eclipsia-roadmap.md`](docs/eclipsia-roadmap.md) — детальный текстовый чеклист всех фаз проекта (от Bootstrap до Production).
+
+### Что НЕ изменилось
+- API EclipsiaHUD без изменений.
+- Никаких breaking changes для других модулей.
+- `HUDActionBarListener` (EclipsiaSkills) и `PlayerHUDManager` (EclipsiaItems) — без изменений.
+
+---
+
 ## Версия 1.2.0-hud — 11.05.2026
 
 **Новый модуль `EclipsiaHUD` — серверный UI без ресурс-пака.**

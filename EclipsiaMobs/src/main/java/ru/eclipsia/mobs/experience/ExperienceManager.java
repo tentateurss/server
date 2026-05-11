@@ -107,8 +107,11 @@ public class ExperienceManager {
         // ЭТАП: +1 очко перков КАЖДЫЙ уровень (стиль PoE)
         givePerkPoint(player);
         
-        // Эффекты
-        player.sendTitle("§6§lПОВЫШЕНИЕ УРОВНЯ!", "§eУровень " + newLevel, 10, 40, 10);
+        // Title — через EclipsiaHUD если установлен (Adventure showTitle с
+        // конфиг-таймингами), иначе fallback на старый deprecated sendTitle.
+        if (!showLevelUpViaHud(player, newLevel)) {
+            player.sendTitle("§6§lПОВЫШЕНИЕ УРОВНЯ!", "§eУровень " + newLevel, 10, 40, 10);
+        }
         player.sendMessage("§6§l▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
         player.sendMessage("§6§l                    ПОВЫШЕНИЕ УРОВНЯ!");
         player.sendMessage("");
@@ -232,6 +235,34 @@ public class ExperienceManager {
         } catch (Exception e) {
             plugin.getLogger().warning("Не удалось выдать очко перков игроку "
                     + player.getName() + ": " + e.getMessage());
+        }
+    }
+
+    /**
+     * Показать level-up title через EclipsiaHUD (если плагин установлен и
+     * включён). Возвращает {@code true} если HUD взял на себя рендер —
+     * тогда вызывающий код пропустит fallback на deprecated sendTitle().
+     *
+     * <p>Soft-dep через рефлексию по тому же паттерну, что
+     * {@link #givePerkPoint(Player)}: без HUD-плагина модуль EclipsiaMobs
+     * собирается и работает без изменений.
+     */
+    private boolean showLevelUpViaHud(Player player, int newLevel) {
+        Plugin hudPlugin = plugin.getServer().getPluginManager().getPlugin("EclipsiaHUD");
+        if (hudPlugin == null || !hudPlugin.isEnabled()) return false;
+
+        try {
+            Class<?> apiClass = Class.forName("ru.eclipsia.hud.api.EclipsiaHUDAPI");
+            Object api = apiClass.getMethod("getInstance").invoke(null);
+            if (api == null) return false;
+
+            apiClass.getMethod("showLevelUp", Player.class, int.class)
+                    .invoke(api, player, newLevel);
+            return true;
+        } catch (Throwable t) {
+            // не валим level-up из-за рефлексии — пусть отработает fallback
+            plugin.getLogger().fine("HUD level-up недоступен: " + t.getMessage());
+            return false;
         }
     }
 }

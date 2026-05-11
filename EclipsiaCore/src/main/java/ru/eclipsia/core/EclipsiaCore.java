@@ -129,8 +129,10 @@ public class EclipsiaCore extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new ru.eclipsia.core.listeners.StatsCombatListener(), this);
         getServer().getPluginManager().registerEvents(new ru.eclipsia.core.listeners.HideVanillaHUDListener(), this);
         getServer().getPluginManager().registerEvents(new ru.eclipsia.core.listeners.WeatherTimeListener(this), this);
-        getServer().getPluginManager().registerEvents(new ru.eclipsia.core.listener.RegionTitleListener(this), this);
-        
+        // RegionTitleListener удалён: миры world/beach снесены в PR #51,
+        // функциональность переехала в EclipsiaHUD/RegionEnterListener
+        // (конфиг-реестр зон вместо хардкода).
+
         getLogger().info("✓ Слушатели зарегистрированы");
     }
 }
