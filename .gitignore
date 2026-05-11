@@ -82,3 +82,29 @@ replay_pid*
 !dist/
 !dist/plugins/
 !dist/plugins/*.jar
+
+# Minecraft server runtime — миры, кэши, логи генерируются на лету
+# и не должны попадать в git. Конфиги и plugins/ — трэкаем.
+TestServer/world/
+TestServer/world_nether/
+TestServer/world_the_end/
+TestServer/lobby/
+TestServer/lobby_nether/
+TestServer/lobby_the_end/
+TestServer/beach/
+TestServer/dev_flat/
+TestServer/build/
+TestServer/logs/
+TestServer/cache/
+TestServer/crash-reports/
+TestServer/usercache.json
+TestServer/version_history.json
+TestServer/.console_history
+TestServer/banned-ips.json
+TestServer/banned-players.json
+TestServer/whitelist.json
+TestServer/paper.jar
+TestServer/eclipsia-resourcepack.zip
+TestServer/plugins/*/data/
+TestServer/plugins/*/cache/
+TestServer/plugins/*.jar
