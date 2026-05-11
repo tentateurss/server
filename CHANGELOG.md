@@ -1,6 +1,31 @@
-# 📝 CHANGELOG - 25.04.2026
+# CHANGELOG
 
-## Версия 1.0.0 - ФИНАЛЬНЫЙ РЕЛИЗ
+## Версия 1.1.0-bootstrap — 11.05.2026
+
+**Перезапуск проекта: фокус на ручной билд карты и кастомный UI.**
+
+### Изменения архитектуры
+- ⚠️ `EclipsiaBuilder` (процедурный генератор Эликия/Берега/гор/собора) выведен из активной разработки. Исходники сохранены в `archive/EclipsiaBuilder/` как референс. Команды `/build *` больше не работают.
+- 🗑️ Удалены сгенерированные миры из git (`TestServer/{world,beach,lobby,world_nether,world_the_end,lobby_nether,lobby_the_end}`) — миры теперь не коммитятся, генерируются на лету.
+- 🗑️ Удалены runtime-артефакты из git (`TestServer/logs/`, `usercache.json`, `version_history.json`, `.console_history`, `banned-*.json`, `whitelist.json`).
+- ✅ `TestServer` переведён на чистый `dev_flat` мир: плоская тестовая площадка для разработки (`level-name=dev_flat`, `level-type=minecraft:flat`).
+- ✅ Добавлен `TestServer/start.sh` (Linux/macOS, Aikar's flags).
+- ✅ Обновлён `.gitignore`: миры, кэши, логи и JARы плагинов теперь игнорируются.
+
+### Документация
+- ✅ Новый файл [`docs/eclipsia-plan.md`](docs/eclipsia-plan.md) — детальный roadmap нового направления (стек, плагины, UI через custom font, этапы 4-9, CI, апгрейд версии MC).
+- ✅ Новый [`TestServer/README.md`](TestServer/README.md) — инструкция запуска dev-сервера.
+- ✅ Новый [`archive/README.md`](archive/README.md) — назначение архивной зоны.
+- ✅ Обновлён корневой `README.md` — отражение нового направления.
+
+### Что НЕ изменилось
+- Логика и API существующих плагинов: `EclipsiaCore`, `EclipsiaItems`, `EclipsiaSkills`, `EclipsiaMobs`, `EclipsiaPerks`, `EclipsiaLobby`, `EclipsiaTests` — без изменений в этом PR.
+- Версия Minecraft: остаётся 1.20.4 (апгрейд на 1.21.x — отдельная фаза, см. план §7).
+- `netrogat/`, `dist/plugins/`, `texture/` — без изменений.
+
+---
+
+## Версия 1.0.0 — 25.04.2026 (ФИНАЛЬНЫЙ РЕЛИЗ предыдущей итерации)
 
 ---
 

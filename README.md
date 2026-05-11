@@ -1,17 +1,25 @@
-# 🎮 ECLIPSIA RPG SERVER
+# ECLIPSIA RPG SERVER
 
-**Полнофункциональный RPG-сервер для Minecraft 1.20.4**
+**RPG-сервер для Minecraft 1.20.4 (Paper + кастомные плагины)**
 
-[![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)]()
-[![Version](https://img.shields.io/badge/Version-1.0.0-blue)]()
+[![Status](https://img.shields.io/badge/Status-Bootstrap%20·%20UI%20Focus-yellow)]()
+[![Version](https://img.shields.io/badge/Version-1.1.0--bootstrap-blue)]()
 [![Minecraft](https://img.shields.io/badge/Minecraft-1.20.4-orange)]()
 [![Java](https://img.shields.io/badge/Java-17+-red)]()
 
+> **О перезапуске проекта:** процедурный `EclipsiaBuilder` выведён из активной разработки (лежит в `archive/`),
+> финальная карта будет строиться руками. Сервер переведён на чистый `dev_flat` мир. Фокус второй итерации —
+> кастомный UI (ресурс-пак + custom font HUD).
+> Подробности — [`docs/eclipsia-plan.md`](docs/eclipsia-plan.md).
+
 ---
 
-## 📋 Описание
+## Описание
 
-Eclipsia - это комплексный RPG-сервер с уникальной системой навыков (эклипсов), боссами, структурами и полноценной прогрессией персонажа. Вдохновлен Path of Exile и классическими MMORPG.
+Eclipsia — комплексный RPG-сервер с уникальной системой навыков (эклипсы), боссами, системой предметов с аффиксами
+и прогрессией персонажа. Вдохновлён Path of Exile и Lineage 2.
+
+**Принцип:** ванильный Minecraft без модов, только свои плагины + бесплатные вспомогательные (Multiverse, WorldEdit/FAWE, WorldGuard, Vault, PlaceholderAPI, CoreProtect).
 
 ---
 
@@ -42,11 +50,11 @@ Eclipsia - это комплексный RPG-сервер с уникально�
 - **Зоны спавна мобов** в структурах
 - **Награды**: опыт, орбы, предметы
 
-### 🏗️ Структуры мира
-- **9 уникальных структур**: город, лагеря, арены, руины
-- **Плоские миры** для полного контроля
-- **Автоматическая генерация** через команду
-- **Интеграция с WorldGuard** для границ
+### 🏗️ Карта и структуры
+- **dev_flat** — чистый плоский мир для разработки и тестов
+- **Ручной билд** финальной карты через WorldEdit/FAWE/Axiom
+- **Multiverse-Core** для управления мирами (`dev_flat`, `build`, `test_arena`, ...)
+- **WorldGuard** для регионов, флагов и границ
 
 ---
 
@@ -60,30 +68,30 @@ Eclipsia - это комплексный RPG-сервер с уникально�
 ✅ WorldGuard
 ```
 
-### Установка
+### Установка (dev-сервер)
 
-1. **Скопируйте плагины** в папку `plugins/`:
-```
-EclipsiaCore.jar
-EclipsiaItems.jar
-EclipsiaLobby.jar
-EclipsiaSkills.jar
-EclipsiaMobs.jar
-EclipsiaBuilder.jar
-EclipsiaPerks.jar
-```
+Подробная инструкция — [`TestServer/README.md`](TestServer/README.md).
 
-2. **Запустите сервер**:
-```bash
-java -Xmx4G -Xms2G -jar paper.jar
-```
+1. **Соберите плагины** из исходников:
+   ```bash
+   for m in EclipsiaCore EclipsiaItems EclipsiaSkills EclipsiaMobs EclipsiaPerks EclipsiaLobby EclipsiaTests; do
+       (cd "$m" && mvn -B package -DskipTests) || exit 1
+   done
+   ```
+2. **Скопируйте JARы** в `TestServer/plugins/`:
+   ```bash
+   cp */target/*.jar TestServer/plugins/
+   ```
+3. **Добавьте бесплатные зависимости** (Multiverse-Core, WorldEdit, FAWE, WorldGuard, Vault, PlaceholderAPI, CoreProtect) в `TestServer/plugins/`.
+4. **Скачайте Paper 1.20.4** с https://papermc.io/downloads/paper и положите как `TestServer/paper.jar`.
+5. **Запустите:**
+   ```bash
+   cd TestServer && ./start.sh   # Linux/macOS
+   cd TestServer && start.bat    # Windows
+   ```
 
-3. **Постройте структуры**:
-```
-/build all
-```
-
-4. **Готово!** Сервер готов к игре.
+При первом запуске создаётся мир `dev_flat` — плоская тестовая площадка. Никаких `/build all` больше не нужно —
+процедурный билдер отключён и переведён в `archive/EclipsiaBuilder/`.
 
 ---
 
@@ -119,30 +127,40 @@ java -Xmx4G -Xms2G -jar paper.jar
 
 ### Команды администратора
 ```
-/build all           - Построить все структуры
 /boss spawn gatekeeper - Заспавнить босса
 /giveskill <slot> <тип> - Выдать навык для теста
 /mob spawn <тип>     - Заспавнить моба
 /exp add <игрок> <кол-во> - Выдать опыт
 ```
 
+_`/build` команды из EclipsiaBuilder больше не работают — модуль в `archive/`._
+
 ---
 
-## 📦 Структура проекта
+## Структура проекта
 
 ```
-EclipsiaProject/
-├── EclipsiaCore/        - Ядро (профили, мана, API)
-├── EclipsiaItems/       - Предметы и экипировка
-├── EclipsiaLobby/       - Лобби и создание персонажей
-├── EclipsiaSkills/      - Система навыков
-├── EclipsiaMobs/        - Мобы и боссы
-├── EclipsiaBuilder/     - Генерация структур
-├── EclipsiaPerks/       - Система перков
-├── TestServer/          - Тестовый сервер
-├── FINAL_RELEASE.md     - Инструкции по запуску
-├── CHANGELOG.md         - История изменений
-└── README.md            - Этот файл
+server/
+├── EclipsiaCore/        — Ядро (профили, мана, API, классы)
+├── EclipsiaItems/       — Предметы, аффиксы, экипировка
+├── EclipsiaSkills/      — Навыки-эклипсы
+├── EclipsiaMobs/        — Кастомные мобы и боссы
+├── EclipsiaPerks/       — Дерево перков
+├── EclipsiaLobby/       — Лобби и выбор класса
+├── EclipsiaTests/       — Автотесты
+├── TestServer/          — dev-площадка (миры в .gitignore)
+├── resourcepack/        — Клиентский ресурс-пак (хотбар, классы, GUI)
+├── texture/             — Исходные мокапы UI (для нарезки в resourcepack/)
+├── docs/                — План развития и доки
+│   └── eclipsia-plan.md — Главный роудмап
+├── archive/             — Неактивные модули (референс)
+│   └── EclipsiaBuilder/ — Процедурный генератор (в паузе)
+├── dist/plugins/        — Собранные JARы (legacy, будут мигрировать в GitHub Releases)
+├── ARCHITECTURE.md      — Модульная архитектура плагинов
+├── ROADMAP.md           — Исторический roadmap (этапы 0-3)
+├── FINAL_RELEASE.md     — Описание релиза v1.0.0
+├── CHANGELOG.md         — История изменений
+└── README.md            — Этот файл
 ```
 
 ---
@@ -157,20 +175,12 @@ EclipsiaProject/
 
 ---
 
-## 🗺️ Карта мира
+## Карта мира
 
-### Берег (beach)
-- **beach_spawn** (0, 64, 0) - Стартовая точка
-- **gatekeeper_arena** (55, 64, 55) - Арена первого босса
+С v1.1.0-bootstrap процедурные структуры выключены — карта строится руками. Для разработки используется `dev_flat`
+(плоский мир с одним слоем травы). Для финального билда будет создаваться отдельный `build` мир через Multiverse-Core.
 
-### Основной мир (world)
-- **elikium_city** (0, 70, 0) - Главный город-хаб
-- **starter_camp** (200, 70, 0) - Лагерь для новичков (1-5 lvl)
-- **forest_camp** (400, 70, 200) - Лесной лагерь (5-10 lvl)
-- **dark_forest_camp** (-200, 70, -200) - Темный лес (10-15 lvl)
-- **elite_camp** (500, 70, 500) - Элитная зона (15-20 lvl)
-- **ancient_ruins** (-300, 70, 300) - Древние руины
-- **dungeon_portal** (100, 70, -100) - Портал в подземелье
+Подробности по билду и инструментам (WorldEdit, FAWE, Axiom, Litematica) — [`docs/eclipsia-plan.md`](docs/eclipsia-plan.md), §4.
 
 ---
 
@@ -185,11 +195,6 @@ EclipsiaProject/
 - Регенерация маны
 - Кулдауны навыков
 - Базовый урон
-
-### EclipsiaBuilder
-- Координаты структур
-- Features (костры, палатки, зоны спавна)
-- Настройки миров
 
 ### EclipsiaMobs
 - Характеристики мобов
@@ -221,23 +226,35 @@ EclipsiaProject/
 
 ## 🔮 Дорожная карта
 
-### Версия 1.1.0 (Планируется)
-- [ ] Система квестов
-- [ ] NPC с диалогами
-- [ ] 3-5 новых боссов
-- [ ] Дополнительные структуры
+Детальный roadmap — [`docs/eclipsia-plan.md`](docs/eclipsia-plan.md), §5.
 
-### Версия 1.2.0 (Планируется)
-- [ ] Расширенное дерево перков (2000×2000)
-- [ ] Процедурные подземелья
-- [ ] PvP арены
-- [ ] Система гильдий
+### Этап 4: UI-перезапуск (текущий)
+- [x] Отказ от процедурного билдера, чистый dev_flat
+- [ ] Custom font HUD (HP/MP/XP полоски в стиле L2/PoE)
+- [ ] Новый модуль `EclipsiaHUD` (рендер через actionbar/title)
+- [ ] Интеграция мокапов из `texture/` в `resourcepack/`
+- [ ] CI-сборка resource pack + JARs + GitHub Releases
 
-### Версия 2.0.0 (Концепт)
-- [ ] Рейды на 5-10 игроков
-- [ ] Сезонные события
-- [ ] Торговая система
-- [ ] Крафт и профессии
+### Этап 5: NPC и квесты
+- [ ] Citizens 1.20.4
+- [ ] BetonQuest, стартовая ветка квестов
+- [ ] 5 NPC в стартовом городе
+
+### Этап 6: Данжи и боссы
+- [ ] Инстансы через Multiverse-Inventories
+- [ ] 3 данжа, 5 боссов
+- [ ] Система парти + таблица лидеров
+
+### Этап 7: PvP и социалка (L2-style)
+- [ ] PvP-зоны WorldGuard
+- [ ] Кланы, осады
+
+### Этап 8: Endgame (PoE-style)
+- [ ] Карты (maps), лиги, уникальные предметы
+
+### Этап 9: Масштабирование
+- [ ] PDC → SQLite при 50+ онлайн
+- [ ] Spark-профайлинг
 
 ---
 
@@ -276,9 +293,9 @@ EclipsiaProject/
 
 Спасибо за использование Eclipsia RPG Server!
 
-**Статус:** ✅ PRODUCTION READY  
-**Дата релиза:** 25 апреля 2026  
-**Версия:** 1.0.0
+**Статус:** 🚧 BOOTSTRAP итерация (UI-focus)  
+**Дата:** 11 мая 2026  
+**Версия:** 1.1.0-bootstrap
 
 ---
 
