@@ -1,5 +1,35 @@
 # CHANGELOG
 
+## Версия 1.2.0-hud — 11.05.2026
+
+**Новый модуль `EclipsiaHUD` — серверный UI без ресурс-пака.**
+
+### Новое
+- ✅ **`EclipsiaHUD/`** — 8-й активный модуль, чистый аддитив. Не трогает существующий ActionBar HUD (EclipsiaSkills) и XP-bossbar (EclipsiaItems).
+- ✅ Public API [`ru.eclipsia.hud.api.EclipsiaHUDAPI`](EclipsiaHUD/src/main/java/ru/eclipsia/hud/api/EclipsiaHUDAPI.java) для других модулей: `showLevelUp/showBossSpawn/showRegionEnter/showWelcome`, `setSidebarVisible`, `showBossBar/hideBossBar`, `spawnLabel`, `showDamage`. Доступ через `EclipsiaHUDAPI.getInstance()` — возвращает `null` при отсутствии HUD-плагина (soft dependency).
+- ✅ **Sidebar** ([SidebarService](EclipsiaHUD/src/main/java/ru/eclipsia/hud/sidebar/SidebarService.java)) — per-player scoreboard 15 строк, hex-цвета, обновление раз в секунду, toggle `/hud sidebar`.
+- ✅ **TabList** ([TabListService](EclipsiaHUD/src/main/java/ru/eclipsia/hud/tablist/TabListService.java)) — header/footer с плейсхолдерами `<player>`/`<player_count>`/`<level>`/`<class>`/`<world>`.
+- ✅ **BossBar registry** ([BossBarRegistry](EclipsiaHUD/src/main/java/ru/eclipsia/hud/bossbar/BossBarRegistry.java)) — per-player реестр баров по ключу. НЕ конкурирует с XP-bar из EclipsiaItems.
+- ✅ **Title cinematic** ([TitleCinematicService](EclipsiaHUD/src/main/java/ru/eclipsia/hud/title/TitleCinematicService.java)) — welcome / level-up / boss-spawn / region-enter через Adventure `showTitle()` (вместо deprecated `sendTitle()`).
+- ✅ **Region registry** ([RegionRegistry](EclipsiaHUD/src/main/java/ru/eclipsia/hud/region/RegionRegistry.java) + [RegionEnterListener](EclipsiaHUD/src/main/java/ru/eclipsia/hud/region/RegionEnterListener.java)) — конфиг-зоны (`world` + bbox) с шаблоном MiniMessage в `name`. **Заменяет сломанный `EclipsiaCore/listener/RegionTitleListener`**, который хардкодил миры `world`/`beach` (удалены в v1.1.0-bootstrap).
+- ✅ **Floating labels** ([FloatingLabelService](EclipsiaHUD/src/main/java/ru/eclipsia/hud/floatlabel/FloatingLabelService.java)) — TextDisplay (1.19.4+), billboard, прозрачный фон, scale, TTL. Заменяет ArmorStand-метки.
+- ✅ **Damage numbers — modern** ([ModernDamageDisplay](EclipsiaHUD/src/main/java/ru/eclipsia/hud/damage/ModernDamageDisplay.java)) — TextDisplay-цифры, цвет по `DamageType`, крит = жирный + увеличенный масштаб + восклицательный знак. Старый `DamageDisplay` (ArmorStand) остаётся, переключение через `damage-numbers.mode` (`legacy` / `modern` / `both`).
+- ✅ **Theme** ([Theme](EclipsiaHUD/src/main/java/ru/eclipsia/hud/theme/Theme.java)) — единая палитра: цвета классов (warrior/archer/mage), рарностей (PoE-style), типов урона; обёртка над MiniMessage.
+- ✅ Конфиг [`config.yml`](EclipsiaHUD/src/main/resources/config.yml) — все блоки опциональны, шаблоны фраз и тайминги без перекомпиляции.
+- ✅ Команда `/hud sidebar | tablist | reload | test <title|welcome|boss|region|damage|label> | labels clear` (alias `/eui`).
+
+### Что НЕ изменилось
+- Логика существующих плагинов не тронута. `EclipsiaCore/listener/RegionTitleListener.java` физически остался в репо как «мёртвый код» (worlds `world`/`beach` отсутствуют → листенер ни на что не отвечает). Удаление — в следующем PR после деплоя и проверки нового RegionEnterListener.
+- `EclipsiaMobs/ExperienceManager#levelUp` всё ещё использует deprecated `sendTitle(...)`. Миграцию на `EclipsiaHUDAPI.showLevelUp()` сделаем отдельным PR — это требует разметить вызов через soft-dep (как сейчас сделан `givePerkPoint` через рефлексию).
+- `HUDActionBarListener` (EclipsiaSkills) и `PlayerHUDManager` (EclipsiaItems) — без изменений.
+
+### Статистика модуля
+- 14 Java-файлов, ~1100 строк кода
+- 0 transitive dependencies (только paper-api `provided`)
+- Сборка: `mvn -B package -DskipTests` (после `EclipsiaCore` `mvn install`)
+
+---
+
 ## Версия 1.1.0-bootstrap — 11.05.2026
 
 **Перезапуск проекта: фокус на ручной билд карты и кастомный UI.**

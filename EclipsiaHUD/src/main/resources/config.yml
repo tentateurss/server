@@ -1,0 +1,90 @@
+# ============================================================
+#  EclipsiaHUD — серверный UI без ресурс-пака
+#
+#  Все блоки можно отключить независимо: например, выключить
+#  sidebar если используешь сторонний scoreboard-плагин.
+# ============================================================
+
+sidebar:
+  enabled: true
+  # период обновления, тиков (20 = 1 секунда)
+  period-ticks: 20
+  title: "<gradient:#ffd166:#ef476f><bold>✦ ECLIPSIA ✦</bold></gradient>"
+  # toggle включается по умолчанию для новых игроков
+  default-on: true
+
+tablist:
+  enabled: true
+  period-ticks: 40
+  header: |
+    <gradient:#ffd166:#ef476f><bold>✦  E C L I P S I A  ✦</bold></gradient>
+    <gray>————————————————————————————————</gray>
+  footer: |
+    <gray>————————————————————————————————</gray>
+    <gray>v1.1.0-bootstrap · <white><player_count></white> онлайн</gray>
+
+titles:
+  welcome:
+    enabled: true
+    title: "<gradient:#ffd166:#ef476f><bold>✦ ECLIPSIA ✦</bold></gradient>"
+    subtitle: "<gray>добро пожаловать, <yellow><player></yellow></gray>"
+    fade-in-ticks: 20
+    stay-ticks: 60
+    fade-out-ticks: 20
+  level-up:
+    enabled: true
+    title: "<gold><bold>ПОВЫШЕНИЕ УРОВНЯ!</bold></gold>"
+    subtitle: "<yellow>Уровень <level></yellow>"
+    fade-in-ticks: 10
+    stay-ticks: 40
+    fade-out-ticks: 10
+  boss-spawn:
+    enabled: true
+    title: "<red><bold>⚠ <boss></bold></red>"
+    subtitle: "<dark_red>пробуждается</dark_red>"
+    fade-in-ticks: 5
+    stay-ticks: 50
+    fade-out-ticks: 10
+  region-enter:
+    enabled: true
+    # сам заголовок берётся из RegionRegistry (см. ниже)
+    fade-in-ticks: 10
+    stay-ticks: 40
+    fade-out-ticks: 10
+
+regions:
+  # period-ticks определяет, как часто смотрим в каком регионе игрок.
+  # 10 тиков (0.5с) — компромисс между чувствительностью и нагрузкой.
+  period-ticks: 10
+  # Список регионов. Сейчас используем bbox-формат: world + (x1,z1)..(x2,z2).
+  # Когда добавим WorldGuard — будет ключ wg-region.
+  list:
+    - id: spawn
+      world: dev_flat
+      x1: -16
+      z1: -16
+      x2: 16
+      z2: 16
+      name: "<gradient:#ffd166:#fff>✦ Spawn</gradient>"
+
+floating-labels:
+  enabled: true
+  # сколько тиков жить «времянке» (TTL для меток loot/damage и т.п.)
+  default-ttl-ticks: 60
+  # по умолчанию метки видны сквозь стены — удобнее для квестов
+  see-through-walls: true
+  # масштаб шрифта (1.0 — нормальный)
+  default-scale: 1.0
+  # цвет фона: RGBA hex без префикса. 00000040 = чёрный с альфой 25%.
+  default-background: "00000040"
+
+damage-numbers:
+  enabled: true
+  # legacy = ArmorStand (старый EclipsiaCore/combat/DamageDisplay)
+  # modern = TextDisplay (новый ModernDamageDisplay)
+  # both   = и то и другое (для A/B сравнения, по умолчанию выключено)
+  mode: "modern"
+  ttl-ticks: 30
+  scale: 0.8
+  # рандомный сдвиг по XZ — чтобы цифры не накладывались
+  scatter-radius: 0.7
